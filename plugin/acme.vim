@@ -95,14 +95,14 @@ command -nargs=? K call s:Kill(<q-args>)
 
 function s:Send(w, inp)
 	let b = winbufnr(a:w)
-	let inp = map(split(a:inp, '\n'),
-		\ 'substitute(v:val, "\\v^\xc2\xbb\\s*", "", "")')
+	let inp = split(a:inp, '\n')
 	let pos = line('$', a:w)
 	if pos == 1 && getbufline(b, '$') == ['']
 		let pos = 0
 	elseif inp == getbufline(b, pos - len(inp) + 1, pos)
 		let pos -= len(inp)
 	endif
+	call map(inp, 'substitute(v:val, "\\v^\xc2\xbb\\s*", "", "")')
 	call setbufline(b, pos + 1, map(copy(inp), '"\xc2\xbb ".v:val'))
 	call win_execute(a:w, 'normal! G0')
 	for job in s:Jobs(b)
