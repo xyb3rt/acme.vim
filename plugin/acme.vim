@@ -295,7 +295,7 @@ endfunc
 
 function s:DirList()
 	let dir = expand('%')
-	if !isdirectory(dir)
+	if !isdirectory(dir) || !&modifiable
 		return
 	endif
 	let lst = ['..'] + readdir(dir, {f -> f[0] != '.'}, {'sort': 'collate'})
