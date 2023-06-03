@@ -320,11 +320,11 @@ endfunc
 
 au VimEnter * call s:InitDirs()
 
-let s:mimetypes = ['^text/', '^application/json>']
-
 function s:Readable(path)
-	let type = system('file -ib '.shellescape(fnamemodify(a:path, ':p')))
-	return filter(copy(s:mimetypes), {_, mt -> type =~ '\v'.mt}) != []
+	" Reject binary files, i.e. files containing null characters (which
+	" readfile() turns into newlines!)
+	let path = fnamemodify(a:path, ':p')
+	return filereadable(path) && join(readfile(path, '', 4096), '') !~ '\n'
 endfunc
 
 function s:FileOpen(path, pos)
