@@ -511,10 +511,9 @@ function s:MiddleRelease(click) range
 	call s:RestVisual(s:visual)
 	let b = bufnr()
 	let dir = s:Dir()
-	let send = getbufvar(b, 'acme_scratch') && len(s:Jobs(b)) > 0
 	let w = win_getid()
 	exe win_id2win(s:clickwin).'wincmd w'
-	if !send
+	if !getbufvar(b, 'acme_scratch') || len(s:Jobs(b)) == 0
 		let [cmd, io] = s:ParseCmd(cmd)
 		call s:Run(cmd, io, dir)
 	elseif w == s:clickwin || a:click <= 0
