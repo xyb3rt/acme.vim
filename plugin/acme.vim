@@ -100,6 +100,10 @@ command -nargs=? K call s:Kill(<q-args>)
 
 function s:Send(w, inp)
 	let b = winbufnr(a:w)
+	let jobs = s:Jobs(b)
+	if len(jobs) != 1
+		return
+	endif
 	let inp = split(a:inp, '\n')
 	let pos = line('$', a:w)
 	if pos == 1 && getbufline(b, '$') == ['']
@@ -110,10 +114,8 @@ function s:Send(w, inp)
 	call map(inp, 'substitute(v:val, "\\v^\xc2\xbb ?", "", "")')
 	call setbufline(b, pos + 1, map(copy(inp), '"\xc2\xbb ".v:val'))
 	call win_execute(a:w, 'normal! G0')
-	for job in s:Jobs(b)
-		call ch_setoptions(job.h, {'callback': ''})
-		call ch_sendraw(job.h, join(inp, "\n") . "\n")
-	endfor
+	call ch_setoptions(jobs[0].h, {'callback': ''})
+	call ch_sendraw(jobs[0].h, join(inp, "\n") . "\n")
 	if a:w != win_getid()
 		call setbufvar(bufnr(), 'acme_send_buf', b)
 	endif
@@ -121,12 +123,11 @@ endfunc
 
 function s:Tab(inp)
 	let b = bufnr()
-	if getbufvar(b, 'acme_scratch') && len(s:Jobs(b)) > 0
+	if getbufvar(b, 'acme_scratch')
 		call s:Send(win_getid(), a:inp)
 	else
-		let b = getbufvar(b, 'acme_send_buf', -1)
-		let w = s:Win(b)
-		if b != -1 && w != 0 && len(s:Jobs(b)) > 0
+		let w = s:Win(getbufvar(b, 'acme_send_buf', -1))
+		if w != 0
 			call s:Send(win_getid(w), a:inp)
 		endif
 	endif
