@@ -76,6 +76,11 @@ function s:Exited(job, status)
 			if fnamemodify(bufname(job.buf), ':t') == '+Errors'
 				checktime
 			endif
+			for b in range(bufnr('$'))
+				if getbufvar(b, 'acme_send_buf', -1) == job.buf
+					call setbufvar(b, 'acme_send_buf', -1)
+				endif
+			endfor
 			break
 		endif
 	endfor
