@@ -102,7 +102,7 @@ function s:Send(w, inp)
 	elseif inp == getbufline(b, pos - len(inp) + 1, pos)
 		let pos -= len(inp)
 	endif
-	call map(inp, 'substitute(v:val, "\\v^\xc2\xbb\\s*", "", "")')
+	call map(inp, 'substitute(v:val, "\\v^\xc2\xbb ?", "", "")')
 	call setbufline(b, pos + 1, map(copy(inp), '"\xc2\xbb ".v:val'))
 	call win_execute(a:w, 'normal! G0')
 	for job in s:Jobs(b)
