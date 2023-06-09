@@ -75,7 +75,7 @@ Bringing the spirit of Plan 9 acme to vim.
 Installation
 ------------
 
-You can install acme.vim with your favorite package manager or with vim's
+You can install *acme.vim* with your favorite package manager or with vim's
 builtin package support:
 
 ```
