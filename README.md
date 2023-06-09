@@ -46,18 +46,20 @@ Bringing the spirit of Plan 9 acme to vim.
 	formatting it by middle-clicking `|fmt` in another window.
 
 	Additionally *acme.vim* supports the new output prefix `^`: The output
-	of the command goes to a new scratch buffer. This makes it possible to
-	run primitive REPLs inside vim. Middle-clicking in such buffers sends
-	the text to the command instead of executing it. Middle-clicking
-	anywhere in a scratch buffer from another window sends that window's
-	selection.
-
-	Commands can also have suffixes: `+` is replaced with the selection,
-	`%` with the filename of the buffer.
+	of the command goes to a new scratch buffer. Commands can also have
+	suffixes: `+` is replaced with the selection, `%` with the filename of
+	the buffer.
 
 	Commands can also be started with the `R` command, which uses the
 	current working directory. All running commands matching a given
 	pattern can be killed with the `K` command.
+
+* Send text to terminals:
+
+	Middle-clicking in terminal buffers sends the text to the command
+	running in the terminal instead of executing it. Middle-clicking
+	anywhere in a terminal buffer from another window sends that window's
+	selection.
 
 * Commands open files in the vim instance they were started from:
 
