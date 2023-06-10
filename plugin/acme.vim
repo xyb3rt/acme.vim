@@ -111,13 +111,14 @@ endfunc
 
 function s:Tab(inp)
 	let b = bufnr()
+	let w = s:Win(getbufvar(b, 'acme_send_buf', -1))
+	let terms = filter(term_list(), 's:Win(v:val) != 0')
 	if getbufvar(b, '&buftype') == 'terminal'
 		call s:Send(win_getid(), a:inp)
-	else
-		let w = s:Win(getbufvar(b, 'acme_send_buf', -1))
-		if w != 0
-			call s:Send(win_getid(w), a:inp)
-		endif
+	elseif w != 0
+		call s:Send(win_getid(w), a:inp)
+	elseif len(terms) == 1
+		call s:Send(win_getid(s:Win(terms[0])), a:inp)
 	endif
 endfunc
 
