@@ -519,7 +519,11 @@ function s:ListBufs()
 endfunc
 
 function s:DoubleLeftMouse()
-	if getmousepos()['winid'] == 0
+	let w = s:OnStat()
+	if w != 0 && winnr('$') > 1
+		exe w.'wincmd w'
+		only!
+	elseif w != 0 || getmousepos()['winid'] == 0
 		call s:ListBufs()
 	else
 		exe "normal! \<2-LeftMouse>"
