@@ -407,6 +407,20 @@ function s:OpenFile(name, pos)
 	return 1
 endfunc
 
+function s:OpenBuf(b)
+	let b = bufnr(a:b)
+	if b <= 0
+		return 0
+	endif
+	let w = s:Win(b)
+	if w != 0
+		exe w.'wincmd w'
+	else
+		call s:New('sp | b '.b)
+	endif
+	return 1
+endfunc
+
 function s:Open(text, click)
 	for [pat, Handler] in get(g:, 'acme_plumbing', [])
 		let m = s:Match(a:text, a:click, pat)
@@ -423,7 +437,11 @@ function s:Open(text, click)
 		endif
 	endfor
 	let m = s:Match(a:text, a:click, '(\f+)%([:](%([0-9]+)|%([/?].+)))?')
-	return m != [] && s:OpenFile(m[1], m[2])
+	if m != [] && s:OpenFile(m[1], m[2])
+		return 1
+	endif
+	let m = s:Match(a:text, a:click, '\#(\d+)')
+	return m != [] && s:OpenBuf(str2nr(m[1]))
 endfunc
 
 command -nargs=1 -complete=file O call s:Open(expand(<q-args>), 0)
@@ -490,6 +508,22 @@ function s:Click(vis)
 	exe "normal! \<LeftMouse>"
 	let s:visual = s:SaveVisual()
 	let s:clicksel = a:vis && win_getid() == s:clickwin && s:InSel()
+endfunc
+
+function s:ListBufs()
+	let bufs = getbufinfo()
+	let nl = max(map(copy(bufs), 'len(v:val.bufnr)'))
+	call map(bufs, 'printf("#%-".nl."s %s", v:val.bufnr,' .
+		\ 'fnamemodify(v:val.name, ":~:."))')
+	call s:ErrorOpen('+Errors', bufs)
+endfunc
+
+function s:DoubleLeftMouse()
+	if getmousepos()['winid'] == 0
+		call s:ListBufs()
+	else
+		exe "normal! \<2-LeftMouse>"
+	endif
 endfunc
 
 function s:MiddleMouse(vis)
@@ -600,6 +634,7 @@ for n in ['', '2-', '3-', '4-']
 	exe 'nnoremap <silent> <'.n.'RightRelease>'
 		\ ':call <SID>RightRelease(col("."))<CR>'
 endfor
+noremap <silent> <2-LeftMouse> :call <SID>DoubleLeftMouse()<CR>
 noremap <silent> <MiddleDrag> <LeftDrag>
 vnoremap <silent> <MiddleRelease> :<C-u>call <SID>MiddleRelease(-1)<CR>
 noremap <silent> <RightDrag> <LeftDrag>
