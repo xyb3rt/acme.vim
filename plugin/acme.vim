@@ -98,7 +98,6 @@ function s:Send(w, inp)
 	if getbufvar(b, '&buftype') != 'terminal'
 		return
 	endif
-	call term_sendkeys(b, "\<C-u>".substitute(a:inp, '\v\n|$', '\r', 'g'))
 	let keys = 'i'
 	if a:w != win_getid()
 		let keys = win_id2win(a:w)."\<C-w>wi\<C-w>p"
@@ -107,6 +106,8 @@ function s:Send(w, inp)
 	if term_getstatus(b) =~ '\v<normal>'
 		exe 'normal!' keys
 	endif
+	let job = term_getjob(b)
+	call ch_sendraw(job, "\<C-u>".substitute(a:inp, '\v\n|$', '\r', 'g'))
 endfunc
 
 function s:Tab(inp)
