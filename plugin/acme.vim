@@ -521,21 +521,33 @@ function s:RestVisual(vis)
 	endif
 endfunc
 
-function s:PreClick()
-	let s:clickwin = win_getid()
+function s:PreClick(mode)
 	let s:click = getmousepos()
+	let s:clickmode = a:mode
 	let s:clickstatus = s:click.line == 0 ? win_id2win(s:click.winid) : 0
-	let s:clicked = s:clickstatus != 0
+	let s:clickwin = win_getid()
 endfunc
 
-function s:Click(mode)
+function AcmeClick()
+	if s:clickmode == 't' && s:clickstatus == 0 &&
+		\ s:clickwin != s:click.winid
+		normal! i
+	endif
+	if s:clickstatus != 0 || s:click.winid == 0
+		return
+	endif
 	exe "normal! \<LeftMouse>"
 	let s:visual = s:SaveVisual()
-	let s:clicksel = a:mode =~ 'v' && win_getid() == s:clickwin && s:InSel()
+	let s:clicksel = s:clickmode == 'v' && win_getid() == s:clickwin &&
+		\ s:InSel()
+	if getbufvar(bufnr(), '&buftype') == 'terminal' &&
+		\ term_getstatus(bufnr()) == 'running'
+		call feedkeys("\<C-w>N\<LeftMouse>")
+	endif
 endfunc
 
 function s:DoubleLeftMouse()
-	call s:PreClick()
+	call s:PreClick('')
 	if s:clickstatus != 0 && winnr('$') > 1
 		exe s:clickstatus.'wincmd w'
 		only!
@@ -547,20 +559,18 @@ function s:DoubleLeftMouse()
 endfunc
 
 function s:MiddleMouse(mode)
-	call s:PreClick()
-	if s:clickstatus != 0
-		exe s:clickstatus.'close!'
-	else
-		call s:Click(a:mode)
-		if getbufvar(bufnr(), '&buftype') == 'terminal' &&
-			\ term_getstatus(bufnr()) == 'running'
-			call feedkeys("\<C-w>N\<LeftMouse>")
-		endif
-	endif
+	call s:PreClick(a:mode)
+	call AcmeClick()
 endfunc
 
 function s:MiddleRelease(click) range
-	if s:clicked
+	if s:click.winid == 0
+		return
+	elseif s:clickstatus != 0
+		if s:clickmode == 't'
+			normal! i
+		endif
+		exe s:clickstatus.'close!'
 		return
 	endif
 	let cmd = a:click <= 0 || s:clicksel ? s:Sel()[0] : expand('<cWORD>')
@@ -580,16 +590,18 @@ function s:MiddleRelease(click) range
 endfunc
 
 function s:RightMouse(mode)
-	call s:PreClick()
-	if s:clickstatus != 0
-		call s:Zoom(s:clickstatus)
-	else
-		call s:Click(a:mode)
-	endif
+	call s:PreClick(a:mode)
+	call AcmeClick()
 endfunc
 
 function s:RightRelease(click) range
-	if s:clicked
+	if s:click.winid == 0
+		return
+	elseif s:clickstatus != 0
+		if s:clickmode == 't'
+			normal! i
+		endif
+		call s:Zoom(s:clickstatus)
 		return
 	endif
 	if a:click <= 0 || s:clicksel
@@ -624,6 +636,63 @@ function s:RightRelease(click) range
 	call feedkeys(":let v:hlsearch=1\<CR>")
 endfunc
 
+function s:TermLeftMouse()
+	call s:PreClick('t')
+	if s:clickstatus == 0 && s:clickwin == s:click.winid &&
+		\ !term_getaltscreen(bufnr())
+		return "\<C-w>N\<LeftMouse>"
+	else
+		return "\<LeftMouse>"
+	endif
+endfunc
+
+function s:TermLeftRelease()
+	exe "normal! \<LeftRelease>"
+	if line('.') == line('$') && charcol('.') + 1 == charcol('$')
+		normal! i
+	endif
+endfunc
+
+function s:TermMiddleMouse()
+	call s:PreClick('t')
+	if s:clickstatus == 0 && s:clickwin == s:click.winid &&
+		\ term_getaltscreen(bufnr())
+		return "\<MiddleMouse>"
+	else
+		return "\<C-w>N:call AcmeClick()\<CR>"
+	endif
+endfunc
+
+function s:TermRightMouse()
+	call s:PreClick('t')
+	if s:clickstatus == 0 && s:clickwin == s:click.winid &&
+		\ term_getaltscreen(bufnr())
+		return "\<RightMouse>"
+	else
+		return "\<C-w>N:call AcmeClick()\<CR>"
+	endif
+endfunc
+
+function s:TermScrollWheelDown()
+	call s:PreClick('t')
+	if s:clickstatus == 0 && s:clickwin == s:click.winid &&
+		\ !term_getaltscreen(bufnr())
+		return "\<C-w>N\<ScrollWheelDown>"
+	else
+		return "\<ScrollWheelDown>"
+	endif
+endfunc
+
+function s:TermScrollWheelUp()
+	call s:PreClick('t')
+	if s:clickstatus == 0 && s:clickwin == s:click.winid &&
+		\ !term_getaltscreen(bufnr())
+		return "\<C-w>N\<ScrollWheelUp>"
+	else
+		return "\<ScrollWheelUp>"
+	endif
+endfunc
+
 for m in ['', 'i']
 	for n in ['', '2-', '3-', '4-']
 		for c in ['Mouse', 'Drag', 'Release']
@@ -639,18 +708,27 @@ for n in ['', '2-', '3-', '4-']
 		\ ':<C-u>call <SID>MiddleMouse("v")<CR>'
 	exe 'nnoremap <silent> <'.n.'MiddleRelease>'
 		\ ':call <SID>MiddleRelease(col("."))<CR>'
+	exe 'tnoremap <expr> <silent> <'.n.'MiddleMouse>'
+		\ '<SID>TermMiddleMouse()'
 	exe 'nnoremap <silent> <'.n.'RightMouse>'
 		\ ':call <SID>RightMouse("")<CR>'
 	exe 'vnoremap <silent> <'.n.'RightMouse>'
 		\ ':<C-u>call <SID>RightMouse("v")<CR>'
 	exe 'nnoremap <silent> <'.n.'RightRelease>'
 		\ ':call <SID>RightRelease(col("."))<CR>'
+	exe 'tnoremap <expr> <silent> <'.n.'RightMouse>'
+		\ '<SID>TermRightMouse()'
 endfor
 noremap <silent> <2-LeftMouse> :call <SID>DoubleLeftMouse()<CR>
 noremap <silent> <MiddleDrag> <LeftDrag>
 vnoremap <silent> <MiddleRelease> :<C-u>call <SID>MiddleRelease(-1)<CR>
 noremap <silent> <RightDrag> <LeftDrag>
 vnoremap <silent> <RightRelease> :<C-u>call <SID>RightRelease(-1)<CR>
+tnoremap <expr> <silent> <LeftMouse> <SID>TermLeftMouse()
+au TerminalOpen * nnoremap <buffer> <silent> <LeftRelease>
+	\ :call <SID>TermLeftRelease()<CR>
+tnoremap <expr> <silent> <ScrollWheelDown> <SID>TermScrollWheelDown()
+tnoremap <expr> <silent> <ScrollWheelUp> <SID>TermScrollWheelUp()
 
 let s:ctrlrx = ''
 
