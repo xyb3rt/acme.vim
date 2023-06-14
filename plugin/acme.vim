@@ -512,7 +512,7 @@ function s:Click(vis)
 endfunc
 
 function s:ListBufs()
-	let bufs = getbufinfo()
+	let bufs = getbufinfo({'buflisted': 1})
 	let nl = max(map(copy(bufs), 'len(v:val.bufnr)'))
 	call map(bufs, 'printf("#%-".nl."s %s", v:val.bufnr,' .
 		\ 'fnamemodify(v:val.name, ":~:."))')
