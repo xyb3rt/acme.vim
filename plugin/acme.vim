@@ -383,9 +383,13 @@ function s:Cwds()
 endfunc
 
 function s:FindFile(name)
+	let name = a:name
+	if name =~ '\v^\~\/'
+		let name = fnamemodify(name, ':p')
+	endif
 	" This is necessary, because findfile() does not support
 	" ../foo.h relative to the directory of the current file
-	for f in a:name[0] == '/' ? [a:name] : map(s:Cwds(), 'v:val."/".a:name')
+	for f in name[0] == '/' ? [name] : map(s:Cwds(), 'v:val."/".name')
 		if isdirectory(f) || filereadable(f)
 			return [f]
 		endif
