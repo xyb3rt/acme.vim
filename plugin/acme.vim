@@ -481,9 +481,30 @@ endfunc
 
 command -nargs=1 -complete=tag T call s:Tag(<q-args>)
 
-function s:OnStat()
-	let p = getmousepos()
-	return p['line'] == 0 ? win_id2win(p['winid']) : 0
+function s:ListBufs()
+	let bufs = getbufinfo({'buflisted': 1})
+	let nl = max(map(copy(bufs), 'len(v:val.bufnr)'))
+	call map(bufs, 'printf("#%-".nl."s %s", v:val.bufnr,' .
+		\ 'v:val.name != "" ? fnamemodify(v:val.name, ":~:.") : "")')
+	call s:ErrorOpen('+Errors', bufs)
+endfunc
+
+function s:Zoom(w)
+	exe a:w.'wincmd w'
+	let [w, h] = [winwidth(0), winheight(0)]
+	wincmd _
+	wincmd |
+	if w == winwidth(0) && h == winheight(0)
+		wincmd =
+	endif
+endfunc
+
+function s:InSel()
+	let p = getpos('.')
+	let v = s:visual
+	return p[1] >= v[0][1] && p[1] <= v[1][1] &&
+		\ (p[2] >= v[0][2] || (v[2] == 'v' && p[1] > v[0][1])) &&
+		\ (p[2] <= v[1][2] || (v[2] == 'v' && p[1] < v[1][1]))
 endfunc
 
 function s:SaveVisual()
@@ -500,48 +521,37 @@ function s:RestVisual(vis)
 	endif
 endfunc
 
-function s:InSel()
-	let p = getpos('.')
-	let v = s:visual
-	return p[1] >= v[0][1] && p[1] <= v[1][1] &&
-		\ (p[2] >= v[0][2] || (v[2] == 'v' && p[1] > v[0][1])) &&
-		\ (p[2] <= v[1][2] || (v[2] == 'v' && p[1] < v[1][1]))
+function s:PreClick()
+	let s:clickwin = win_getid()
+	let s:click = getmousepos()
+	let s:clickstatus = s:click.line == 0 ? win_id2win(s:click.winid) : 0
+	let s:clicked = s:clickstatus != 0
 endfunc
 
-function s:Click(vis)
-	let s:clickwin = win_getid()
+function s:Click(mode)
 	exe "normal! \<LeftMouse>"
 	let s:visual = s:SaveVisual()
-	let s:clicksel = a:vis && win_getid() == s:clickwin && s:InSel()
-endfunc
-
-function s:ListBufs()
-	let bufs = getbufinfo({'buflisted': 1})
-	let nl = max(map(copy(bufs), 'len(v:val.bufnr)'))
-	call map(bufs, 'printf("#%-".nl."s %s", v:val.bufnr,' .
-		\ 'v:val.name != "" ? fnamemodify(v:val.name, ":~:.") : "")')
-	call s:ErrorOpen('+Errors', bufs)
+	let s:clicksel = a:mode =~ 'v' && win_getid() == s:clickwin && s:InSel()
 endfunc
 
 function s:DoubleLeftMouse()
-	let w = s:OnStat()
-	if w != 0 && winnr('$') > 1
-		exe w.'wincmd w'
+	call s:PreClick()
+	if s:clickstatus != 0 && winnr('$') > 1
+		exe s:clickstatus.'wincmd w'
 		only!
-	elseif w != 0 || getmousepos()['winid'] == 0
+	elseif s:clickstatus != 0 || s:click.winid == 0
 		call s:ListBufs()
 	else
 		exe "normal! \<2-LeftMouse>"
 	endif
 endfunc
 
-function s:MiddleMouse(vis)
-	let w = s:OnStat()
-	let s:middle = w != 0
-	if s:middle
-		exe w.'close!'
+function s:MiddleMouse(mode)
+	call s:PreClick()
+	if s:clickstatus != 0
+		exe s:clickstatus.'close!'
 	else
-		call s:Click(a:vis)
+		call s:Click(a:mode)
 		if getbufvar(bufnr(), '&buftype') == 'terminal' &&
 			\ term_getstatus(bufnr()) == 'running'
 			call feedkeys("\<C-w>N\<LeftMouse>")
@@ -550,7 +560,7 @@ function s:MiddleMouse(vis)
 endfunc
 
 function s:MiddleRelease(click) range
-	if s:middle
+	if s:clicked
 		return
 	endif
 	let cmd = a:click <= 0 || s:clicksel ? s:Sel()[0] : expand('<cWORD>')
@@ -569,24 +579,17 @@ function s:MiddleRelease(click) range
 	endif
 endfunc
 
-function s:RightMouse(vis)
-	let w = s:OnStat()
-	let s:right = w != 0
-	if s:right
-		exe w.'wincmd w'
-		let [w, h] = [winwidth(0), winheight(0)]
-		wincmd _
-		wincmd |
-		if w == winwidth(0) && h == winheight(0)
-			wincmd =
-		endif
+function s:RightMouse(mode)
+	call s:PreClick()
+	if s:clickstatus != 0
+		call s:Zoom(s:clickstatus)
 	else
-		call s:Click(a:vis)
+		call s:Click(a:mode)
 	endif
 endfunc
 
 function s:RightRelease(click) range
-	if s:right
+	if s:clicked
 		return
 	endif
 	if a:click <= 0 || s:clicksel
@@ -631,15 +634,15 @@ for m in ['', 'i']
 endfor
 for n in ['', '2-', '3-', '4-']
 	exe 'nnoremap <silent> <'.n.'MiddleMouse>'
-		\ ':call <SID>MiddleMouse(0)<CR>'
+		\ ':call <SID>MiddleMouse("")<CR>'
 	exe 'vnoremap <silent> <'.n.'MiddleMouse>'
-		\ ':<C-u>call <SID>MiddleMouse(1)<CR>'
+		\ ':<C-u>call <SID>MiddleMouse("v")<CR>'
 	exe 'nnoremap <silent> <'.n.'MiddleRelease>'
 		\ ':call <SID>MiddleRelease(col("."))<CR>'
 	exe 'nnoremap <silent> <'.n.'RightMouse>'
-		\ ':call <SID>RightMouse(0)<CR>'
+		\ ':call <SID>RightMouse("")<CR>'
 	exe 'vnoremap <silent> <'.n.'RightMouse>'
-		\ ':<C-u>call <SID>RightMouse(1)<CR>'
+		\ ':<C-u>call <SID>RightMouse("v")<CR>'
 	exe 'nnoremap <silent> <'.n.'RightRelease>'
 		\ ':call <SID>RightRelease(col("."))<CR>'
 endfor
