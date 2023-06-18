@@ -79,23 +79,33 @@ else:
     # client
     src = bytes(str(os.getpid()), "utf8")
     dst = bytes(str(int(os.environ.get("ACMEVIMPID", ""))), "utf8")
-    files = {bytes(os.path.abspath(arg), "utf8"): 1 for arg in sys.argv[1:]}
     port = int(os.environ.get("ACMEVIMPORT", ""))
     sock = socket.create_connection(("127.0.0.1", port), timeout=None)
     conn = Conn(sock, sel)
     conns[sock.fileno()] = conn
-    conn.send([[dst, src, b"edit"] + list(files.keys())])
+    if sys.argv[1] == '-c':
+        bufs = {bytes(arg, "utf8") for arg in sys.argv[2:]}
+        conn.send([[dst, src, b"clear"] + list(bufs)])
+        def handle(msg):
+            if len(msg) == 1 and msg[0] == b"cleared":
+                sys.exit()
+    else:
+        files = {bytes(os.path.abspath(arg), "utf8"): 1 for arg in sys.argv[1:]}
+        conn.send([[dst, src, b"edit"] + list(files.keys())])
+        def handle(msg):
+            if len(msg) > 1 and msg[0] == b"done":
+                for f in msg[1:]:
+                    if f in files:
+                        del files[f]
+            if len(files) == 0:
+                sys.exit()
 
     def process():
         if len(conns) == 0:
             sys.exit("connection lost")
         for msg in conn.recv():
-            if len(msg) > 2 and msg[0] == src and msg[1] == dst and msg[2] == b"done":
-                for f in msg[3:]:
-                    if f in files:
-                        del files[f]
-        if len(files) == 0:
-            sys.exit()
+            if len(msg) > 1 and msg[0] == src and msg[1] == dst:
+            	handle(msg[2:])
 
 while True:
     events = sel.select(timeout=None)

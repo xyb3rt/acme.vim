@@ -755,6 +755,7 @@ function s:CtrlRecv(ch, data)
 			endfor
 		elseif msg[2] == 'clear'
 			call deletebufline(str2nr(msg[3]), 1, "$")
+			call s:CtrlSend(s:ctrlch, pid, 'cleared')
 		endif
 	endfor
 endfunc
