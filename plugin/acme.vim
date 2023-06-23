@@ -93,6 +93,11 @@ endfunc
 
 command -nargs=? K call s:Kill(<q-args>)
 
+function s:Expand(s)
+	return substitute(a:s, '\v^\t+',
+		\ '\=repeat(" ", len(submatch(0)) * 8)', '')
+endfunc
+
 function s:Send(w, inp)
 	let b = winbufnr(a:w)
 	if getbufvar(b, '&buftype') != 'terminal'
@@ -106,8 +111,8 @@ function s:Send(w, inp)
 	if term_getstatus(b) =~ '\v<normal>'
 		exe 'normal!' keys
 	endif
-	let job = term_getjob(b)
-	call ch_sendraw(job, "\<C-u>".substitute(a:inp, '\v\n|$', '\r', 'g'))
+	let inp = map(split(a:inp, '\n'), 's:Expand(v:val)')
+	call ch_sendraw(term_getjob(b), "\<C-u>".join(inp, "\r")."\r")
 endfunc
 
 function s:Tab(inp)
