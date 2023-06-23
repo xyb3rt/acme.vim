@@ -547,7 +547,7 @@ function AcmeClick()
 		\ s:InSel()
 	if getbufvar(bufnr(), '&buftype') == 'terminal' &&
 		\ term_getstatus(bufnr()) == 'running'
-		call feedkeys("\<C-w>N\<LeftMouse>")
+		call feedkeys("\<C-w>N\<LeftMouse>", 'in')
 	endif
 endfunc
 
@@ -638,7 +638,7 @@ function s:RightRelease(click) range
 	endif
 	call s:Tag('^'.word.'$', 1)
 	let @/ = pat
-	call feedkeys(":let v:hlsearch=1\<CR>")
+	call feedkeys(":let v:hlsearch=1\<CR>", 'n')
 endfunc
 
 function s:TermLeftMouse()
