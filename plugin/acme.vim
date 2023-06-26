@@ -653,7 +653,8 @@ endfunc
 
 function s:TermLeftRelease()
 	exe "normal! \<LeftRelease>"
-	if line('.') == line('$') && charcol('.') + 1 == charcol('$')
+	if line('.') == line('$') && charcol('.') + 1 == charcol('$') &&
+		\ term_getstatus(bufnr()) != 'finished'
 		normal! i
 	endif
 endfunc
