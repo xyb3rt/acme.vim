@@ -84,8 +84,8 @@ else:
     conn = Conn(sock, sel)
     conns[sock.fileno()] = conn
     if sys.argv[1] == '-c':
-        bufs = {bytes(arg, "utf8") for arg in sys.argv[2:]}
-        conn.send([[dst, src, b"clear"] + list(bufs)])
+        bufs = [bytes(arg, "utf8") for arg in sys.argv[2:]]
+        conn.send([[dst, src, b"clear"] + bufs])
         def handle(msg):
             if len(msg) == 1 and msg[0] == b"cleared":
                 sys.exit()
