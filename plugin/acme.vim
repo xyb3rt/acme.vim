@@ -76,6 +76,11 @@ function s:Exited(job, status)
 			if fnamemodify(bufname(job.buf), ':t') == '+Errors'
 				checktime
 			endif
+			for b in range(bufnr('$'))
+				if getbufvar(b, 'acme_send_buf', -1) == job.buf
+					call setbufvar(b, 'acme_send_buf', -1)
+				endif
+			endfor
 			break
 		endif
 	endfor
@@ -100,31 +105,56 @@ endfunc
 
 function s:Send(w, inp)
 	let b = winbufnr(a:w)
-	if getbufvar(b, '&buftype') != 'terminal'
+	if !s:Receiver(b)
 		return
 	endif
-	let keys = 'i'
+	if getbufvar(b, '&buftype') == 'terminal'
+		let keys = 'i'
+		if a:w != win_getid()
+			let keys = win_id2win(a:w)."\<C-w>wi\<C-w>p"
+		endif
+		if term_getstatus(b) =~ '\v<normal>'
+			exe 'normal!' keys
+		endif
+		let inp = map(split(a:inp, '\n'), 's:Expand(v:val)')
+		call ch_sendraw(term_getjob(b), "\<C-u>".join(inp, "\r")."\r")
+	else
+		let inp = a:inp
+		if inp[-1] != "\n"
+			let inp .= "\n"
+		endif
+		call ch_sendraw(s:Jobs(b)[0].h, inp)
+	endif
 	if a:w != win_getid()
-		let keys = win_id2win(a:w)."\<C-w>wi\<C-w>p"
 		call setbufvar(bufnr(), 'acme_send_buf', b)
 	endif
-	if term_getstatus(b) =~ '\v<normal>'
-		exe 'normal!' keys
-	endif
-	let inp = map(split(a:inp, '\n'), 's:Expand(v:val)')
-	call ch_sendraw(term_getjob(b), "\<C-u>".join(inp, "\r")."\r")
+endfunc
+
+function s:Receiver(b)
+	return getbufvar(a:b, '&buftype') == 'terminal' ||
+		\ (getbufvar(a:b, 'acme_scratch') && s:Jobs(a:b) != [])
+endfunc
+
+function s:Receivers()
+	let r = []
+	for w in range(1, winnr('$'))
+		if s:Receiver(winbufnr(w))
+			call add(r, w)
+		endif
+	endfor
+	return r
 endfunc
 
 function s:Tab(inp)
 	let b = bufnr()
 	let w = s:Win(getbufvar(b, 'acme_send_buf', -1))
-	let terms = filter(term_list(), 's:Win(v:val) != 0')
-	if getbufvar(b, '&buftype') == 'terminal'
+	let r = s:Receivers()
+	if s:Receiver(b)
 		call s:Send(win_getid(), a:inp)
 	elseif w != 0
 		call s:Send(win_getid(w), a:inp)
-	elseif len(terms) == 1
-		call s:Send(win_getid(s:Win(terms[0])), a:inp)
+	elseif len(r) == 1
+		call s:Send(win_getid(r[0]), a:inp)
 	endif
 endfunc
 
@@ -271,6 +301,7 @@ function s:ScratchNew()
 		call s:New('new')
 	endif
 	setl bufhidden=unload buftype=nofile nobuflisted noswapfile
+	call setbufvar(bufnr(), 'acme_scratch', 1)
 endfunc
 
 function s:ScratchCb(b, ch, msg)
@@ -289,7 +320,7 @@ function s:ScratchExec(cmd, dir)
 	let b = bufnr()
 	let opts = {'callback': function('s:ScratchCb', [b]),
 		\ 'env': {'ACMEVIMBUF': b}, 'exit_cb': 's:Exited',
-		\ 'err_io': 'out', 'in_io': 'null', 'out_io': 'buffer',
+		\ 'err_io': 'out', 'in_io': 'pipe', 'out_io': 'buffer',
 		\ 'out_buf': b, 'out_msg': 0}
 	if a:dir != ''
 		let opts['cwd'] = a:dir
@@ -584,7 +615,7 @@ function s:MiddleRelease(click) range
 	let dir = s:Dir()
 	let w = win_getid()
 	exe win_id2win(s:clickwin).'wincmd w'
-	if getbufvar(b, '&buftype') != 'terminal'
+	if !s:Receiver(b)
 		let [cmd, io] = s:ParseCmd(cmd)
 		call s:Run(cmd, io, dir)
 	elseif w == s:clickwin || a:click <= 0
