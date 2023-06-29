@@ -89,6 +89,12 @@ else:
         def handle(msg):
             if len(msg) == 1 and msg[0] == b"cleared":
                 sys.exit()
+    elif sys.argv[1] == '-s':
+    	args = [bytes(arg, "utf8") for arg in sys.argv[2:]]
+    	conn.send([[dst, src, b"scratch"] + args])
+    	def handle(msg):
+    	    if len(msg) == 1 and msg[0] == b"scratched":
+    	        sys.exit()
     else:
         files = {bytes(os.path.abspath(arg), "utf8"): 1 for arg in sys.argv[1:]}
         conn.send([[dst, src, b"edit"] + list(files.keys())])
