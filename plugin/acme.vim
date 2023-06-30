@@ -760,9 +760,12 @@ function s:CtrlRecv(ch, data)
 	endif
 	let msgs = strpart(s:ctrlrx, 0, end)
 	let s:ctrlrx = strpart(s:ctrlrx, end + 1)
-	let msgs = map(split(msgs, "\x1e"), 'split(v:val, "\x1f")')
+	let msgs = map(split(msgs, "\x1e", 1), 'split(v:val, "\x1f")')
 	for msg in msgs
-		if len(msg) < 4 || msg[0] != getpid()
+		if len(msg) == 0
+			call s:CtrlSend('')
+			continue
+		elseif len(msg) < 4
 			continue
 		endif
 		let pid = msg[1]
@@ -789,8 +792,8 @@ function s:CtrlRecv(ch, data)
 	endfor
 endfunc
 
-function s:CtrlSend(dst, cmd, ...)
-	let msg = join([a:dst, getpid(), a:cmd] + a:000, "\x1f") . "\x1e"
+function s:CtrlSend(dst, ...)
+	let msg = join([a:dst, getpid()] + a:000, "\x1f") . "\x1e"
 	call ch_sendraw(s:ctrlch, msg)
 endfunc
 

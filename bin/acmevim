@@ -9,9 +9,11 @@ class Conn:
     def __init__(self, sock, sel):
         self.sock = sock
         self.sel = sel
+        self.id = b""
         self.rx = b""
         self.tx = b""
         self.sel.register(self.sock, selectors.EVENT_READ)
+        self.send([])
 
     def close(self):
         self.sel.unregister(self.sock)
@@ -44,9 +46,8 @@ class Conn:
         self.rx = self.rx[end+1:]
         return msgs
 
-    def send(self, msgs):
-        msgs = [b"\x1f".join(fields) for fields in msgs]
-        self.tx += b"\x1e".join(msgs) + b"\x1e"
+    def send(self, msg):
+        self.tx += b"\x1f".join(msg) + b"\x1e"
         self.register()
 
 conns = {}
@@ -69,11 +70,16 @@ if len(sys.argv) == 1:
 
     def process():
         for src in conns.values():
-            msgs = src.recv()
-            if len(msgs) > 0:
+            for msg in src.recv():
+                if len(msg) < 2 or msg[1] == b"":
+                    continue
+                if src.id == b"":
+                    src.id = msg[1]
+                elif src.id != msg[1]:
+                    continue
                 for dst in conns.values():
-                    if dst != src:
-                        dst.send(msgs)
+                    if dst.id == msg[0]:
+                        dst.send(msg)
 
 else:
     # client
@@ -85,25 +91,25 @@ else:
     conns[sock.fileno()] = conn
     if sys.argv[1] == '-c':
         bufs = [bytes(arg, "utf8") for arg in sys.argv[2:]]
-        conn.send([[dst, src, b"clear"] + bufs])
+        conn.send([dst, src, b"clear"] + bufs)
         def handle(msg):
             if len(msg) == 1 and msg[0] == b"cleared":
                 sys.exit()
     elif sys.argv[1] == '-l':
     	args = [bytes(arg, "utf8") for arg in sys.argv[2:]]
-    	conn.send([[dst, src, b"setline"] + args])
+    	conn.send([dst, src, b"setline"] + args)
     	def handle(msg):
     	    if len(msg) == 1 and msg[0] == b"lineset":
     	        sys.exit()
     elif sys.argv[1] == '-s':
     	args = [bytes(arg, "utf8") for arg in sys.argv[2:]]
-    	conn.send([[dst, src, b"scratch"] + args])
+    	conn.send([dst, src, b"scratch"] + args)
     	def handle(msg):
     	    if len(msg) == 1 and msg[0] == b"scratched":
     	        sys.exit()
     else:
         files = {bytes(os.path.abspath(arg), "utf8"): 1 for arg in sys.argv[1:]}
-        conn.send([[dst, src, b"edit"] + list(files.keys())])
+        conn.send([dst, src, b"edit"] + list(files.keys()))
         def handle(msg):
             if len(msg) > 1 and msg[0] == b"done":
                 for f in msg[1:]:
