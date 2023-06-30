@@ -793,6 +793,11 @@ function s:CtrlRecv(ch, data)
 		elseif msg[2] == 'clear'
 			call deletebufline(str2nr(msg[3]), 1, "$")
 			call s:CtrlSend(s:ctrlch, pid, 'cleared')
+		elseif msg[2] == 'setline'
+			if len(msg) > 5
+				call setbufline(str2nr(msg[3]), msg[4], msg[5:])
+			endif
+			call s:CtrlSend(s:ctrlch, pid, 'lineset')
 		elseif msg[2] == 'scratch'
 			let cmd = join(map(msg[3:], 'shellescape(v:val)'))
 			call s:ScratchExec(cmd, '')

@@ -89,6 +89,12 @@ else:
         def handle(msg):
             if len(msg) == 1 and msg[0] == b"cleared":
                 sys.exit()
+    elif sys.argv[1] == '-l':
+    	args = [bytes(arg, "utf8") for arg in sys.argv[2:]]
+    	conn.send([[dst, src, b"setline"] + args])
+    	def handle(msg):
+    	    if len(msg) == 1 and msg[0] == b"lineset":
+    	        sys.exit()
     elif sys.argv[1] == '-s':
     	args = [bytes(arg, "utf8") for arg in sys.argv[2:]]
     	conn.send([[dst, src, b"scratch"] + args])
