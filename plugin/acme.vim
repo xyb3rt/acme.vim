@@ -775,23 +775,23 @@ function s:CtrlRecv(ch, data)
 			endfor
 		elseif msg[2] == 'clear'
 			call deletebufline(str2nr(msg[3]), 1, "$")
-			call s:CtrlSend(s:ctrlch, pid, 'cleared')
+			call s:CtrlSend(pid, 'cleared')
 		elseif msg[2] == 'setline'
 			if len(msg) > 5
 				call setbufline(str2nr(msg[3]), msg[4], msg[5:])
 			endif
-			call s:CtrlSend(s:ctrlch, pid, 'lineset')
+			call s:CtrlSend(pid, 'lineset')
 		elseif msg[2] == 'scratch'
 			let cmd = join(map(msg[3:], 'shellescape(v:val)'))
 			call s:ScratchExec(cmd, '')
-			call s:CtrlSend(s:ctrlch, pid, 'scratched')
+			call s:CtrlSend(pid, 'scratched')
 		endif
 	endfor
 endfunc
 
-function s:CtrlSend(ch, dst, cmd, ...)
+function s:CtrlSend(dst, cmd, ...)
 	let msg = join([a:dst, getpid(), a:cmd] + a:000, "\x1f") . "\x1e"
-	call ch_sendraw(a:ch, msg)
+	call ch_sendraw(s:ctrlch, msg)
 endfunc
 
 function s:BufWinLeave()
@@ -801,7 +801,7 @@ function s:BufWinLeave()
 	if !getbufvar(b, '&modified') && pids != []
 		let file = fnamemodify(bufname(b), ':p')
 		for pid in pids
-			call s:CtrlSend(s:ctrlch, pid, 'done', file)
+			call s:CtrlSend(pid, 'done', file)
 		endfor
 		call setbufvar(b, 'acme_pids', [])
 	endif
@@ -811,8 +811,7 @@ au BufWinLeave * call s:BufWinLeave()
 
 if $ACMEVIMPORT != ""
 	let s:ctrlch = ch_open('localhost:'.$ACMEVIMPORT, {
-		\ 'mode': 'raw', 'callback': 's:CtrlRecv'
-	\ })
+		\ 'mode': 'raw', 'callback': 's:CtrlRecv'})
 	let $ACMEVIMPID = getpid()
 	let $EDITOR = expand('<sfile>:p:h:h').'/bin/acmevim'
 endif
