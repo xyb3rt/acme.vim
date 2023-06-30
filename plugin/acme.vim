@@ -173,36 +173,18 @@ endfunc
 au BufUnload * call s:Unload()
 
 function s:New(cmd, ...)
-	if a:0 > 0
-		let w = a:1
-	else
-		let w = winnr()
-		for i in range(1, winnr('$'))
-			if winheight(w) < winheight(i)
-				let w = i
-			endif
-		endfor
-	endif
-	let p = win_getid()
-	let [dir, lcd] = [getcwd(), haslocaldir() == 1]
-	exe w.'wincmd w'
-	let s = win_getid()
 	let minh = &winminheight > 0 ? 2 * &winminheight + 1 : 2
 	if winheight(0) < minh
 		exe minh.'wincmd _'
 	endif
-	let cwd = dir != getcwd() ? chdir(dir) : ''
-	exe a:cmd
-	let w = win_getid()
-	if lcd && w != s
-		exe 'lcd' dir
+	let minh = 10
+	if a:0 > 0
+		let h = a:1
+	else
+		let s2 = winnr('$') == 1 && &laststatus == 1
+		let h = max([minh, (winheight(0) - s2) / 2])
 	endif
-	if cwd != ''
-		exe win_id2win(s).'wincmd w'
-		call chdir(cwd)
-	endif
-	exe win_id2win(p).'wincmd w'
-	exe win_id2win(w).'wincmd w'
+	exe (a:0 > 1 ? a:2 : '').h.a:cmd
 endfunc
 
 function s:ErrorOpen(name, ...)
@@ -212,7 +194,7 @@ function s:ErrorOpen(name, ...)
 	if w != 0
 		exe w.'wincmd w'
 	else
-		call s:New('belowright 10sp +0 '.name, winnr('$'))
+		call s:New('sp +0 '.name, 10, 'belowright')
 		setl bufhidden=unload buftype=nowrite nobuflisted noswapfile
 	endif
 	if a:0 > 0
