@@ -41,7 +41,7 @@ function s:Dir()
 endfunc
 
 function s:Normalize(path)
-	let path = fnamemodify(a:path, ':p:~:.')
+	let path = fnamemodify(simplify(a:path), ':p:~:.')
 	return path != '' ? path : '.'
 endfunc
 
@@ -370,13 +370,14 @@ function s:Readable(path)
 endfunc
 
 function s:FileOpen(path, pos)
-	let w = s:Win(fnamemodify(a:path, ':p:s?/$??'))
+	let path = fnamemodify(simplify(a:path), ':p:s?/$??')
+	let w = s:Win(path)
 	if w != 0
 		exe w.'wincmd w'
-	elseif isdirectory(expand('%')) && isdirectory(a:path)
-		exe 'edit' s:Normalize(a:path)
+	elseif isdirectory(expand('%')) && isdirectory(path)
+		exe 'edit' s:Normalize(path)
 	else
-		call s:New('new '.s:Normalize(a:path))
+		call s:New('new '.s:Normalize(path))
 	endif
 	if a:pos != ''
 		normal! m'
