@@ -1,28 +1,13 @@
 /*
  * acmegit: Simple git UI in acme.vim scratch buffer
  */
-#include <ctype.h>
-#include <errno.h>
+#include "acmevim.h"
 #include <glob.h>
-#include <poll.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/wait.h>
-#include <unistd.h>
-
-#define ARRLEN(a) (sizeof(a) / sizeof((a)[0]))
 
 struct argv {
 	char **d;
 	size_t len, size;
 } argv;
-
-struct buf {
-	char *d;
-	size_t len, size;
-} buf;
 
 typedef void cmd_func(void);
 
@@ -99,41 +84,11 @@ struct menu sync_menu = {
 };
 
 const char *acmevimbuf;
-const char *argv0;
+const char *acmevimpid;
+struct acmevim_buf buf;
+struct acmevim_conn *conn;
 int dirty = 1;
 struct menu *menu = &main_menu;
-struct pollfd pollfd[1];
-
-char *strbsnm(const char *s) {
-	char *t = strrchr((char *)s, '/');
-	return t != NULL && t[1] != '\0' ? t + 1 : (char *)s;
-}
-
-void error(int eval, int err, const char *fmt, ...) {
-	va_list ap;
-	fflush(stdout);
-	fprintf(stderr, "%s: ", strbsnm(argv0));
-	va_start(ap, fmt);
-	if (fmt != NULL) {
-		vfprintf(stderr, fmt, ap);
-	}
-	va_end(ap);
-	if (err != 0) {
-		fprintf(stderr, "%s%s", fmt != NULL ? ": " : "", strerror(err));
-	}
-	fputc('\n', stderr);
-	if (eval != 0) {
-		exit(eval);
-	}
-}
-
-void *erealloc(void *ptr, size_t size) {
-	ptr = realloc(ptr, size);
-	if (ptr == NULL) {
-		error(EXIT_FAILURE, errno, NULL);
-	}
-	return ptr;
-}
 
 int push(const char *arg) {
 	if (argv.len == argv.size) {
@@ -155,24 +110,6 @@ char *const *set(const char *arg, ...) {
 	while (push(va_arg(ap, const char *)));
 	va_end(ap);
 	return (char *const *)argv.d;
-}
-
-int call(char *const av[]) {
-	int status = 0;
-	pid_t pid = fork();
-	if (pid == -1) {
-		error(EXIT_FAILURE, errno, "exec: %s", av[0]);
-	}
-	if (pid == 0) {
-		execvp(av[0], av);
-		error(EXIT_FAILURE, errno, "exec: %s", av[0]);
-	}
-	while (waitpid(pid, &status, 0) == -1) {
-		if (errno != EINTR) {
-			error(EXIT_FAILURE, errno, "wait: %s", av[0]);
-		}
-	}
-	return status;
 }
 
 int run(char *const *av) {
@@ -198,8 +135,33 @@ int runglob(const char *path) {
 	return ret;
 }
 
+int process(struct acmevim_buf *rx, void *resp) {
+	char *f[3];
+	ssize_t n;
+	size_t pos = 0;
+	acmevim_rx(conn);
+	while ((n = acmevim_parse(&conn->rx, &pos, f, ARRLEN(f))) != -1) {
+		if (n > 2 && strcmp(f[1], acmevimpid) == 0 &&
+		    resp != NULL && strcmp(f[2], (char *)resp) == 0) {
+			resp = NULL;
+		}
+	}
+	if (pos > 0) {
+		acmevim_pop(&conn->rx, pos);
+	}
+	return resp == NULL;
+}
+
+void request(const char *resp, ...) {
+	va_list ap;
+	va_start(ap, resp);
+	acmevim_sendv(conn, acmevimpid, ap);
+	va_end(ap);
+	acmevim_sync(conn, process, (void *)resp);
+}
+
 void clear(void) {
-	run(set("acmevim", "-c", acmevimbuf, NULL));
+	request("cleared", "clear", acmevimbuf, NULL);
 	dirty = 1;
 }
 
@@ -214,7 +176,7 @@ void main_config(void) {
 }
 
 void main_diff(void) {
-	run(set("acmevim", "-s", "git", "diff", NULL));
+	request("scratched", "scratch", "git", "diff", NULL);
 }
 
 void main_index(void) {
@@ -222,8 +184,8 @@ void main_index(void) {
 }
 
 void main_log(void) {
-	run(set("acmevim", "-s", "git", "log", "--oneline", "--decorate",
-	        "--all", "--date-order", NULL));
+	request("scratched", "scratch", "git", "log", "--oneline", "--decorate",
+	        "--all", "--date-order", NULL);
 }
 
 void main_sync(void) {
@@ -237,11 +199,11 @@ void index_add(void) {
 }
 
 void index_cached(void) {
-	run(set("acmevim", "-s", "git", "diff", "--cached", NULL));
+	request("scratched", "scratch", "git", "diff", "--cached", NULL);
 }
 
 void index_diff(void) {
-	run(set("acmevim", "-s", "git", "diff", NULL));
+	request("scratched", "scratch", "git", "diff", NULL);
 }
 
 void index_edit(void) {
@@ -256,7 +218,7 @@ void index_reset(void) {
 }
 
 void sync_diff(void) {
-	run(set("acmevim", "-s", "git", "diff", "@{u}", NULL));
+	request("scratched", "scratch", "git", "diff", "@{u}", NULL);
 }
 
 void sync_fetch(void) {
@@ -265,8 +227,8 @@ void sync_fetch(void) {
 }
 
 void sync_log(void) {
-	run(set("acmevim", "-s", "git", "log", "-s", "--left-right", "...@{u}",
-	        NULL));
+	request("scratched", "scratch", "git", "log", "-s", "--left-right",
+	        "...@{u}", NULL);
 }
 
 void sync_merge(void) {
@@ -290,15 +252,19 @@ void done(void) {
 
 void init(void) {
 	acmevimbuf = getenv("ACMEVIMBUF");
-	if (acmevimbuf == NULL || acmevimbuf[0] == '\0') {
+	acmevimpid = getenv("ACMEVIMPID");
+	if (acmevimbuf == NULL || acmevimbuf[0] == '\0' ||
+	    acmevimpid == NULL || acmevimpid[0] == '\0') {
 		error(EXIT_FAILURE, 0, "not in acme.vim");
 	}
-	pollfd[0].fd = 0;
-	pollfd[0].events = POLLIN;
+	char pid[16];
+	snprintf(pid, sizeof(pid), "%d", getpid());
+	conn = acmevim_connect(estrdup(pid));
+	acmevim_send(conn, "", NULL);
 }
 
 void prompt(const char *p) {
-	run(set("acmevim", "-l", acmevimbuf, "$", p, NULL));
+	request("lineset", "setline", acmevimbuf, "$", p, NULL);
 }
 
 void input(void) {
@@ -330,9 +296,22 @@ void status(void) {
 }
 
 void block(void) {
-	while (poll(pollfd, ARRLEN(pollfd), -1) == -1) {
-		if (errno != EINTR) {
-			error(EXIT_FAILURE, errno, "poll");
+	struct pollfd pollfd[2];
+	pollfd[0].fd = 0;
+	pollfd[0].events = POLLIN;
+	pollfd[1].fd = conn->fd;
+	pollfd[1].events = POLLIN;
+	for (;;) {
+		while (poll(pollfd, ARRLEN(pollfd), -1) == -1) {
+			if (errno != EINTR) {
+				error(EXIT_FAILURE, errno, "poll");
+			}
+		}
+		if (pollfd[1].revents & POLLIN) {
+			process(&conn->rx, NULL);
+		}
+		if (pollfd[0].revents & POLLIN) {
+			break;
 		}
 	}
 }
