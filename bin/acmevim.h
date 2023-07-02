@@ -16,22 +16,37 @@ struct acmevim_conn {
 	struct acmevim_buf rx, tx;
 };
 
+struct acmevim_strv {
+	char **d;
+	size_t count, size;
+};
+
 typedef int acmevim_proc(struct acmevim_buf *, void *);
 
-ssize_t acmevim_parse(struct acmevim_buf *buf, size_t *pos, char **f, size_t nf) {
-	size_t n = 0;
+int acmevim_add(struct acmevim_strv *sv, const char *s) {
+	if (sv->count == sv->size) {
+		sv->size = sv->size != 0 ? sv->size * 2 : 16;
+		sv->d = erealloc(sv->d, sv->size * sizeof(*sv->d));
+	}
+	sv->d[sv->count] = (char *)s;
+	if (s == NULL) {
+		return 0;
+	}
+	sv->count++;
+	return 1;
+}
+
+int acmevim_parse(struct acmevim_buf *buf, size_t *pos, struct acmevim_strv *f) {
 	int field = 1;
+	f->count = 0;
 	for (size_t i = *pos; i < buf->len; i++) {
 		if (field) {
-			if (n < nf) {
-				f[n] = &buf->d[i];
-			}
-			n++;
+			acmevim_add(f, &buf->d[i]);
 		}
 		if (buf->d[i] == '\x1e') {
 			buf->d[i] = '\0';
 			*pos = i + 1;
-			return n;
+			return f->count;
 		}
 		/*
 		 * The field separators get replaced with null bytes, so that
@@ -44,7 +59,7 @@ ssize_t acmevim_parse(struct acmevim_buf *buf, size_t *pos, char **f, size_t nf)
 		}
 		field = buf->d[i] == '\0';
 	}
-	return -1;
+	return 0;
 }
 
 void acmevim_pop(struct acmevim_buf *buf, size_t len) {

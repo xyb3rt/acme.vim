@@ -4,11 +4,6 @@
 #include "acmevim.h"
 #include <glob.h>
 
-struct argv {
-	char **d;
-	size_t len, size;
-} argv;
-
 typedef void cmd_func(void);
 
 struct cmd {
@@ -85,50 +80,38 @@ struct menu sync_menu = {
 
 const char *acmevimbuf;
 const char *acmevimpid;
+struct acmevim_strv argv;
 struct acmevim_buf buf;
 struct acmevim_conn *conn;
 int dirty = 1;
 struct menu *menu = &main_menu;
 
-int push(const char *arg) {
-	if (argv.len == argv.size) {
-		argv.size = argv.size != 0 ? argv.size * 2 : 128;
-		argv.d = erealloc(argv.d, argv.size);
-	}
-	argv.d[argv.len] = (char *)arg;
-	if (argv.d[argv.len] == NULL) {
-		return 0;
-	}
-	argv.len++;
-	return 1;
-}
-
 char *const *set(const char *arg, ...) {
 	va_list ap;
 	va_start(ap, arg);
-	push(arg);
-	while (push(va_arg(ap, const char *)));
+	acmevim_add(&argv, arg);
+	while (acmevim_add(&argv, va_arg(ap, const char *)));
 	va_end(ap);
 	return (char *const *)argv.d;
 }
 
 int run(char *const *av) {
 	int ret = call(av);
-	argv.len = 0;
+	argv.count = 0;
 	return ret;
 }
 
 int runglob(const char *path) {
 	int ret;
-	glob_t g = {.gl_offs = argv.len};
+	glob_t g = {.gl_offs = argv.count};
 	if (glob(path, GLOB_DOOFFS, NULL, &g) == 0) {
-		for (size_t i = 0; i < argv.len; i++) {
+		for (size_t i = 0; i < argv.count; i++) {
 			g.gl_pathv[i] = argv.d[i];
 		}
 		ret = run(g.gl_pathv);
 	} else {
-		push(path);
-		push(NULL);
+		acmevim_add(&argv, path);
+		acmevim_add(&argv, NULL);
 		ret = run(argv.d);
 	}
 	globfree(&g);
@@ -136,13 +119,12 @@ int runglob(const char *path) {
 }
 
 int process(struct acmevim_buf *rx, void *resp) {
-	char *f[3];
-	ssize_t n;
+	static struct acmevim_strv f;
 	size_t pos = 0;
 	acmevim_rx(conn);
-	while ((n = acmevim_parse(&conn->rx, &pos, f, ARRLEN(f))) != -1) {
-		if (n > 2 && strcmp(f[1], acmevimpid) == 0 &&
-		    resp != NULL && strcmp(f[2], (char *)resp) == 0) {
+	while (acmevim_parse(&conn->rx, &pos, &f)) {
+		if (f.count > 2 && strcmp(f.d[1], acmevimpid) == 0 &&
+		    resp != NULL && strcmp(f.d[2], (char *)resp) == 0) {
 			resp = NULL;
 		}
 	}
