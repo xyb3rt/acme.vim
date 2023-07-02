@@ -9,7 +9,6 @@ typedef void cmd_func(void);
 struct cmd {
 	char *name;
 	cmd_func *func;
-	char *prompt;
 };
 
 struct menu {
@@ -50,11 +49,11 @@ struct menu main_menu = {
 };
 
 struct cmd index_cmds[] = {
-	{"add",    index_add, "<add-path: . >"},
+	{"add",    index_add},
 	{"cached", index_cached},
 	{"diff",   index_diff},
 	{"edit",   index_edit},
-	{"reset",  index_reset, "<reset-path: . >"},
+	{"reset",  index_reset},
 	{"done",   done},
 };
 struct menu index_menu = {
@@ -156,10 +155,6 @@ void status(void) {
 	fflush(stdout);
 }
 
-void prompt(const char *p) {
-	request("lineset", "setline", acmevimbuf, "$", p, NULL);
-}
-
 void block(void) {
 	struct pollfd pollfd[2];
 	pollfd[0].fd = 0;
@@ -191,6 +186,12 @@ void input(void) {
 	}
 }
 
+void prompt(const char *p) {
+	request("lineset", "setline", acmevimbuf, "$", p, NULL);
+	block();
+	input();
+}
+
 struct cmd *match(const struct menu *menu) {
 	for (size_t i = 0; i < menu->cmdcount; i++) {
 		if (strcmp(buf.d, menu->cmds[i].name) == 0) {
@@ -214,7 +215,6 @@ void init(void) {
 }
 
 int main(int argc, char *argv[]) {
-	struct cmd *cmd = NULL;
 	argv0 = argv[0];
 	init();
 	for (;;) {
@@ -222,18 +222,10 @@ int main(int argc, char *argv[]) {
 			status();
 			dirty = 0;
 		}
-		prompt(cmd != NULL ? cmd->prompt : menu->prompt);
-		block();
-		input();
+		prompt(menu->prompt);
+		struct cmd *cmd = match(menu);
 		if (cmd != NULL) {
 			cmd->func();
-			cmd = NULL;
-		} else {
-			cmd = match(menu);
-			if (cmd != NULL && cmd->prompt == NULL) {
-				cmd->func();
-				cmd = NULL;
-			}
 		}
 	}
 	return 0;
@@ -267,6 +259,7 @@ void main_sync(void) {
 }
 
 void index_add(void) {
+	prompt("<add-path: . >");
 	clear();
 	set("git", "add", NULL);
 	runglob(buf.d);
@@ -286,6 +279,7 @@ void index_edit(void) {
 }
 
 void index_reset(void) {
+	prompt("<reset-path: . >");
 	clear();
 	set("git", "reset", "HEAD", "--", NULL);
 	runglob(buf.d);
