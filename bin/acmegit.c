@@ -147,6 +147,98 @@ void clear(void) {
 	dirty = 1;
 }
 
+void status(void) {
+	if (run(set("git", "status", "-sb", NULL)) != 0) {
+		exit(EXIT_FAILURE);
+	}
+	/* last line for prompt: */
+	printf("\n");
+	fflush(stdout);
+}
+
+void prompt(const char *p) {
+	request("lineset", "setline", acmevimbuf, "$", p, NULL);
+}
+
+void block(void) {
+	struct pollfd pollfd[2];
+	pollfd[0].fd = 0;
+	pollfd[0].events = POLLIN;
+	pollfd[1].fd = conn->fd;
+	pollfd[1].events = POLLIN;
+	for (;;) {
+		while (poll(pollfd, ARRLEN(pollfd), -1) == -1) {
+			if (errno != EINTR) {
+				error(EXIT_FAILURE, errno, "poll");
+			}
+		}
+		if (pollfd[1].revents & POLLIN) {
+			process(&conn->rx, NULL);
+		}
+		if (pollfd[0].revents & POLLIN) {
+			break;
+		}
+	}
+}
+
+void input(void) {
+	buf.len = getline(&buf.d, &buf.size, stdin);
+	if (buf.len == -1) {
+		exit(0);
+	}
+	if (buf.len > 0 && buf.d[buf.len - 1] == '\n') {
+		buf.d[--buf.len] = '\0';
+	}
+}
+
+struct cmd *match(const struct menu *menu) {
+	for (size_t i = 0; i < menu->cmdcount; i++) {
+		if (strcmp(buf.d, menu->cmds[i].name) == 0) {
+			return &menu->cmds[i];
+		}
+	}
+	return NULL;
+}
+
+void init(void) {
+	acmevimbuf = getenv("ACMEVIMBUF");
+	acmevimpid = getenv("ACMEVIMPID");
+	if (acmevimbuf == NULL || acmevimbuf[0] == '\0' ||
+	    acmevimpid == NULL || acmevimpid[0] == '\0') {
+		error(EXIT_FAILURE, 0, "not in acme.vim");
+	}
+	char pid[16];
+	snprintf(pid, sizeof(pid), "%d", getpid());
+	conn = acmevim_connect(estrdup(pid));
+	acmevim_send(conn, "", NULL);
+}
+
+int main(int argc, char *argv[]) {
+	struct cmd *cmd = NULL;
+	argv0 = argv[0];
+	init();
+	for (;;) {
+		if (dirty) {
+			status();
+			dirty = 0;
+		}
+		prompt(cmd != NULL ? cmd->prompt : menu->prompt);
+		block();
+		input();
+		if (cmd != NULL) {
+			cmd->func();
+			cmd = NULL;
+		} else {
+			cmd = match(menu);
+			if (cmd != NULL && cmd->prompt == NULL) {
+				cmd->func();
+				cmd = NULL;
+			}
+		}
+	}
+	return 0;
+}
+
 void main_commit(void) {
 	clear();
 	run(set("git", "commit", "-v", NULL));
@@ -230,96 +322,4 @@ void sync_rebase(void) {
 
 void done(void) {
 	menu = &main_menu;
-}
-
-void init(void) {
-	acmevimbuf = getenv("ACMEVIMBUF");
-	acmevimpid = getenv("ACMEVIMPID");
-	if (acmevimbuf == NULL || acmevimbuf[0] == '\0' ||
-	    acmevimpid == NULL || acmevimpid[0] == '\0') {
-		error(EXIT_FAILURE, 0, "not in acme.vim");
-	}
-	char pid[16];
-	snprintf(pid, sizeof(pid), "%d", getpid());
-	conn = acmevim_connect(estrdup(pid));
-	acmevim_send(conn, "", NULL);
-}
-
-void prompt(const char *p) {
-	request("lineset", "setline", acmevimbuf, "$", p, NULL);
-}
-
-void input(void) {
-	buf.len = getline(&buf.d, &buf.size, stdin);
-	if (buf.len == -1) {
-		exit(0);
-	}
-	if (buf.len > 0 && buf.d[buf.len - 1] == '\n') {
-		buf.d[--buf.len] = '\0';
-	}
-}
-
-struct cmd *match(const struct menu *menu) {
-	for (size_t i = 0; i < menu->cmdcount; i++) {
-		if (strcmp(buf.d, menu->cmds[i].name) == 0) {
-			return &menu->cmds[i];
-		}
-	}
-	return NULL;
-}
-
-void status(void) {
-	if (run(set("git", "status", "-sb", NULL)) != 0) {
-		exit(EXIT_FAILURE);
-	}
-	/* last line for prompt: */
-	printf("\n");
-	fflush(stdout);
-}
-
-void block(void) {
-	struct pollfd pollfd[2];
-	pollfd[0].fd = 0;
-	pollfd[0].events = POLLIN;
-	pollfd[1].fd = conn->fd;
-	pollfd[1].events = POLLIN;
-	for (;;) {
-		while (poll(pollfd, ARRLEN(pollfd), -1) == -1) {
-			if (errno != EINTR) {
-				error(EXIT_FAILURE, errno, "poll");
-			}
-		}
-		if (pollfd[1].revents & POLLIN) {
-			process(&conn->rx, NULL);
-		}
-		if (pollfd[0].revents & POLLIN) {
-			break;
-		}
-	}
-}
-
-int main(int argc, char *argv[]) {
-	struct cmd *cmd = NULL;
-	argv0 = argv[0];
-	init();
-	for (;;) {
-		if (dirty) {
-			status();
-			dirty = 0;
-		}
-		prompt(cmd != NULL ? cmd->prompt : menu->prompt);
-		block();
-		input();
-		if (cmd != NULL) {
-			cmd->func();
-			cmd = NULL;
-		} else {
-			cmd = match(menu);
-			if (cmd != NULL && cmd->prompt == NULL) {
-				cmd->func();
-				cmd = NULL;
-			}
-		}
-	}
-	return 0;
 }
