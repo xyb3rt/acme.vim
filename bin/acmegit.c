@@ -11,71 +11,34 @@ struct cmd {
 	cmd_func *func;
 };
 
-struct menu {
-	char *prompt;
-	size_t cmdcount;
-	struct cmd *cmds;
-};
+cmd_func cmd_diff;
+cmd_func cmd_add_edit;
+cmd_func cmd_add_path;
+cmd_func cmd_reset_path;
+cmd_func cmd_commit;
+cmd_func cmd_config;
+cmd_func cmd_log;
+cmd_func cmd_graph;
+cmd_func cmd_fetch;
+cmd_func cmd_push;
+cmd_func cmd_merge;
+cmd_func cmd_rebase;
 
-cmd_func main_commit;
-cmd_func main_config;
-cmd_func main_index;
-cmd_func main_log;
-cmd_func main_sync;
-cmd_func done;
-cmd_func index_add;
-cmd_func index_cached;
-cmd_func index_diff;
-cmd_func index_edit;
-cmd_func index_reset;
-cmd_func sync_diff;
-cmd_func sync_fetch;
-cmd_func sync_log;
-cmd_func sync_merge;
-cmd_func sync_push;
-cmd_func sync_rebase;
-
-struct cmd main_cmds[] = {
-	{"commit", main_commit},
-	{"config", main_config},
-	{"index",  main_index},
-	{"log",    main_log},
-	{"sync",   main_sync},
+struct cmd cmds[] = {
+	{"diff",   cmd_diff},
+	{"+e",     cmd_add_edit},
+	{"+/",     cmd_add_path},
+	{"-/",     cmd_reset_path},
+	{"ci",     cmd_commit},
+	{"log",    cmd_log},
+	{"graph",  cmd_graph},
+	{"fetch",  cmd_fetch},
+	{"push",   cmd_push},
+	{"merge",  cmd_merge},
+	{"rebase", cmd_rebase},
+	{"cfg",    cmd_config},
 };
-struct menu main_menu = {
-	"< commit config index log sync >",
-	ARRLEN(main_cmds),
-	main_cmds
-};
-
-struct cmd index_cmds[] = {
-	{"add",    index_add},
-	{"cached", index_cached},
-	{"diff",   index_diff},
-	{"edit",   index_edit},
-	{"reset",  index_reset},
-	{"done",   done},
-};
-struct menu index_menu = {
-	"<index: add cached diff edit reset done >",
-	ARRLEN(index_cmds),
-	index_cmds
-};
-
-struct cmd sync_cmds[] = {
-	{"diff",   sync_diff},
-	{"fetch",  sync_fetch},
-	{"log",    sync_log},
-	{"merge",  sync_merge},
-	{"push",   sync_push},
-	{"rebase", sync_rebase},
-	{"done",   done},
-};
-struct menu sync_menu = {
-	"<sync: diff fetch log merge push rebase done >",
-	ARRLEN(sync_cmds),
-	sync_cmds
-};
+const char *menu = "< diff +e +/ -/ ci log graph fetch push merge rebase cfg >";
 
 const char *acmevimbuf;
 const char *acmevimpid;
@@ -83,7 +46,6 @@ struct acmevim_strv argv;
 struct acmevim_buf buf;
 struct acmevim_conn *conn;
 int dirty = 1;
-struct menu *menu = &main_menu;
 
 char *const *set(const char *arg, ...) {
 	va_list ap;
@@ -192,10 +154,10 @@ void prompt(const char *p) {
 	input();
 }
 
-struct cmd *match(const struct menu *menu) {
-	for (size_t i = 0; i < menu->cmdcount; i++) {
-		if (strcmp(buf.d, menu->cmds[i].name) == 0) {
-			return &menu->cmds[i];
+struct cmd *match(void) {
+	for (size_t i = 0; i < ARRLEN(cmds); i++) {
+		if (strcmp(buf.d, cmds[i].name) == 0) {
+			return &cmds[i];
 		}
 	}
 	return NULL;
@@ -222,8 +184,8 @@ int main(int argc, char *argv[]) {
 			status();
 			dirty = 0;
 		}
-		prompt(menu->prompt);
-		struct cmd *cmd = match(menu);
+		prompt(menu);
+		struct cmd *cmd = match();
 		if (cmd != NULL) {
 			cmd->func();
 		}
@@ -231,89 +193,66 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-void main_commit(void) {
+void cmd_diff(void) {
+	prompt("<diff: -- --cached HEAD @{u} >");
+	request("scratched", "scratch", "git", "diff", buf.d, NULL);
+}
+
+void cmd_add_edit(void) {
 	clear();
-	run(set("git", "commit", "-v", NULL));
+	run(set("git", "add", "-e", NULL));
 }
 
-void main_config(void) {
-	clear();
-	run(set("git", "config", "-e", NULL));
-}
-
-void main_diff(void) {
-	request("scratched", "scratch", "git", "diff", NULL);
-}
-
-void main_index(void) {
-	menu = &index_menu;
-}
-
-void main_log(void) {
-	request("scratched", "scratch", "git", "log", "--oneline", "--decorate",
-	        "--all", "--date-order", NULL);
-}
-
-void main_sync(void) {
-	menu = &sync_menu;
-}
-
-void index_add(void) {
+void cmd_add_path(void) {
 	prompt("<add-path: . >");
 	clear();
 	set("git", "add", NULL);
 	runglob(buf.d);
 }
 
-void index_cached(void) {
-	request("scratched", "scratch", "git", "diff", "--cached", NULL);
-}
-
-void index_diff(void) {
-	request("scratched", "scratch", "git", "diff", NULL);
-}
-
-void index_edit(void) {
-	clear();
-	run(set("git", "add", "-e", NULL));
-}
-
-void index_reset(void) {
+void cmd_reset_path(void) {
 	prompt("<reset-path: . >");
 	clear();
 	set("git", "reset", "HEAD", "--", NULL);
 	runglob(buf.d);
 }
 
-void sync_diff(void) {
-	request("scratched", "scratch", "git", "diff", "@{u}", NULL);
+void cmd_commit(void) {
+	clear();
+	run(set("git", "commit", "-v", NULL));
 }
 
-void sync_fetch(void) {
+void cmd_log(void) {
+	request("scratched", "scratch", "git", "log", "-s", NULL);
+}
+
+void cmd_graph(void) {
+	request("scratched", "scratch", "git", "log", "--graph", "--oneline",
+	        "--decorate", "--all", "--date-order", NULL);
+}
+
+void cmd_fetch(void) {
 	clear();
 	run(set("git", "fetch", "--prune", NULL));
 }
 
-void sync_log(void) {
-	request("scratched", "scratch", "git", "log", "-s", "--left-right",
-	        "...@{u}", NULL);
-}
-
-void sync_merge(void) {
-	clear();
-	run(set("git", "merge", NULL));
-}
-
-void sync_push(void) {
+void cmd_push(void) {
 	clear();
 	run(set("git", "push", NULL));
 }
 
-void sync_rebase(void) {
+void cmd_merge(void) {
 	clear();
-	run(set("git", "rebase", NULL));
+	run(set("git", "merge", NULL));
 }
 
-void done(void) {
-	menu = &main_menu;
+void cmd_rebase(void) {
+	prompt("<rebase: >");
+	clear();
+	run(set("git", "rebase", "-i", "--autosquash", buf.d, NULL));
+}
+
+void cmd_config(void) {
+	clear();
+	run(set("git", "config", "-e", NULL));
 }
