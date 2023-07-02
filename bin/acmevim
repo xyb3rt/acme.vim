@@ -26,16 +26,19 @@ class Conn:
         self.sel.modify(self.sock, events)
 
     def sync(self, mask):
-        if mask & selectors.EVENT_READ:
-            data = self.sock.recv(1024)
-            if data:
-                self.rx += data
-            else:
-                return False
-        if mask & selectors.EVENT_WRITE:
-            sent = self.sock.send(self.tx)
-            self.tx = self.tx[sent:]
-            self.register()
+        try:
+            if mask & selectors.EVENT_READ:
+                data = self.sock.recv(1024)
+                if data:
+                    self.rx += data
+                else:
+                    return False
+            if mask & selectors.EVENT_WRITE:
+                sent = self.sock.send(self.tx)
+                self.tx = self.tx[sent:]
+                self.register()
+        except:
+            return False
         return True
 
     def recv(self):
