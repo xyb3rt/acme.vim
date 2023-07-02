@@ -16,13 +16,13 @@ cmd_func cmd_add_edit;
 cmd_func cmd_add_path;
 cmd_func cmd_reset_path;
 cmd_func cmd_commit;
-cmd_func cmd_config;
 cmd_func cmd_log;
 cmd_func cmd_graph;
 cmd_func cmd_fetch;
 cmd_func cmd_push;
 cmd_func cmd_merge;
 cmd_func cmd_rebase;
+cmd_func cmd_config;
 
 struct cmd cmds[] = {
 	{"diff",   cmd_diff},
@@ -38,7 +38,6 @@ struct cmd cmds[] = {
 	{"rebase", cmd_rebase},
 	{"cfg",    cmd_config},
 };
-const char *menu = "< diff +e +/ -/ ci log graph fetch push merge rebase cfg >";
 
 const char *acmevimbuf;
 const char *acmevimpid;
@@ -112,9 +111,6 @@ void status(void) {
 	if (run(set("git", "status", "-sb", NULL)) != 0) {
 		exit(EXIT_FAILURE);
 	}
-	/* last line for prompt: */
-	printf("\n");
-	fflush(stdout);
 }
 
 void block(void) {
@@ -149,7 +145,8 @@ void input(void) {
 }
 
 void prompt(const char *p) {
-	request("lineset", "setline", acmevimbuf, "$", p, NULL);
+	printf("%s\n", p);
+	fflush(stdout);
 	block();
 	input();
 }
@@ -161,6 +158,15 @@ struct cmd *match(void) {
 		}
 	}
 	return NULL;
+}
+
+void menu(void) {
+	printf("<");
+	for (size_t i = 0; i < ARRLEN(cmds); i++) {
+		printf(" %s", cmds[i].name);
+	}
+	printf(" >\n");
+	fflush(stdout);
 }
 
 void init(void) {
@@ -182,9 +188,11 @@ int main(int argc, char *argv[]) {
 	for (;;) {
 		if (dirty) {
 			status();
+			menu();
 			dirty = 0;
 		}
-		prompt(menu);
+		block();
+		input();
 		struct cmd *cmd = match();
 		if (cmd != NULL) {
 			cmd->func();
@@ -196,6 +204,7 @@ int main(int argc, char *argv[]) {
 void cmd_diff(void) {
 	prompt("<diff: -- --cached HEAD @{u} >");
 	request("scratched", "scratch", "git", "diff", buf.d, NULL);
+	clear();
 }
 
 void cmd_add_edit(void) {
