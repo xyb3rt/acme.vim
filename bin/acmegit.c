@@ -12,6 +12,8 @@ struct cmd {
 };
 
 cmd_func cmd_diff;
+cmd_func cmd_checkout_branch;
+cmd_func cmd_checkout_path;
 cmd_func cmd_add_edit;
 cmd_func cmd_add_path;
 cmd_func cmd_reset_path;
@@ -22,20 +24,28 @@ cmd_func cmd_fetch;
 cmd_func cmd_push;
 cmd_func cmd_merge;
 cmd_func cmd_rebase;
+cmd_func cmd_stash_add;
+cmd_func cmd_stash_pop;
+cmd_func cmd_stash_drop;
 cmd_func cmd_config;
 
 struct cmd cmds[] = {
 	{"diff",   cmd_diff},
+	{"co",     cmd_checkout_branch},
+	{"co/",    cmd_checkout_path},
 	{"+e",     cmd_add_edit},
 	{"+/",     cmd_add_path},
 	{"-/",     cmd_reset_path},
 	{"ci",     cmd_commit},
 	{"log",    cmd_log},
 	{"graph",  cmd_graph},
-	{"fetch",  cmd_fetch},
-	{"push",   cmd_push},
+	{"<r",     cmd_fetch},
+	{">r",     cmd_push},
 	{"merge",  cmd_merge},
 	{"rebase", cmd_rebase},
+	{">s",     cmd_stash_add},
+	{"<s",     cmd_stash_pop},
+	{"-s",     cmd_stash_drop},
 	{"cfg",    cmd_config},
 };
 
@@ -207,6 +217,19 @@ void cmd_diff(void) {
 	clear();
 }
 
+void cmd_checkout_branch(void) {
+	run(set("git", "branch", "-a", NULL));
+	prompt("<checkout-branch: >");
+	clear();
+	run(set("git", "checkout", buf.d, NULL));
+}
+
+void cmd_checkout_path(void) {
+	prompt("<checkout-path: . >");
+	clear();
+	run(set("git", "checkout", "--", buf.d, NULL));
+}
+
 void cmd_add_edit(void) {
 	clear();
 	run(set("git", "add", "-e", NULL));
@@ -241,24 +264,53 @@ void cmd_graph(void) {
 }
 
 void cmd_fetch(void) {
+	run(set("git", "remote", NULL));
+	prompt("<fetch: --all >");
 	clear();
-	run(set("git", "fetch", "--prune", NULL));
+	run(set("git", "fetch", "--prune", buf.d, NULL));
 }
 
 void cmd_push(void) {
+	run(set("git", "remote", NULL));
+	prompt("<push-remote: >");
+	char *remote = estrdup(buf.d);
+	run(set("git", "branch", "-vv", NULL));
+	prompt("<push-branch: --all >");
 	clear();
-	run(set("git", "push", NULL));
+	run(set("git", "push", remote, buf.d, NULL));
+	free(remote);
 }
 
 void cmd_merge(void) {
+	run(set("git", "branch", "-vv", NULL));
+	prompt("<merge: @{u} >");
 	clear();
-	run(set("git", "merge", NULL));
+	run(set("git", "merge", buf.d, NULL));
 }
 
 void cmd_rebase(void) {
-	prompt("<rebase: >");
+	prompt("<rebase: @{u} >");
 	clear();
 	run(set("git", "rebase", "-i", "--autosquash", buf.d, NULL));
+}
+
+void cmd_stash_add(void) {
+	clear();
+	run(set("git", "stash", NULL));
+}
+
+void cmd_stash_pop(void) {
+	run(set("git", "stash", "list", NULL));
+	prompt("<pop-stash: >");
+	clear();
+	run(set("git", "stash", "pop", buf.d, NULL));
+}
+
+void cmd_stash_drop(void) {
+	run(set("git", "stash", "list", NULL));
+	prompt("<drop-stash: >");
+	clear();
+	run(set("git", "stash", "drop", buf.d, NULL));
 }
 
 void cmd_config(void) {
