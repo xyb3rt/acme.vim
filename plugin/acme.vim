@@ -64,7 +64,8 @@ function s:UpdateStatus(buf)
 endfunc
 
 function s:Started(job, buf, cmd)
-	call add(s:jobs, {'h': a:job, 'buf': a:buf, 'cmd': a:cmd})
+	let cmd = type(a:cmd) == type([]) ? join(a:cmd) : a:cmd
+	call add(s:jobs, {'h': a:job, 'buf': a:buf, 'cmd': cmd})
 	call s:UpdateStatus(a:buf)
 endfunc
 
@@ -187,6 +188,10 @@ function s:New(cmd, ...)
 	exe (a:0 > 1 ? a:2 : '').h.a:cmd
 endfunc
 
+function s:Argv(cmd)
+	return type(a:cmd) == type([]) ? a:cmd : [&shell, &shellcmdflag, a:cmd]
+endfunc
+
 function s:ErrorOpen(name, ...)
 	let name = s:Normalize(a:name)
 	let p = win_getid()
@@ -221,7 +226,7 @@ function s:ErrorExec(cmd, io, dir)
 	silent! wall
 	let b = s:ErrorOpen(name)
 	let opts['out_buf'] = b
-	let job = job_start([&shell, &shellcmdflag, a:cmd], opts)
+	let job = job_start(s:Argv(a:cmd), opts)
 	call s:Started(job, b, a:cmd)
 	if inp != ''
 		call ch_sendraw(job, inp)
@@ -307,13 +312,13 @@ function s:ScratchExec(cmd, dir)
 	if a:dir != ''
 		let opts['cwd'] = a:dir
 	endif
-	let job = job_start([&shell, &shellcmdflag, a:cmd], opts)
+	let job = job_start(s:Argv(a:cmd), opts)
 	call s:Started(job, b, a:cmd)
 	call setbufvar(b, 'acme_dir', fnamemodify(a:dir, ':p'))
 endfunc
 
 function s:Exec(cmd)
-	call job_start([&shell, &shellcmdflag, a:cmd], {
+	call job_start(s:Argv(a:cmd), {
 		\ 'err_io': 'null', 'in_io': 'null', 'out_io': 'null'})
 endfunc
 
@@ -780,8 +785,7 @@ function s:CtrlRecv(ch, data)
 			call deletebufline(str2nr(msg[3]), 1, "$")
 			call s:CtrlSend(pid, 'cleared')
 		elseif msg[2] == 'scratch'
-			let cmd = join(map(msg[3:], 'shellescape(v:val)'))
-			call s:ScratchExec(cmd, '')
+			call s:ScratchExec(msg[3:], '')
 			call s:CtrlSend(pid, 'scratched')
 		endif
 	endfor
