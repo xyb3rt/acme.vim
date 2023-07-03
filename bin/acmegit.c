@@ -126,11 +126,14 @@ void input(void) {
 	}
 }
 
-void prompt(const char *p) {
-	printf("%s\n", p);
-	fflush(stdout);
+int prompt(const char *p) {
+	if (p != NULL) {
+		printf("<< %s >>\n", p);
+		fflush(stdout);
+	}
 	block();
 	input();
+	return strcmp(buf.d, "<<") != 0 && strcmp(buf.d, ">>") != 0;
 }
 
 struct cmd *match(void) {
@@ -166,19 +169,29 @@ int run(char *const *av) {
 	return ret;
 }
 
-int runglob(const char *path) {
-	int ret;
+int runglob(const char *p) {
+	int flags = GLOB_DOOFFS | GLOB_NOCHECK;
 	glob_t g = {.gl_offs = argv.count};
-	if (glob(path, GLOB_DOOFFS, NULL, &g) == 0) {
-		for (size_t i = 0; i < argv.count; i++) {
-			g.gl_pathv[i] = argv.d[i];
+	int ret = 0;
+	while (prompt(p)) {
+		if (glob(buf.d, flags, NULL, &g) == 0) {
+			printf("%s\n", buf.d);
+			fflush(stdout);
 		}
-		ret = run(g.gl_pathv);
-	} else {
-		acmevim_add(&argv, path);
-		acmevim_add(&argv, NULL);
-		ret = run(argv.d);
+		flags |= GLOB_APPEND;
+		p = NULL;
 	}
+	if (p != NULL || strcmp(buf.d, "<<") == 0) {
+		clear(REDRAW);
+		argv.count = 0;
+		goto end;
+	}
+	for (size_t i = 0; i < argv.count; i++) {
+		g.gl_pathv[i] = argv.d[i];
+	}
+	ret = run(g.gl_pathv);
+	clear(CHECKTIME);
+end:
 	globfree(&g);
 	return ret;
 }
@@ -226,41 +239,40 @@ int main(int argc, char *argv[]) {
 }
 
 void cmd_diff(void) {
-	prompt("<diff: -- --cached HEAD @{u} >");
-	request("scratched", "scratch", "git", "diff", buf.d, NULL);
+	if (prompt("diff: --cached . HEAD @{u}")) {
+		request("scratched", "scratch", "git", "diff", buf.d, NULL);
+	}
 	clear(REDRAW);
 }
 
 void cmd_checkout_branch(void) {
 	run(set("git", "branch", "-a", NULL));
-	prompt("<checkout-branch: >");
+	if (!prompt("checkout-branch:")) {
+		clear(REDRAW);
+		return;
+	}
 	clear(CHECKTIME);
 	run(set("git", "checkout", buf.d, NULL));
 }
 
 void cmd_checkout_path(void) {
-	prompt("<checkout-path: . >");
-	clear(CHECKTIME);
-	run(set("git", "checkout", "--", buf.d, NULL));
+	set("git", "checkout", "--", NULL);
+	runglob("checkout-path: .");
 }
 
 void cmd_add_edit(void) {
-	clear(CHECKTIME);
+	clear(REDRAW);
 	run(set("git", "add", "-e", NULL));
 }
 
 void cmd_add_path(void) {
-	prompt("<add-path: . >");
-	clear(CHECKTIME);
-	set("git", "add", NULL);
-	runglob(buf.d);
+	set("git", "add", "-v", NULL);
+	runglob("add-path: .");
 }
 
 void cmd_reset_path(void) {
-	prompt("<reset-path: . >");
-	clear(CHECKTIME);
 	set("git", "reset", "HEAD", "--", NULL);
-	runglob(buf.d);
+	runglob("reset-path: .");
 }
 
 void cmd_commit(void) {
@@ -279,31 +291,44 @@ void cmd_graph(void) {
 
 void cmd_fetch(void) {
 	run(set("git", "remote", NULL));
-	prompt("<fetch: --all >");
+	int fetch = prompt("fetch: --all");
 	clear(REDRAW);
-	run(set("git", "fetch", "--prune", buf.d, NULL));
+	if (fetch) {
+		run(set("git", "fetch", "--prune", buf.d, NULL));
+	}
 }
 
 void cmd_push(void) {
+	int push = 0;
+	char *remote = NULL;
 	run(set("git", "remote", NULL));
-	prompt("<push-remote: >");
-	char *remote = estrdup(buf.d);
-	run(set("git", "branch", "-vv", NULL));
-	prompt("<push-branch: --all >");
+	if (prompt("push-remote:")) {
+		remote = estrdup(buf.d);
+		run(set("git", "branch", "-vv", NULL));
+		push = prompt("push-branch: --all");
+	}
 	clear(REDRAW);
-	run(set("git", "push", remote, buf.d, NULL));
+	if (push) {
+		run(set("git", "push", remote, buf.d, NULL));
+	}
 	free(remote);
 }
 
 void cmd_merge(void) {
 	run(set("git", "branch", "-vv", NULL));
-	prompt("<merge: @{u} >");
+	if (!prompt("merge: @{u}")) {
+		clear(REDRAW);
+		return;
+	}
 	clear(CHECKTIME);
 	run(set("git", "merge", buf.d, NULL));
 }
 
 void cmd_rebase(void) {
-	prompt("<rebase: @{u} >");
+	if (!prompt("rebase: @{u}")) {
+		clear(REDRAW);
+		return;
+	}
 	clear(CHECKTIME);
 	run(set("git", "rebase", "-i", "--autosquash", buf.d, NULL));
 }
@@ -315,16 +340,21 @@ void cmd_stash_add(void) {
 
 void cmd_stash_pop(void) {
 	run(set("git", "stash", "list", NULL));
-	prompt("<pop-stash: >");
+	if (!prompt("pop-stash:")) {
+		clear(REDRAW);
+		return;
+	}
 	clear(CHECKTIME);
 	run(set("git", "stash", "pop", buf.d, NULL));
 }
 
 void cmd_stash_drop(void) {
 	run(set("git", "stash", "list", NULL));
-	prompt("<drop-stash: >");
+	int drop = prompt("drop-stash:");
 	clear(REDRAW);
-	run(set("git", "stash", "drop", buf.d, NULL));
+	if (drop) {
+		run(set("git", "stash", "drop", buf.d, NULL));
+	}
 }
 
 void cmd_config(void) {
