@@ -338,6 +338,14 @@ void cmd_stash_add(void) {
 	run(set("git", "stash", NULL));
 }
 
+void fix_stash_name(void) {
+	size_t n = strlen(buf.d);
+	if (n > 9 && strncmp(buf.d, "stash@{", 7) == 0 &&
+	    buf.d[n - 2] == '}' && buf.d[n - 1] == ':') {
+		buf.d[n - 1] = '\0';
+	}
+}
+
 void cmd_stash_pop(void) {
 	run(set("git", "stash", "list", NULL));
 	if (!prompt("pop-stash:")) {
@@ -345,6 +353,7 @@ void cmd_stash_pop(void) {
 		return;
 	}
 	clear(CHECKTIME);
+	fix_stash_name();
 	run(set("git", "stash", "pop", buf.d, NULL));
 }
 
@@ -353,6 +362,7 @@ void cmd_stash_drop(void) {
 	int drop = prompt("drop-stash:");
 	clear(REDRAW);
 	if (drop) {
+		fix_stash_name();
 		run(set("git", "stash", "drop", buf.d, NULL));
 	}
 }
