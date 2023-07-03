@@ -770,7 +770,7 @@ function s:CtrlRecv(ch, data)
 		if len(msg) == 0
 			call s:CtrlSend('')
 			continue
-		elseif len(msg) < 4
+		elseif len(msg) < 3
 			continue
 		endif
 		let pid = msg[1]
@@ -782,10 +782,17 @@ function s:CtrlRecv(ch, data)
 					\ [pid])
 			endfor
 		elseif msg[2] == 'clear'
-			call deletebufline(str2nr(msg[3]), 1, "$")
+			for b in msg[3:]
+				call deletebufline(str2nr(b), 1, "$")
+			endfor
 			call s:CtrlSend(pid, 'cleared')
+		elseif msg[2] == 'checktime'
+			checktime
+			call s:CtrlSend(pid, 'timechecked')
 		elseif msg[2] == 'scratch'
-			call s:ScratchExec(msg[3:], '')
+			if len(msg) > 3
+				call s:ScratchExec(msg[3:], '')
+			endif
 			call s:CtrlSend(pid, 'scratched')
 		endif
 	endfor

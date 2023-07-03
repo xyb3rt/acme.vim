@@ -6,6 +6,12 @@
 
 typedef void cmd_func(void);
 
+enum dirty {
+	CLEAN,
+	REDRAW,
+	CHECKTIME,
+};
+
 struct cmd {
 	char *name;
 	cmd_func *func;
@@ -54,7 +60,7 @@ const char *acmevimpid;
 struct acmevim_strv argv;
 struct acmevim_buf buf;
 struct acmevim_conn *conn;
-int dirty = 1;
+enum dirty dirty = REDRAW;
 
 char *const *set(const char *arg, ...) {
 	va_list ap;
@@ -112,9 +118,13 @@ void request(const char *resp, ...) {
 	acmevim_sync(conn, process, (void *)resp);
 }
 
-void clear(void) {
+void clear(enum dirty d) {
 	request("cleared", "clear", acmevimbuf, NULL);
-	dirty = 1;
+	dirty = d;
+}
+
+void checktime(void) {
+	request("timechecked", "checktime", NULL);
 }
 
 void status(void) {
@@ -197,9 +207,12 @@ int main(int argc, char *argv[]) {
 	init();
 	for (;;) {
 		if (dirty) {
+			if (dirty == CHECKTIME) {
+				checktime();
+			}
 			status();
 			menu();
-			dirty = 0;
+			dirty = CLEAN;
 		}
 		block();
 		input();
@@ -214,43 +227,43 @@ int main(int argc, char *argv[]) {
 void cmd_diff(void) {
 	prompt("<diff: -- --cached HEAD @{u} >");
 	request("scratched", "scratch", "git", "diff", buf.d, NULL);
-	clear();
+	clear(REDRAW);
 }
 
 void cmd_checkout_branch(void) {
 	run(set("git", "branch", "-a", NULL));
 	prompt("<checkout-branch: >");
-	clear();
+	clear(CHECKTIME);
 	run(set("git", "checkout", buf.d, NULL));
 }
 
 void cmd_checkout_path(void) {
 	prompt("<checkout-path: . >");
-	clear();
+	clear(CHECKTIME);
 	run(set("git", "checkout", "--", buf.d, NULL));
 }
 
 void cmd_add_edit(void) {
-	clear();
+	clear(CHECKTIME);
 	run(set("git", "add", "-e", NULL));
 }
 
 void cmd_add_path(void) {
 	prompt("<add-path: . >");
-	clear();
+	clear(CHECKTIME);
 	set("git", "add", NULL);
 	runglob(buf.d);
 }
 
 void cmd_reset_path(void) {
 	prompt("<reset-path: . >");
-	clear();
+	clear(CHECKTIME);
 	set("git", "reset", "HEAD", "--", NULL);
 	runglob(buf.d);
 }
 
 void cmd_commit(void) {
-	clear();
+	clear(REDRAW);
 	run(set("git", "commit", "-v", NULL));
 }
 
@@ -266,7 +279,7 @@ void cmd_graph(void) {
 void cmd_fetch(void) {
 	run(set("git", "remote", NULL));
 	prompt("<fetch: --all >");
-	clear();
+	clear(REDRAW);
 	run(set("git", "fetch", "--prune", buf.d, NULL));
 }
 
@@ -276,7 +289,7 @@ void cmd_push(void) {
 	char *remote = estrdup(buf.d);
 	run(set("git", "branch", "-vv", NULL));
 	prompt("<push-branch: --all >");
-	clear();
+	clear(REDRAW);
 	run(set("git", "push", remote, buf.d, NULL));
 	free(remote);
 }
@@ -284,36 +297,36 @@ void cmd_push(void) {
 void cmd_merge(void) {
 	run(set("git", "branch", "-vv", NULL));
 	prompt("<merge: @{u} >");
-	clear();
+	clear(CHECKTIME);
 	run(set("git", "merge", buf.d, NULL));
 }
 
 void cmd_rebase(void) {
 	prompt("<rebase: @{u} >");
-	clear();
+	clear(CHECKTIME);
 	run(set("git", "rebase", "-i", "--autosquash", buf.d, NULL));
 }
 
 void cmd_stash_add(void) {
-	clear();
+	clear(CHECKTIME);
 	run(set("git", "stash", NULL));
 }
 
 void cmd_stash_pop(void) {
 	run(set("git", "stash", "list", NULL));
 	prompt("<pop-stash: >");
-	clear();
+	clear(CHECKTIME);
 	run(set("git", "stash", "pop", buf.d, NULL));
 }
 
 void cmd_stash_drop(void) {
 	run(set("git", "stash", "list", NULL));
 	prompt("<drop-stash: >");
-	clear();
+	clear(REDRAW);
 	run(set("git", "stash", "drop", buf.d, NULL));
 }
 
 void cmd_config(void) {
-	clear();
+	clear(REDRAW);
 	run(set("git", "config", "-e", NULL));
 }
