@@ -62,38 +62,6 @@ struct acmevim_buf buf;
 struct acmevim_conn *conn;
 enum dirty dirty = REDRAW;
 
-char *const *set(const char *arg, ...) {
-	va_list ap;
-	va_start(ap, arg);
-	acmevim_add(&argv, arg);
-	while (acmevim_add(&argv, va_arg(ap, const char *)));
-	va_end(ap);
-	return (char *const *)argv.d;
-}
-
-int run(char *const *av) {
-	int ret = call(av);
-	argv.count = 0;
-	return ret;
-}
-
-int runglob(const char *path) {
-	int ret;
-	glob_t g = {.gl_offs = argv.count};
-	if (glob(path, GLOB_DOOFFS, NULL, &g) == 0) {
-		for (size_t i = 0; i < argv.count; i++) {
-			g.gl_pathv[i] = argv.d[i];
-		}
-		ret = run(g.gl_pathv);
-	} else {
-		acmevim_add(&argv, path);
-		acmevim_add(&argv, NULL);
-		ret = run(argv.d);
-	}
-	globfree(&g);
-	return ret;
-}
-
 int process(struct acmevim_buf *rx, void *resp) {
 	static struct acmevim_strv f;
 	size_t pos = 0;
@@ -125,12 +93,6 @@ void clear(enum dirty d) {
 
 void checktime(void) {
 	request("timechecked", "checktime", NULL);
-}
-
-void status(void) {
-	if (run(set("git", "status", "-sb", NULL)) != 0) {
-		exit(EXIT_FAILURE);
-	}
 }
 
 void block(void) {
@@ -187,6 +149,45 @@ void menu(void) {
 	}
 	printf(" >\n");
 	fflush(stdout);
+}
+
+char *const *set(const char *arg, ...) {
+	va_list ap;
+	va_start(ap, arg);
+	acmevim_add(&argv, arg);
+	while (acmevim_add(&argv, va_arg(ap, const char *)));
+	va_end(ap);
+	return (char *const *)argv.d;
+}
+
+int run(char *const *av) {
+	int ret = call(av);
+	argv.count = 0;
+	return ret;
+}
+
+int runglob(const char *path) {
+	int ret;
+	glob_t g = {.gl_offs = argv.count};
+	if (glob(path, GLOB_DOOFFS, NULL, &g) == 0) {
+		for (size_t i = 0; i < argv.count; i++) {
+			g.gl_pathv[i] = argv.d[i];
+		}
+		ret = run(g.gl_pathv);
+	} else {
+		acmevim_add(&argv, path);
+		acmevim_add(&argv, NULL);
+		ret = run(argv.d);
+	}
+	globfree(&g);
+	return ret;
+}
+
+
+void status(void) {
+	if (run(set("git", "status", "-sb", NULL)) != 0) {
+		exit(EXIT_FAILURE);
+	}
 }
 
 void init(void) {
