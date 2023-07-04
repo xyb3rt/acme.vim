@@ -26,6 +26,7 @@ struct cmd {
 cmd_func cmd_add_edit;
 cmd_func cmd_add_path;
 cmd_func cmd_checkout_path;
+cmd_func cmd_clean;
 cmd_func cmd_commit;
 cmd_func cmd_config;
 cmd_func cmd_diff;
@@ -36,6 +37,7 @@ cmd_func cmd_merge;
 cmd_func cmd_push;
 cmd_func cmd_rebase;
 cmd_func cmd_reset_path;
+cmd_func cmd_rm;
 cmd_func cmd_stash_add;
 cmd_func cmd_stash_drop;
 cmd_func cmd_stash_pop;
@@ -60,6 +62,8 @@ struct cmd cmds[] = {
 	{"rebase",   cmd_rebase},
 	{"switch",   cmd_switch},
 	{"checkout", cmd_checkout_path},
+	{"clean",    cmd_clean},
+	{"rm",       cmd_rm},
 };
 
 const char *acmevimbuf;
@@ -267,6 +271,16 @@ void cmd_checkout_path(void) {
 	runglob("checkout-path: .");
 }
 
+void cmd_clean(void) {
+	run(set("git", "clean", "-d", "-n", NULL));
+	if (prompt("clean?") != CONFIRM) {
+		clear(REDRAW);
+		return;
+	}
+	run(set("git", "clean", "-f", NULL));
+	clear(CHECKTIME);
+}
+
 void cmd_commit(void) {
 	clear(REDRAW);
 	run(set("git", "commit", "-v", NULL));
@@ -340,6 +354,11 @@ void cmd_rebase(void) {
 void cmd_reset_path(void) {
 	set("git", "reset", "-q", "HEAD", "--", NULL);
 	runglob("reset-path: .");
+}
+
+void cmd_rm(void) {
+	set("git", "rm", "--", NULL);
+	runglob("rm-path:");
 }
 
 void cmd_stash_add(void) {
