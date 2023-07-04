@@ -15,8 +15,6 @@ struct acmevim_conn {
 	acmevim_buf rx, tx;
 };
 
-typedef int acmevim_proc(acmevim_buf *, void *);
-
 acmevim_strv acmevim_parse(acmevim_buf *buf, size_t *pos) {
 	int field = 1;
 	acmevim_strv msg = vec_new();
@@ -146,27 +144,22 @@ void acmevim_tx(struct acmevim_conn *conn) {
 	}
 }
 
-void acmevim_sync(struct acmevim_conn *conn, acmevim_proc *process, void *d) {
+void acmevim_sync(struct acmevim_conn *conn) {
 	struct pollfd pollfd;
 	pollfd.fd = conn->fd;
-	for (;;) {
-		pollfd.events = POLLIN;
-		if (vec_len(&conn->tx) > 0) {
-			pollfd.events |= POLLOUT;
+	pollfd.events = POLLIN;
+	if (vec_len(&conn->tx) > 0) {
+		pollfd.events |= POLLOUT;
+	}
+	while (poll(&pollfd, 1, -1) == -1) {
+		if (errno != EINTR) {
+			error(EXIT_FAILURE, errno, "poll");
 		}
-		while (poll(&pollfd, 1, -1) == -1) {
-			if (errno != EINTR) {
-				error(EXIT_FAILURE, errno, "poll");
-			}
-		}
-		if (pollfd.revents & POLLOUT) {
-			acmevim_tx(conn);
-		}
-		if (pollfd.revents & POLLIN) {
-			acmevim_rx(conn);
-			if (process(&conn->rx, d)) {
-				break;
-			}
-		}
+	}
+	if (pollfd.revents & POLLOUT) {
+		acmevim_tx(conn);
+	}
+	if (pollfd.revents & POLLIN) {
+		acmevim_rx(conn);
 	}
 }

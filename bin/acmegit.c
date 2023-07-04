@@ -72,10 +72,10 @@ struct { char *d; size_t len, size; } buf;
 struct acmevim_conn *conn;
 enum dirty dirty = REDRAW;
 
-int process(acmevim_buf *rx, void *resp) {
+int process(const char *resp) {
 	size_t pos = 0;
 	for (;;) {
-		acmevim_strv msg = acmevim_parse(rx, &pos);
+		acmevim_strv msg = acmevim_parse(&conn->rx, &pos);
 		if (msg == NULL) {
 			break;
 		}
@@ -86,7 +86,7 @@ int process(acmevim_buf *rx, void *resp) {
 		vec_free(&msg);
 	}
 	if (pos > 0) {
-		acmevim_pop(rx, pos);
+		acmevim_pop(&conn->rx, pos);
 	}
 	return resp == NULL;
 }
@@ -96,7 +96,12 @@ void request(const char *resp, ...) {
 	va_start(ap, resp);
 	acmevim_sendv(conn, acmevimpid, ap);
 	va_end(ap);
-	acmevim_sync(conn, process, (void *)resp);
+	for (;;) {
+		acmevim_sync(conn);
+		if (process(resp)) {
+			break;
+		}
+	}
 }
 
 void clear(enum dirty d) {
@@ -121,7 +126,7 @@ void block(void) {
 			}
 		}
 		if (pollfd[1].revents & POLLIN) {
-			process(&conn->rx, NULL);
+			process(NULL);
 		}
 		if (pollfd[0].revents & POLLIN) {
 			break;
@@ -221,7 +226,6 @@ end:
 	globfree(&g);
 	return ret;
 }
-
 
 void status(void) {
 	if (run("git", "status", "-sb", NULL) != 0) {
