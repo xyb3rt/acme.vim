@@ -19,7 +19,6 @@ struct cmd {
 
 cmd_func cmd_add_edit;
 cmd_func cmd_add_path;
-cmd_func cmd_checkout_branch;
 cmd_func cmd_checkout_path;
 cmd_func cmd_commit;
 cmd_func cmd_config;
@@ -34,25 +33,27 @@ cmd_func cmd_reset_path;
 cmd_func cmd_stash_add;
 cmd_func cmd_stash_drop;
 cmd_func cmd_stash_pop;
+cmd_func cmd_switch;
 
 struct cmd cmds[] = {
-	{"diff",   cmd_diff},
-	{"co",     cmd_checkout_branch},
-	{"co/",    cmd_checkout_path},
-	{"+e",     cmd_add_edit},
-	{"+/",     cmd_add_path},
-	{"-/",     cmd_reset_path},
-	{"ci",     cmd_commit},
-	{"log",    cmd_log},
-	{"graph",  cmd_graph},
-	{"<r",     cmd_fetch},
-	{">r",     cmd_push},
-	{"merge",  cmd_merge},
-	{"rebase", cmd_rebase},
-	{">s",     cmd_stash_add},
-	{"<s",     cmd_stash_pop},
-	{"-s",     cmd_stash_drop},
-	{"cfg",    cmd_config},
+	{"diff",     cmd_diff},
+	{"log",      cmd_log},
+	{"graph",    cmd_graph},
+	{"fetch",    cmd_fetch},
+	{"push",     cmd_push},
+	{"config",   cmd_config},
+	{"stash",    cmd_stash_add},
+	{"pop",      cmd_stash_pop},
+	{"drop",     cmd_stash_drop},
+	{">\n<"},
+	{"add",      cmd_add_path},
+	{"edit",     cmd_add_edit},
+	{"reset",    cmd_reset_path},
+	{"commit",   cmd_commit},
+	{"merge",    cmd_merge},
+	{"rebase",   cmd_rebase},
+	{"switch",   cmd_switch},
+	{"checkout", cmd_checkout_path},
 };
 
 const char *acmevimbuf;
@@ -248,16 +249,6 @@ void cmd_add_path(void) {
 	runglob("add-path: .");
 }
 
-void cmd_checkout_branch(void) {
-	run(set("git", "branch", "-a", NULL));
-	if (!prompt("checkout-branch:")) {
-		clear(REDRAW);
-		return;
-	}
-	clear(CHECKTIME);
-	run(set("git", "checkout", buf.d, NULL));
-}
-
 void cmd_checkout_path(void) {
 	set("git", "checkout", "--", NULL);
 	runglob("checkout-path: .");
@@ -370,4 +361,14 @@ void cmd_stash_pop(void) {
 	clear(CHECKTIME);
 	fix_stash_name();
 	run(set("git", "stash", "pop", buf.d, NULL));
+}
+
+void cmd_switch(void) {
+	run(set("git", "branch", "-a", NULL));
+	if (!prompt("checkout-branch:")) {
+		clear(REDRAW);
+		return;
+	}
+	clear(CHECKTIME);
+	run(set("git", "switch", buf.d, NULL));
 }
