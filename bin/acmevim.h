@@ -1,52 +1,33 @@
 #include "base.h"
+#include "vec.h"
 #include <arpa/inet.h>
 #include <limits.h>
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 
-struct acmevim_buf {
-	char *d;
-	size_t len, size;
-};
+typedef char *acmevim_buf;
+typedef char **acmevim_strv;
 
 struct acmevim_conn {
 	int fd;
 	const char *id;
-	struct acmevim_buf rx, tx;
+	acmevim_buf rx, tx;
 };
 
-struct acmevim_strv {
-	char **d;
-	size_t count, size;
-};
+typedef int acmevim_proc(acmevim_buf *, void *);
 
-typedef int acmevim_proc(struct acmevim_buf *, void *);
-
-int acmevim_add(struct acmevim_strv *sv, const char *s) {
-	if (sv->count == sv->size) {
-		sv->size = sv->size != 0 ? sv->size * 2 : 16;
-		sv->d = erealloc(sv->d, sv->size * sizeof(*sv->d));
-	}
-	sv->d[sv->count] = (char *)s;
-	if (s == NULL) {
-		return 0;
-	}
-	sv->count++;
-	return 1;
-}
-
-int acmevim_parse(struct acmevim_buf *buf, size_t *pos, struct acmevim_strv *f) {
+acmevim_strv acmevim_parse(acmevim_buf *buf, size_t *pos) {
 	int field = 1;
-	f->count = 0;
-	for (size_t i = *pos; i < buf->len; i++) {
+	acmevim_strv msg = vec_new();
+	for (size_t i = *pos, n = vec_len(buf); i < n; i++) {
 		if (field) {
-			acmevim_add(f, &buf->d[i]);
+			*vec_ins(&msg, -1, 1) = &(*buf)[i];
 		}
-		if (buf->d[i] == '\x1e') {
-			buf->d[i] = '\0';
+		if ((*buf)[i] == '\x1e') {
+			(*buf)[i] = '\0';
 			*pos = i + 1;
-			return f->count;
+			return msg;
 		}
 		/*
 		 * The field separators get replaced with null bytes, so that
@@ -54,34 +35,26 @@ int acmevim_parse(struct acmevim_buf *buf, size_t *pos, struct acmevim_strv *f) 
 		 * is incomplete, it is parsed again. It is therefore necessary
 		 * to always split on the null bytes.
 		 */
-		if (buf->d[i] == '\x1f') {
-			buf->d[i] = '\0';
+		if ((*buf)[i] == '\x1f') {
+			(*buf)[i] = '\0';
 		}
-		field = buf->d[i] == '\0';
+		field = (*buf)[i] == '\0';
 	}
-	return 0;
+	vec_free(&msg);
+	return NULL;
 }
 
-void acmevim_pop(struct acmevim_buf *buf, size_t len) {
-	if (len > buf->len) {
-		len = buf->len;
-	}
-	buf->len -= len;
-	memmove(buf->d, &buf->d[len], buf->len);
+void acmevim_pop(acmevim_buf *buf, size_t len) {
+	vec_erase(buf, 0, len);
 }
 
-void acmevim_push(struct acmevim_buf *buf, const char *s) {
-	size_t len = strlen(s);
-	size_t size = buf->size != 0 ? buf->size : 1024;
-	while (size < buf->len + len) {
-		size *= 2;
-	}
-	if (buf->size != size) {
-		buf->d = erealloc(buf->d, size);
-		buf->size = size;
-	}
-	memcpy(&buf->d[buf->len], s, len);
-	buf->len += len;
+void acmevim_pushn(acmevim_buf *buf, const char *s, size_t len) {
+	char *p = vec_ins(buf, vec_len(buf), len);
+	memcpy(p, s, len);
+}
+
+void acmevim_push(acmevim_buf *buf, const char *s) {
+	acmevim_pushn(buf, s, strlen(s));
 }
 
 void acmevim_sendv(struct acmevim_conn *conn, const char *dst, va_list ap) {
@@ -106,6 +79,15 @@ void acmevim_send(struct acmevim_conn *conn, const char *dst, ...) {
 	va_end(ap);
 }
 
+struct acmevim_conn *acmevim_create(int sockfd, const char *id) {
+	struct acmevim_conn *conn = erealloc(NULL, sizeof(*conn));
+	conn->fd = sockfd;
+	conn->id = id;
+	conn->rx = vec_new();
+	conn->tx = vec_new();
+	return conn;
+}
+
 struct acmevim_conn *acmevim_connect(const char *id) {
 	const char *acmevimport = getenv("ACMEVIMPORT");
 	if (acmevimport == NULL) {
@@ -128,23 +110,15 @@ struct acmevim_conn *acmevim_connect(const char *id) {
 	if (connect(sockfd, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
 		error(EXIT_FAILURE, errno, "connect");
 	}
-	struct acmevim_conn *conn = erealloc(NULL, sizeof(*conn));
-	memset(conn, 0, sizeof(*conn));
-	conn->fd = sockfd;
-	conn->id = id;
-	return conn;
+	return acmevim_create(sockfd, id);
 }
 
 void acmevim_rx(struct acmevim_conn *conn) {
-	if (conn->rx.len >= conn->rx.size / 2) {
-		conn->rx.size = conn->rx.size != 0 ? conn->rx.size * 2 : 1024;
-		conn->rx.d = erealloc(conn->rx.d, conn->rx.size);
-	}
+	static char buf[1024];
 	for (;;) {
-		ssize_t n = recv(conn->fd, &conn->rx.d[conn->rx.len],
-		                 conn->rx.size - conn->rx.len, 0);
+		ssize_t n = recv(conn->fd, buf, ARRLEN(buf), 0);
 		if (n != -1) {
-			conn->rx.len += n;
+			acmevim_pushn(&conn->rx, buf, n);
 			break;
 		}
 		if (errno == EAGAIN) {
@@ -158,7 +132,7 @@ void acmevim_rx(struct acmevim_conn *conn) {
 
 void acmevim_tx(struct acmevim_conn *conn) {
 	for (;;) {
-		ssize_t n = send(conn->fd, conn->tx.d, conn->tx.len, 0);
+		ssize_t n = send(conn->fd, conn->tx, vec_len(&conn->tx), 0);
 		if (n != -1) {
 			acmevim_pop(&conn->tx, n);
 			break;
@@ -177,7 +151,7 @@ void acmevim_sync(struct acmevim_conn *conn, acmevim_proc *process, void *d) {
 	pollfd.fd = conn->fd;
 	for (;;) {
 		pollfd.events = POLLIN;
-		if (conn->tx.len > 0) {
+		if (vec_len(&conn->tx) > 0) {
 			pollfd.events |= POLLOUT;
 		}
 		while (poll(&pollfd, 1, -1) == -1) {
@@ -189,6 +163,7 @@ void acmevim_sync(struct acmevim_conn *conn, acmevim_proc *process, void *d) {
 			acmevim_tx(conn);
 		}
 		if (pollfd.revents & POLLIN) {
+			acmevim_rx(conn);
 			if (process(&conn->rx, d)) {
 				break;
 			}

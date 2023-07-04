@@ -68,23 +68,25 @@ struct cmd cmds[] = {
 
 const char *acmevimbuf;
 const char *acmevimpid;
-struct acmevim_strv argv;
-struct acmevim_buf buf;
+struct { char *d; size_t len, size; } buf;
 struct acmevim_conn *conn;
 enum dirty dirty = REDRAW;
 
-int process(struct acmevim_buf *rx, void *resp) {
-	static struct acmevim_strv f;
+int process(acmevim_buf *rx, void *resp) {
 	size_t pos = 0;
-	acmevim_rx(conn);
-	while (acmevim_parse(&conn->rx, &pos, &f)) {
-		if (f.count > 2 && strcmp(f.d[1], acmevimpid) == 0 &&
-		    resp != NULL && strcmp(f.d[2], (char *)resp) == 0) {
+	for (;;) {
+		acmevim_strv msg = acmevim_parse(rx, &pos);
+		if (msg == NULL) {
+			break;
+		}
+		if (vec_len(&msg) > 2 && strcmp(msg[1], acmevimpid) == 0 &&
+		    resp != NULL && strcmp(msg[2], (char *)resp) == 0) {
 			resp = NULL;
 		}
+		vec_free(&msg);
 	}
 	if (pos > 0) {
-		acmevim_pop(&conn->rx, pos);
+		acmevim_pop(rx, pos);
 	}
 	return resp == NULL;
 }
@@ -171,24 +173,28 @@ void menu(void) {
 	fflush(stdout);
 }
 
-char *const *set(const char *arg, ...) {
+int run(const char *arg, ...) {
 	va_list ap;
 	va_start(ap, arg);
-	acmevim_add(&argv, arg);
-	while (acmevim_add(&argv, va_arg(ap, const char *)));
+	acmevim_strv argv = vec_new();
+	*vec_ins(&argv, -1, 1) = (char *)arg;
+	while ((*vec_ins(&argv, -1, 1) = va_arg(ap, char *)) != NULL);
 	va_end(ap);
-	return (char *const *)argv.d;
-}
-
-int run(char *const *av) {
-	int ret = call(av);
-	argv.count = 0;
+	int ret = call(argv);
+	vec_free(&argv);
 	return ret;
 }
 
-int runglob(const char *p) {
+int runglob(const char *p, const char *arg, ...) {
+	va_list ap;
+	va_start(ap, arg);
+	size_t argc = 1;
+	while (va_arg(ap, const char *) != NULL) {
+		argc++;
+	}
+	va_end(ap);
 	int flags = GLOB_DOOFFS | GLOB_NOCHECK;
-	glob_t g = {.gl_offs = argv.count};
+	glob_t g = {.gl_offs = argc};
 	enum reply reply;
 	int ret = 0;
 	while ((reply = prompt(p)) == SELECT) {
@@ -201,14 +207,16 @@ int runglob(const char *p) {
 	}
 	if (reply == CANCEL || p != NULL) {
 		clear(REDRAW);
-		argv.count = 0;
 		goto end;
 	}
-	for (size_t i = 0; i < argv.count; i++) {
-		g.gl_pathv[i] = argv.d[i];
+	va_start(ap, arg);
+	g.gl_pathv[0] = (char *)arg;
+	for (size_t i = 1; i < argc; i++) {
+		g.gl_pathv[i] = va_arg(ap, char *);
 	}
+	va_end(ap);
 	clear(CHECKTIME);
-	ret = run(g.gl_pathv);
+	ret = call(g.gl_pathv);
 end:
 	globfree(&g);
 	return ret;
@@ -216,7 +224,7 @@ end:
 
 
 void status(void) {
-	if (run(set("git", "status", "-sb", NULL)) != 0) {
+	if (run("git", "status", "-sb", NULL) != 0) {
 		exit(EXIT_FAILURE);
 	}
 }
@@ -258,37 +266,35 @@ int main(int argc, char *argv[]) {
 
 void cmd_add_edit(void) {
 	clear(REDRAW);
-	run(set("git", "add", "-e", NULL));
+	run("git", "add", "-e", NULL);
 }
 
 void cmd_add_path(void) {
-	set("git", "add", NULL);
-	runglob("add-path: .");
+	runglob("add-path: .", "git", "add", NULL);
 }
 
 void cmd_checkout_path(void) {
-	set("git", "checkout", "--", NULL);
-	runglob("checkout-path: .");
+	runglob("checkout-path: .", "git", "checkout", "--", NULL);
 }
 
 void cmd_clean(void) {
-	run(set("git", "clean", "-d", "-n", NULL));
+	run("git", "clean", "-d", "-n", NULL);
 	if (prompt("clean?") != CONFIRM) {
 		clear(REDRAW);
 		return;
 	}
-	run(set("git", "clean", "-f", NULL));
+	run("git", "clean", "-f", NULL);
 	clear(CHECKTIME);
 }
 
 void cmd_commit(void) {
 	clear(REDRAW);
-	run(set("git", "commit", "-v", NULL));
+	run("git", "commit", "-v", NULL);
 }
 
 void cmd_config(void) {
 	clear(REDRAW);
-	run(set("git", "config", "-e", NULL));
+	run("git", "config", "-e", NULL);
 }
 
 void cmd_diff(void) {
@@ -299,11 +305,11 @@ void cmd_diff(void) {
 }
 
 void cmd_fetch(void) {
-	run(set("git", "remote", NULL));
+	run("git", "remote", NULL);
 	int fetch = prompt("fetch: --all") == SELECT;
 	clear(REDRAW);
 	if (fetch) {
-		run(set("git", "fetch", "--prune", buf.d, NULL));
+		run("git", "fetch", "--prune", buf.d, NULL);
 	}
 }
 
@@ -322,27 +328,27 @@ void cmd_log(void) {
 }
 
 void cmd_merge(void) {
-	run(set("git", "branch", "-vv", NULL));
+	run("git", "branch", "-vv", NULL);
 	if (prompt("merge: @{u}") != SELECT) {
 		clear(REDRAW);
 		return;
 	}
 	clear(CHECKTIME);
-	run(set("git", "merge", buf.d, NULL));
+	run("git", "merge", buf.d, NULL);
 }
 
 void cmd_push(void) {
 	int push = 0;
 	char *remote = NULL;
-	run(set("git", "remote", NULL));
+	run("git", "remote", NULL);
 	if (prompt("push-remote:") == SELECT) {
 		remote = estrdup(buf.d);
-		run(set("git", "branch", "-vv", NULL));
+		run("git", "branch", "-vv", NULL);
 		push = prompt("push-branch: --all") == SELECT;
 	}
 	clear(REDRAW);
 	if (push) {
-		run(set("git", "push", remote, buf.d, NULL));
+		run("git", "push", remote, buf.d, NULL);
 	}
 	free(remote);
 }
@@ -353,22 +359,20 @@ void cmd_rebase(void) {
 		return;
 	}
 	clear(CHECKTIME);
-	run(set("git", "rebase", "-i", "--autosquash", buf.d, NULL));
+	run("git", "rebase", "-i", "--autosquash", buf.d, NULL);
 }
 
 void cmd_reset_path(void) {
-	set("git", "reset", "-q", "HEAD", "--", NULL);
-	runglob("reset-path: .");
+	runglob("reset-path: .", "git", "reset", "-q", "HEAD", "--", NULL);
 }
 
 void cmd_rm(void) {
-	set("git", "rm", "--", NULL);
-	runglob("rm-path:");
+	runglob("rm-path:", "git", "rm", "--", NULL);
 }
 
 void cmd_stash_add(void) {
 	clear(CHECKTIME);
-	run(set("git", "stash", NULL));
+	run("git", "stash", NULL);
 }
 
 void fix_stash_name(void) {
@@ -380,32 +384,32 @@ void fix_stash_name(void) {
 }
 
 void cmd_stash_drop(void) {
-	run(set("git", "stash", "list", NULL));
+	run("git", "stash", "list", NULL);
 	int drop = prompt("drop-stash:") == SELECT;
 	clear(REDRAW);
 	if (drop) {
 		fix_stash_name();
-		run(set("git", "stash", "drop", buf.d, NULL));
+		run("git", "stash", "drop", buf.d, NULL);
 	}
 }
 
 void cmd_stash_pop(void) {
-	run(set("git", "stash", "list", NULL));
+	run("git", "stash", "list", NULL);
 	if (prompt("pop-stash:") != SELECT) {
 		clear(REDRAW);
 		return;
 	}
 	clear(CHECKTIME);
 	fix_stash_name();
-	run(set("git", "stash", "pop", "-q", buf.d, NULL));
+	run("git", "stash", "pop", "-q", buf.d, NULL);
 }
 
 void cmd_switch(void) {
-	run(set("git", "branch", "-a", NULL));
+	run("git", "branch", "-a", NULL);
 	if (prompt("switch-branch:") != SELECT) {
 		clear(REDRAW);
 		return;
 	}
 	clear(CHECKTIME);
-	run(set("git", "switch", buf.d, NULL));
+	run("git", "switch", buf.d, NULL);
 }
