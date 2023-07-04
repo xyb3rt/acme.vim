@@ -207,8 +207,8 @@ int runglob(const char *p) {
 	for (size_t i = 0; i < argv.count; i++) {
 		g.gl_pathv[i] = argv.d[i];
 	}
-	ret = run(g.gl_pathv);
 	clear(CHECKTIME);
+	ret = run(g.gl_pathv);
 end:
 	globfree(&g);
 	return ret;
@@ -262,7 +262,7 @@ void cmd_add_edit(void) {
 }
 
 void cmd_add_path(void) {
-	set("git", "add", "-v", NULL);
+	set("git", "add", NULL);
 	runglob("add-path: .");
 }
 
