@@ -12,6 +12,12 @@ enum dirty {
 	CHECKTIME,
 };
 
+enum reply {
+	CANCEL,
+	SELECT,
+	CONFIRM,
+};
+
 struct cmd {
 	char *name;
 	cmd_func *func;
@@ -127,14 +133,20 @@ void input(void) {
 	}
 }
 
-int prompt(const char *p) {
+enum reply prompt(const char *p) {
 	if (p != NULL) {
 		printf("<< %s >>\n", p);
 		fflush(stdout);
 	}
 	block();
 	input();
-	return strcmp(buf.d, "<<") != 0 && strcmp(buf.d, ">>") != 0;
+	if (strcmp(buf.d, "<<") == 0) {
+		return CANCEL;
+	} else if (strcmp(buf.d, ">>") == 0) {
+		return CONFIRM;
+	} else {
+		return SELECT;
+	}
 }
 
 struct cmd *match(void) {
@@ -173,8 +185,9 @@ int run(char *const *av) {
 int runglob(const char *p) {
 	int flags = GLOB_DOOFFS | GLOB_NOCHECK;
 	glob_t g = {.gl_offs = argv.count};
+	enum reply reply;
 	int ret = 0;
-	while (prompt(p)) {
+	while ((reply = prompt(p)) == SELECT) {
 		if (glob(buf.d, flags, NULL, &g) == 0) {
 			printf("%s\n", buf.d);
 			fflush(stdout);
@@ -182,7 +195,7 @@ int runglob(const char *p) {
 		flags |= GLOB_APPEND;
 		p = NULL;
 	}
-	if (p != NULL || strcmp(buf.d, "<<") == 0) {
+	if (reply == CANCEL || p != NULL) {
 		clear(REDRAW);
 		argv.count = 0;
 		goto end;
@@ -265,7 +278,7 @@ void cmd_config(void) {
 }
 
 void cmd_diff(void) {
-	if (prompt("diff: --cached . HEAD @{u}")) {
+	if (prompt("diff: --cached . HEAD @{u}") == SELECT) {
 		request("scratched", "scratch", "git", "diff", buf.d, NULL);
 	}
 	clear(REDRAW);
@@ -273,7 +286,7 @@ void cmd_diff(void) {
 
 void cmd_fetch(void) {
 	run(set("git", "remote", NULL));
-	int fetch = prompt("fetch: --all");
+	int fetch = prompt("fetch: --all") == SELECT;
 	clear(REDRAW);
 	if (fetch) {
 		run(set("git", "fetch", "--prune", buf.d, NULL));
@@ -291,7 +304,7 @@ void cmd_log(void) {
 
 void cmd_merge(void) {
 	run(set("git", "branch", "-vv", NULL));
-	if (!prompt("merge: @{u}")) {
+	if (prompt("merge: @{u}") != SELECT) {
 		clear(REDRAW);
 		return;
 	}
@@ -303,10 +316,10 @@ void cmd_push(void) {
 	int push = 0;
 	char *remote = NULL;
 	run(set("git", "remote", NULL));
-	if (prompt("push-remote:")) {
+	if (prompt("push-remote:") == SELECT) {
 		remote = estrdup(buf.d);
 		run(set("git", "branch", "-vv", NULL));
-		push = prompt("push-branch: --all");
+		push = prompt("push-branch: --all") == SELECT;
 	}
 	clear(REDRAW);
 	if (push) {
@@ -316,7 +329,7 @@ void cmd_push(void) {
 }
 
 void cmd_rebase(void) {
-	if (!prompt("rebase: @{u}")) {
+	if (prompt("rebase: @{u}") != SELECT) {
 		clear(REDRAW);
 		return;
 	}
@@ -325,7 +338,7 @@ void cmd_rebase(void) {
 }
 
 void cmd_reset_path(void) {
-	set("git", "reset", "HEAD", "--", NULL);
+	set("git", "reset", "-q", "HEAD", "--", NULL);
 	runglob("reset-path: .");
 }
 
@@ -344,7 +357,7 @@ void fix_stash_name(void) {
 
 void cmd_stash_drop(void) {
 	run(set("git", "stash", "list", NULL));
-	int drop = prompt("drop-stash:");
+	int drop = prompt("drop-stash:") == SELECT;
 	clear(REDRAW);
 	if (drop) {
 		fix_stash_name();
@@ -354,18 +367,18 @@ void cmd_stash_drop(void) {
 
 void cmd_stash_pop(void) {
 	run(set("git", "stash", "list", NULL));
-	if (!prompt("pop-stash:")) {
+	if (prompt("pop-stash:") != SELECT) {
 		clear(REDRAW);
 		return;
 	}
 	clear(CHECKTIME);
 	fix_stash_name();
-	run(set("git", "stash", "pop", buf.d, NULL));
+	run(set("git", "stash", "pop", "-q", buf.d, NULL));
 }
 
 void cmd_switch(void) {
 	run(set("git", "branch", "-a", NULL));
-	if (!prompt("checkout-branch:")) {
+	if (prompt("switch-branch:") != SELECT) {
 		clear(REDRAW);
 		return;
 	}
