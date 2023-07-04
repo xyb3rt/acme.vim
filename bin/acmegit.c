@@ -298,7 +298,7 @@ void cmd_config(void) {
 }
 
 void cmd_diff(void) {
-	if (prompt("diff: --cached . HEAD @{u}") == SELECT) {
+	if (prompt("diff: --cached -- HEAD @{u}") == SELECT) {
 		request("scratched", "scratch", "git", "diff", buf.d, NULL);
 	}
 	clear(REDRAW);
