@@ -313,7 +313,12 @@ void cmd_graph(void) {
 }
 
 void cmd_log(void) {
-	request("scratched", "scratch", "git", "log", "-s", NULL);
+	int log = prompt("log: HEAD ...@{u}") == SELECT;
+	clear(REDRAW);
+	if (log) {
+		request("scratched", "scratch", "git", "log", "--decorate",
+		        "--left-right", "-s", buf.d, NULL);
+	}
 }
 
 void cmd_merge(void) {
