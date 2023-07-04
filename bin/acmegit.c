@@ -17,23 +17,23 @@ struct cmd {
 	cmd_func *func;
 };
 
-cmd_func cmd_diff;
-cmd_func cmd_checkout_branch;
-cmd_func cmd_checkout_path;
 cmd_func cmd_add_edit;
 cmd_func cmd_add_path;
-cmd_func cmd_reset_path;
+cmd_func cmd_checkout_branch;
+cmd_func cmd_checkout_path;
 cmd_func cmd_commit;
-cmd_func cmd_log;
-cmd_func cmd_graph;
-cmd_func cmd_fetch;
-cmd_func cmd_push;
-cmd_func cmd_merge;
-cmd_func cmd_rebase;
-cmd_func cmd_stash_add;
-cmd_func cmd_stash_pop;
-cmd_func cmd_stash_drop;
 cmd_func cmd_config;
+cmd_func cmd_diff;
+cmd_func cmd_fetch;
+cmd_func cmd_graph;
+cmd_func cmd_log;
+cmd_func cmd_merge;
+cmd_func cmd_push;
+cmd_func cmd_rebase;
+cmd_func cmd_reset_path;
+cmd_func cmd_stash_add;
+cmd_func cmd_stash_drop;
+cmd_func cmd_stash_pop;
 
 struct cmd cmds[] = {
 	{"diff",   cmd_diff},
@@ -238,11 +238,14 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-void cmd_diff(void) {
-	if (prompt("diff: --cached . HEAD @{u}")) {
-		request("scratched", "scratch", "git", "diff", buf.d, NULL);
-	}
+void cmd_add_edit(void) {
 	clear(REDRAW);
+	run(set("git", "add", "-e", NULL));
+}
+
+void cmd_add_path(void) {
+	set("git", "add", "-v", NULL);
+	runglob("add-path: .");
 }
 
 void cmd_checkout_branch(void) {
@@ -260,33 +263,21 @@ void cmd_checkout_path(void) {
 	runglob("checkout-path: .");
 }
 
-void cmd_add_edit(void) {
-	clear(REDRAW);
-	run(set("git", "add", "-e", NULL));
-}
-
-void cmd_add_path(void) {
-	set("git", "add", "-v", NULL);
-	runglob("add-path: .");
-}
-
-void cmd_reset_path(void) {
-	set("git", "reset", "HEAD", "--", NULL);
-	runglob("reset-path: .");
-}
-
 void cmd_commit(void) {
 	clear(REDRAW);
 	run(set("git", "commit", "-v", NULL));
 }
 
-void cmd_log(void) {
-	request("scratched", "scratch", "git", "log", "-s", NULL);
+void cmd_config(void) {
+	clear(REDRAW);
+	run(set("git", "config", "-e", NULL));
 }
 
-void cmd_graph(void) {
-	request("scratched", "scratch", "git", "log", "--graph", "--oneline",
-	        "--decorate", "--all", "--date-order", NULL);
+void cmd_diff(void) {
+	if (prompt("diff: --cached . HEAD @{u}")) {
+		request("scratched", "scratch", "git", "diff", buf.d, NULL);
+	}
+	clear(REDRAW);
 }
 
 void cmd_fetch(void) {
@@ -296,6 +287,25 @@ void cmd_fetch(void) {
 	if (fetch) {
 		run(set("git", "fetch", "--prune", buf.d, NULL));
 	}
+}
+
+void cmd_graph(void) {
+	request("scratched", "scratch", "git", "log", "--graph", "--oneline",
+	        "--decorate", "--all", "--date-order", NULL);
+}
+
+void cmd_log(void) {
+	request("scratched", "scratch", "git", "log", "-s", NULL);
+}
+
+void cmd_merge(void) {
+	run(set("git", "branch", "-vv", NULL));
+	if (!prompt("merge: @{u}")) {
+		clear(REDRAW);
+		return;
+	}
+	clear(CHECKTIME);
+	run(set("git", "merge", buf.d, NULL));
 }
 
 void cmd_push(void) {
@@ -314,16 +324,6 @@ void cmd_push(void) {
 	free(remote);
 }
 
-void cmd_merge(void) {
-	run(set("git", "branch", "-vv", NULL));
-	if (!prompt("merge: @{u}")) {
-		clear(REDRAW);
-		return;
-	}
-	clear(CHECKTIME);
-	run(set("git", "merge", buf.d, NULL));
-}
-
 void cmd_rebase(void) {
 	if (!prompt("rebase: @{u}")) {
 		clear(REDRAW);
@@ -331,6 +331,11 @@ void cmd_rebase(void) {
 	}
 	clear(CHECKTIME);
 	run(set("git", "rebase", "-i", "--autosquash", buf.d, NULL));
+}
+
+void cmd_reset_path(void) {
+	set("git", "reset", "HEAD", "--", NULL);
+	runglob("reset-path: .");
 }
 
 void cmd_stash_add(void) {
@@ -346,17 +351,6 @@ void fix_stash_name(void) {
 	}
 }
 
-void cmd_stash_pop(void) {
-	run(set("git", "stash", "list", NULL));
-	if (!prompt("pop-stash:")) {
-		clear(REDRAW);
-		return;
-	}
-	clear(CHECKTIME);
-	fix_stash_name();
-	run(set("git", "stash", "pop", buf.d, NULL));
-}
-
 void cmd_stash_drop(void) {
 	run(set("git", "stash", "list", NULL));
 	int drop = prompt("drop-stash:");
@@ -367,7 +361,13 @@ void cmd_stash_drop(void) {
 	}
 }
 
-void cmd_config(void) {
-	clear(REDRAW);
-	run(set("git", "config", "-e", NULL));
+void cmd_stash_pop(void) {
+	run(set("git", "stash", "list", NULL));
+	if (!prompt("pop-stash:")) {
+		clear(REDRAW);
+		return;
+	}
+	clear(CHECKTIME);
+	fix_stash_name();
+	run(set("git", "stash", "pop", buf.d, NULL));
 }
