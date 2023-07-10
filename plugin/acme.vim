@@ -146,7 +146,7 @@ function s:Receivers()
 	return r
 endfunc
 
-function s:Tab(inp)
+function s:Ctrl_S(inp)
 	let b = bufnr()
 	let w = s:Win(getbufvar(b, 'acme_send_buf', -1))
 	let r = s:Receivers()
@@ -159,8 +159,8 @@ function s:Tab(inp)
 	endif
 endfunc
 
-nnoremap <silent> <C-i> :call <SID>Tab(getline('.'))<CR>
-vnoremap <silent> <C-i> :<C-u>call <SID>Tab(<SID>Sel()[0])<CR>
+nnoremap <silent> <C-s> :call <SID>Ctrl_S(getline('.'))<CR>
+vnoremap <silent> <C-s> :<C-u>call <SID>Ctrl_S(<SID>Sel()[0])<CR>
 
 function s:Unload()
 	let buf = expand('<abuf>')
