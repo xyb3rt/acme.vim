@@ -55,26 +55,15 @@ void acmevim_push(acmevim_buf *buf, const char *s) {
 	acmevim_pushn(buf, s, strlen(s));
 }
 
-void acmevim_sendv(struct acmevim_conn *conn, const char *dst, va_list ap) {
+void acmevim_send(struct acmevim_conn *conn, const char *dst, const char **argv, size_t argc) {
 	acmevim_push(&conn->tx, dst);
 	acmevim_push(&conn->tx, "\x1f");
 	acmevim_push(&conn->tx, conn->id);
-	for (;;) {
-		const char *s = va_arg(ap, const char *);
-		if (s == NULL) {
-			break;
-		}
+	for (size_t i = 0; i < argc; i++) {
 		acmevim_push(&conn->tx, "\x1f");
-		acmevim_push(&conn->tx, s);
+		acmevim_push(&conn->tx, argv[i]);
 	}
 	acmevim_push(&conn->tx, "\x1e");
-}
-
-void acmevim_send(struct acmevim_conn *conn, const char *dst, ...) {
-	va_list ap;
-	va_start(ap, dst);
-	acmevim_sendv(conn, dst, ap);
-	va_end(ap);
 }
 
 struct acmevim_conn *acmevim_create(int sockfd, const char *id) {
