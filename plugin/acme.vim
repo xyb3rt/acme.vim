@@ -173,19 +173,15 @@ endfunc
 
 au BufUnload * call s:Unload()
 
-function s:New(cmd, ...)
+function s:New(cmd)
 	let minh = &winminheight > 0 ? 2 * &winminheight + 1 : 2
 	if winheight(0) < minh
 		exe minh.'wincmd _'
 	endif
 	let minh = 10
-	if a:0 > 0
-		let h = a:1
-	else
-		let s2 = winnr('$') == 1 && &laststatus == 1
-		let h = max([minh, (winheight(0) - s2) / 2])
-	endif
-	exe (a:0 > 1 ? a:2 : '').h.a:cmd
+	let s = winnr('$') == 1 && &laststatus == 1
+	let h = max([minh, (winheight(0) - s) / 2])
+	exe h.a:cmd
 endfunc
 
 function s:Argv(cmd)
@@ -199,7 +195,7 @@ function s:ErrorOpen(name, ...)
 	if w != 0
 		exe w.'wincmd w'
 	else
-		call s:New('sp +0 '.name, 10, 'belowright')
+		call s:New('sp +0 '.name)
 		setl bufhidden=unload buftype=nowrite nobuflisted noswapfile
 	endif
 	if a:0 > 0
