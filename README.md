@@ -46,7 +46,7 @@ Bringing the spirit of Plan 9 acme to vim.
 	formatting it by middle-clicking `|fmt` in another window.
 
 	Additionally *acme.vim* supports the new output prefix `^`: The output
-	of the command goes to a new scratch buffer. Commands can also have
+	of the command goes to a new scratch window. Commands can also have
 	suffixes: `+` is replaced with the selection, `%` with the filename of
 	the buffer.
 
@@ -54,14 +54,14 @@ Bringing the spirit of Plan 9 acme to vim.
 	current working directory. All running commands matching a given
 	pattern can be killed with the `K` command.
 
-* Send text to terminals:
+* Send text to commands:
 
-	Middle-clicking in terminal buffers sends the text to the command
-	running in the terminal instead of executing it. Middle-clicking
-	anywhere in a terminal buffer from another window sends that window's
-	selection.
+	Middle-clicking in scratch and terminal windows sends the text to the
+	command running in the window instead of executing it. Middle-clicking
+	anywhere in a scratch or terminal window from another window sends that
+	window's selection.
 
-* Commands open files in the vim instance they were started from:
+* Commands open files in the vim instance they are running in:
 
 	This makes it possible to run `git commit` and edit the commit message
 	in a new window.
@@ -88,8 +88,8 @@ git clone https://github.com/xyb3rt/acme.vim.git ~/.vim/pack/xyb3rt/start/acme.v
 Configuration
 -------------
 
-If you want external commands to open files in the vim instance they were
-started from, then add the following lines to your `~/.profile`:
+If you want external commands to open files in the vim instance they are
+running in, then add the following lines to your `~/.profile`:
 
 ```
 if [ -z "$ACMEVIMPORT" ]; then
