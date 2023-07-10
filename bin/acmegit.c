@@ -135,21 +135,21 @@ void checktime(void) {
 }
 
 void block(void) {
-	struct pollfd pollfd[2];
-	pollfd[0].fd = 0;
-	pollfd[0].events = POLLIN;
-	pollfd[1].fd = conn->fd;
-	pollfd[1].events = POLLIN;
+	int nfds = conn->fd + 1;
+	fd_set readfds;
 	for (;;) {
-		while (poll(pollfd, ARRLEN(pollfd), -1) == -1) {
+		FD_ZERO(&readfds);
+		FD_SET(0, &readfds);
+		FD_SET(conn->fd, &readfds);
+		while (select(nfds, &readfds, NULL, NULL, NULL) == -1) {
 			if (errno != EINTR) {
-				error(EXIT_FAILURE, errno, "poll");
+				error(EXIT_FAILURE, errno, "select");
 			}
 		}
-		if (pollfd[1].revents & POLLIN) {
+		if (FD_ISSET(conn->fd, &readfds)) {
 			process(NULL);
 		}
-		if (pollfd[0].revents & POLLIN) {
+		if (FD_ISSET(0, &readfds)) {
 			break;
 		}
 	}

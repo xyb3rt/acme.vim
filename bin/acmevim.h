@@ -2,7 +2,7 @@
 #include "vec.h"
 #include <arpa/inet.h>
 #include <limits.h>
-#include <poll.h>
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 
@@ -134,21 +134,23 @@ void acmevim_tx(struct acmevim_conn *conn) {
 }
 
 void acmevim_sync(struct acmevim_conn *conn) {
-	struct pollfd pollfd;
-	pollfd.fd = conn->fd;
-	pollfd.events = POLLIN;
+	int nfds = conn->fd + 1;
+	fd_set readfds, writefds;
+	FD_ZERO(&readfds);
+	FD_ZERO(&writefds);
+	FD_SET(conn->fd, &readfds);
 	if (vec_len(&conn->tx) > 0) {
-		pollfd.events |= POLLOUT;
+		FD_SET(conn->fd, &writefds);
 	}
-	while (poll(&pollfd, 1, -1) == -1) {
+	while (select(nfds, &readfds, &writefds, NULL, NULL) == -1) {
 		if (errno != EINTR) {
-			error(EXIT_FAILURE, errno, "poll");
+			error(EXIT_FAILURE, errno, "select");
 		}
 	}
-	if (pollfd.revents & POLLOUT) {
+	if (FD_ISSET(conn->fd, &writefds)) {
 		acmevim_tx(conn);
 	}
-	if (pollfd.revents & POLLIN) {
+	if (FD_ISSET(conn->fd, &readfds)) {
 		acmevim_rx(conn);
 	}
 }
