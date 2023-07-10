@@ -9,8 +9,10 @@
 	_vec_clear((void **)(v))
 #define vec_len(v) \
 	_vec_len((void **)(v))
-#define vec_ins(v, i, n) \
-	((typeof(*(v)))_vec_ins((void **)(v), (i), (n), sizeof(**(v))))
+#define vec_dig(v, i, n) \
+	((typeof(*(v)))_vec_dig((void **)(v), (i), (n), sizeof(**(v))))
+#define vec_push(v, val) \
+	(*vec_dig((v), -1, 1) = (val))
 #define vec_erase(v, i, n) \
 	_vec_erase((void **)(v), (i), (n), sizeof(**(v)))
 
@@ -43,7 +45,7 @@ size_t _vec_len(void **d) {
 	return container_of(*d, struct vec, d)->len;
 }
 
-void *_vec_ins(void **d, size_t i, size_t n, size_t sz) {
+void *_vec_dig(void **d, size_t i, size_t n, size_t sz) {
 	struct vec *vec = container_of(*d, struct vec, d);
 	if (n == 0 || sz == 0) {
 		return NULL;

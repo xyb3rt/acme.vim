@@ -182,8 +182,14 @@ int run(const char *arg, ...) {
 	va_list ap;
 	va_start(ap, arg);
 	acmevim_strv argv = vec_new();
-	*vec_ins(&argv, -1, 1) = (char *)arg;
-	while ((*vec_ins(&argv, -1, 1) = va_arg(ap, char *)) != NULL);
+	vec_push(&argv, (char *)arg);
+	for (;;) {
+		arg = va_arg(ap, const char *);
+		vec_push(&argv, (char *)arg);
+		if (arg == NULL) {
+			break;
+		}
+	}
 	va_end(ap);
 	int ret = call(argv);
 	vec_free(&argv);

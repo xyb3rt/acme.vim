@@ -20,7 +20,7 @@ acmevim_strv acmevim_parse(acmevim_buf *buf, size_t *pos) {
 	acmevim_strv msg = vec_new();
 	for (size_t i = *pos, n = vec_len(buf); i < n; i++) {
 		if (field) {
-			*vec_ins(&msg, -1, 1) = &(*buf)[i];
+			vec_push(&msg, &(*buf)[i]);
 		}
 		if ((*buf)[i] == '\x1e') {
 			(*buf)[i] = '\0';
@@ -47,7 +47,7 @@ void acmevim_pop(acmevim_buf *buf, size_t len) {
 }
 
 void acmevim_pushn(acmevim_buf *buf, const char *s, size_t len) {
-	char *p = vec_ins(buf, vec_len(buf), len);
+	char *p = vec_dig(buf, -1, len);
 	memcpy(p, s, len);
 }
 
