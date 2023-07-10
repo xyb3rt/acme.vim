@@ -124,7 +124,7 @@ void request(const char *resp) {
 }
 
 void clear(enum dirty d) {
-	const char *argv[] = {"clear", acmevimbuf};
+	const char *argv[] = {"clear^", acmevimbuf};
 	requestv("cleared", argv, ARRLEN(argv));
 	dirty = d;
 }

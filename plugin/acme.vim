@@ -755,6 +755,16 @@ au TerminalOpen * nnoremap <buffer> <silent> <LeftRelease>
 tnoremap <expr> <silent> <ScrollWheelDown> <SID>TermScrollWheelDown()
 tnoremap <expr> <silent> <ScrollWheelUp> <SID>TermScrollWheelUp()
 
+function s:Clear(b, top)
+	call deletebufline(a:b, 1, "$")
+	if a:top && getbufvar(a:b, 'acme_scratch')
+		for job in s:Jobs(a:b)
+			call ch_setoptions(job.h,
+				\ {'callback': function('s:ScratchCb', [a:b])})
+		endfor
+	endif
+endfunc
+
 let s:ctrlrx = ''
 
 function s:CtrlRecv(ch, data)
@@ -781,9 +791,9 @@ function s:CtrlRecv(ch, data)
 					\ getbufvar(bufnr(), 'acme_pids', []) +
 					\ [pid])
 			endfor
-		elseif msg[2] == 'clear'
+		elseif msg[2] =~ '\vclear\^?'
 			for b in msg[3:]
-				call deletebufline(str2nr(b), 1, "$")
+				call s:Clear(str2nr(b), msg[2] == 'clear^')
 			endfor
 			call s:CtrlSend(pid, 'cleared')
 		elseif msg[2] == 'checktime'
