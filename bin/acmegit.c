@@ -124,7 +124,6 @@ void requestv(const char *resp, const char **argv, size_t argc) {
 void request(const char *resp) {
 	requestv(resp, (const char **)argv, vec_len(&argv));
 	reset();
-	nl();
 }
 
 void clear(enum dirty d) {
@@ -172,7 +171,7 @@ void input(void) {
 
 enum reply prompt(const char *p) {
 	if (p != NULL) {
-		printf("<< %s >>", p);
+		printf("\n<< %s >>", p);
 		nl();
 	}
 	block();
@@ -196,19 +195,21 @@ struct cmd *match(void) {
 }
 
 void menu(void) {
-	printf("<");
+	printf("\n<");
 	for (size_t i = 0; i < ARRLEN(cmds); i++) {
 		printf(" %s", cmds[i].name);
 	}
-	printf(" >\n");
+	printf(" >");
 	nl();
 }
 
 int run(void) {
+	if (!dirty) {
+		nl();
+	}
 	vec_push(&argv, NULL);
 	int ret = call(argv);
 	reset();
-	nl();
 	return ret;
 }
 
@@ -227,7 +228,6 @@ int setprompt(const char *p) {
 	if (reply == CANCEL) {
 		clear(REDRAW);
 		reset();
-		nl();
 	}
 	return reply == CONFIRM;
 }
@@ -255,15 +255,14 @@ void init(void) {
 int main(int argc, char *argv[]) {
 	argv0 = argv[0];
 	init();
-	nl();
 	for (;;) {
 		if (dirty) {
 			if (dirty == CHECKTIME) {
 				checktime();
 			}
+			dirty = CLEAN;
 			status();
 			menu();
-			dirty = CLEAN;
 		}
 		block();
 		input();
