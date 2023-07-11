@@ -11,7 +11,7 @@ typedef char **acmevim_strv;
 
 struct acmevim_conn {
 	int fd;
-	const char *id;
+	int err;
 	acmevim_buf rx, tx;
 };
 
@@ -55,10 +55,11 @@ void acmevim_push(acmevim_buf *buf, const char *s) {
 	acmevim_pushn(buf, s, strlen(s));
 }
 
-void acmevim_send(struct acmevim_conn *conn, const char *dst, const char **argv, size_t argc) {
+void acmevim_send(struct acmevim_conn *conn, const char *dst, const char *src,
+                  const char **argv, size_t argc) {
 	acmevim_push(&conn->tx, dst);
 	acmevim_push(&conn->tx, "\x1f");
-	acmevim_push(&conn->tx, conn->id);
+	acmevim_push(&conn->tx, src);
 	for (size_t i = 0; i < argc; i++) {
 		acmevim_push(&conn->tx, "\x1f");
 		acmevim_push(&conn->tx, argv[i]);
@@ -66,16 +67,16 @@ void acmevim_send(struct acmevim_conn *conn, const char *dst, const char **argv,
 	acmevim_push(&conn->tx, "\x1e");
 }
 
-struct acmevim_conn *acmevim_create(int sockfd, const char *id) {
+struct acmevim_conn *acmevim_create(int sockfd) {
 	struct acmevim_conn *conn = erealloc(NULL, sizeof(*conn));
 	conn->fd = sockfd;
-	conn->id = id;
+	conn->err = 0;
 	conn->rx = vec_new();
 	conn->tx = vec_new();
 	return conn;
 }
 
-struct acmevim_conn *acmevim_connect(const char *id) {
+struct acmevim_conn *acmevim_connect(void) {
 	const char *acmevimport = getenv("ACMEVIMPORT");
 	if (acmevimport == NULL) {
 		error(EXIT_FAILURE, 0, "ACMEVIMPORT not set");
@@ -97,60 +98,74 @@ struct acmevim_conn *acmevim_connect(const char *id) {
 	if (connect(sockfd, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
 		error(EXIT_FAILURE, errno, "connect");
 	}
-	return acmevim_create(sockfd, id);
+	return acmevim_create(sockfd);
+}
+
+void acmevim_destroy(struct acmevim_conn *conn) {
+	vec_free(&conn->rx);
+	vec_free(&conn->tx);
+	free(conn);
 }
 
 void acmevim_rx(struct acmevim_conn *conn) {
 	static char buf[1024];
-	for (;;) {
-		ssize_t n = recv(conn->fd, buf, ARRLEN(buf), 0);
-		if (n != -1) {
-			acmevim_pushn(&conn->rx, buf, n);
-			break;
-		}
-		if (errno == EAGAIN) {
-			break;
-		}
-		if (errno != EINTR) {
-			error(EXIT_FAILURE, errno, "recv");
-		}
+loop:	ssize_t n = recv(conn->fd, buf, ARRLEN(buf), 0);
+	if (n == -1 && errno == EINTR) {
+		goto loop;
+	}
+	if (n > 0) {
+		acmevim_pushn(&conn->rx, buf, n);
+	} else if (n == 0 || errno != EAGAIN) {
+		close(conn->fd);
+		conn->fd = -1;
+		conn->err = n == -1 ? errno : 0;
 	}
 }
 
 void acmevim_tx(struct acmevim_conn *conn) {
-	for (;;) {
-		ssize_t n = send(conn->fd, conn->tx, vec_len(&conn->tx), 0);
-		if (n != -1) {
-			acmevim_pop(&conn->tx, n);
-			break;
-		}
-		if (errno == EAGAIN) {
-			break;
-		}
-		if (errno != EINTR) {
-			error(EXIT_FAILURE, errno, "send");
-		}
+loop:	ssize_t n = send(conn->fd, conn->tx, vec_len(&conn->tx), 0);
+	if (n == -1 && errno == EINTR) {
+		goto loop;
+	}
+	if (n != -1) {
+		acmevim_pop(&conn->tx, n);
+	} else if (errno != EAGAIN) {
+		close(conn->fd);
+		conn->fd = -1;
+		conn->err = errno;
 	}
 }
 
-void acmevim_sync(struct acmevim_conn *conn) {
-	int nfds = conn->fd + 1;
+int acmevim_sync(struct acmevim_conn **conns, size_t count, int listenfd) {
+	int nfds = 0;
 	fd_set readfds, writefds;
 	FD_ZERO(&readfds);
 	FD_ZERO(&writefds);
-	FD_SET(conn->fd, &readfds);
-	if (vec_len(&conn->tx) > 0) {
-		FD_SET(conn->fd, &writefds);
+	if (listenfd != -1) {
+		FD_SET(listenfd, &readfds);
+		nfds = listenfd + 1;
+	}
+	for (size_t i = 0; i < count; i++) {
+		FD_SET(conns[i]->fd, &readfds);
+		if (vec_len(&conns[i]->tx) > 0) {
+			FD_SET(conns[i]->fd, &writefds);
+		}
+		if (nfds <= conns[i]->fd) {
+			nfds = conns[i]->fd + 1;
+		}
 	}
 	while (select(nfds, &readfds, &writefds, NULL, NULL) == -1) {
 		if (errno != EINTR) {
 			error(EXIT_FAILURE, errno, "select");
 		}
 	}
-	if (FD_ISSET(conn->fd, &writefds)) {
-		acmevim_tx(conn);
+	for (size_t i = 0; i < count; i++) {
+		if (FD_ISSET(conns[i]->fd, &writefds)) {
+			acmevim_tx(conns[i]);
+		}
+		if (FD_ISSET(conns[i]->fd, &readfds)) {
+			acmevim_rx(conns[i]);
+		}
 	}
-	if (FD_ISSET(conn->fd, &readfds)) {
-		acmevim_rx(conn);
-	}
+	return listenfd != -1 && FD_ISSET(listenfd, &readfds);
 }

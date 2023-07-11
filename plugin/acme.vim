@@ -761,6 +761,16 @@ function s:Clear(b, top)
 	endif
 endfunc
 
+let s:editbufs = {}
+let s:editpids = {}
+
+function s:Edit(file, pid)
+	call s:FileOpen(a:file, '')
+	let b = bufnr()
+	let s:editbufs[a:pid] = get(s:editbufs, a:pid) + 1
+	let s:editpids[b] = add(get(s:editpids, b, []), a:pid)
+endfunc
+
 let s:ctrlrx = ''
 
 function s:CtrlRecv(ch, data)
@@ -782,10 +792,7 @@ function s:CtrlRecv(ch, data)
 		let pid = msg[1]
 		if msg[2] == 'edit'
 			for file in msg[3:]
-				call s:FileOpen(file, '')
-				call setbufvar(bufnr(), 'acme_pids',
-					\ getbufvar(bufnr(), 'acme_pids', []) +
-					\ [pid])
+				call s:Edit(file, pid)
 			endfor
 		elseif msg[2] =~ '\vclear\^?'
 			for b in msg[3:]
@@ -812,13 +819,14 @@ endfunc
 function s:BufWinLeave()
 	let b = str2nr(expand('<abuf>'))
 	call s:Kill(b)
-	let pids = getbufvar(b, 'acme_pids', [])
-	if !getbufvar(b, '&modified') && pids != []
-		let file = fnamemodify(bufname(b), ':p')
-		for pid in pids
-			call s:CtrlSend(pid, 'done', file)
+	if !getbufvar(b, '&modified') && has_key(s:editpids, b)
+		for pid in remove(s:editpids, b)
+			let s:editbufs[pid] -= 1
+			if s:editbufs[pid] <= 0
+				call remove(s:editbufs, pid)
+				call s:CtrlSend(pid, 'done')
+			endif
 		endfor
-		call setbufvar(b, 'acme_pids', [])
 	endif
 endfunc
 

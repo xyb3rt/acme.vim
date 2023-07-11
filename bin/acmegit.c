@@ -65,6 +65,7 @@ acmevim_strv argv;
 struct { char *d; size_t len, size; } buf;
 struct acmevim_conn *conn;
 enum dirty dirty = REDRAW;
+char pid[16];
 
 void set(const char *arg, ...) {
 	va_list ap;
@@ -89,6 +90,9 @@ void nl(void) {
 }
 
 int process(const char *resp) {
+	if (conn->fd == -1) {
+		error(EXIT_FAILURE, conn->err, "connection closed");
+	}
 	size_t pos = 0;
 	for (;;) {
 		acmevim_strv msg = acmevim_parse(&conn->rx, &pos);
@@ -108,9 +112,9 @@ int process(const char *resp) {
 }
 
 void requestv(const char *resp, const char **argv, size_t argc) {
-	acmevim_send(conn, acmevimpid, argv, argc);
+	acmevim_send(conn, acmevimpid, pid, argv, argc);
 	for (;;) {
-		acmevim_sync(conn);
+		acmevim_sync(&conn, 1, -1);
 		if (process(resp)) {
 			break;
 		}
@@ -147,6 +151,7 @@ void block(void) {
 			}
 		}
 		if (FD_ISSET(conn->fd, &readfds)) {
+			acmevim_rx(conn);
 			process(NULL);
 		}
 		if (FD_ISSET(0, &readfds)) {
@@ -242,10 +247,9 @@ void init(void) {
 	    acmevimpid == NULL || acmevimpid[0] == '\0') {
 		error(EXIT_FAILURE, 0, "not in acme.vim");
 	}
-	char pid[16];
 	snprintf(pid, sizeof(pid), "%d", getpid());
-	conn = acmevim_connect(estrdup(pid));
-	acmevim_send(conn, "", NULL, 0);
+	conn = acmevim_connect();
+	acmevim_send(conn, "", pid, NULL, 0);
 }
 
 int main(int argc, char *argv[]) {
