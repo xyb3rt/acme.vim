@@ -89,15 +89,19 @@ Configuration
 -------------
 
 If you want external commands to open files in the vim instance they are
-running in, then add the following lines to your `~/.profile`:
+running in, then compile the *acmevim* helper:
+
+```
+make -C ~/.vim/pack/xyb3rt/start/acme.vim/bin acmevim
+```
+
+And start it at boot by adding the following lines to your `~/.profile`:
 
 ```
 if [ -z "$ACMEVIMPORT" ]; then
-	eval "$("$HOME/.vim/pack/xyb3rt/start/acme.vim/bin/acmevim")"
+	eval "$("$HOME/.vim/pack/xyb3rt/start/acme.vim/bin/acmevim" -d)"
 fi
 ```
-
-Please note, that this requires `python3` to be installed on your system.
 
 *acme.vim* supports rudimentary plumbing via the global `g:acme_plumbing`
 variable. Here is an example to get right-clickable URLs, man pages and git
@@ -106,8 +110,8 @@ hashes, that you can add to your `~/.vimrc`:
 ```
 let g:acme_plumbing = [
 	\ ['\vhttps?\:\/\/([A-Za-z][-_0-9A-Za-z]*\.){1,}(\w{2,}\.?){1,}(:[0-9]{1,5})?\S*', {m -> 'xdg-open '.shellescape(m[0])}],
-	\ ['\v(\f+)\s*\((\d+)\)', {m -> '^man '.m[2].' '.m[1]}],
-	\ ['\v[a-fA-F0-9]{7,64}', {m -> '^git show '.m[0]}]]
+	\ ['\v(\f+)\s*\((\d)\)', {m -> '^man '.m[2].' '.m[1]}],
+	\ ['\v([a-fA-F0-9]{7,64})|(<stash\@\{\d+\})', {m -> '^git show '.m[0]}]]
 ```
 
 To get simple right-clickable directory listings you have to disable vim's
