@@ -41,7 +41,10 @@ function s:Dir()
 endfunc
 
 function s:Normalize(path)
-	let path = fnamemodify(simplify(a:path), ':p:~:.')
+	let path = fnamemodify(simplify(fnamemodify(a:path, ':p')), ':~:.')
+	if isdirectory(path) && path !~ '/$'
+		let path .= '/'
+	endif
 	return path != '' ? path : '.'
 endfunc
 
@@ -353,7 +356,7 @@ function s:Readable(path)
 endfunc
 
 function s:FileOpen(path, pos)
-	let path = fnamemodify(simplify(a:path), ':p:s?/$??')
+	let path = simplify(fnamemodify(a:path, ':p:s?/$??'))
 	let w = s:Win(path)
 	if w != 0
 		exe w.'wincmd w'
