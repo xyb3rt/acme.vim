@@ -519,6 +519,17 @@ function s:Zoom(w)
 	endif
 endfunc
 
+function s:SwapWin(w)
+	if a:w < 1 || a:w > winnr('$')
+		return
+	endif
+	let w = win_getid()
+	let p = win_getid(winnr('#'))
+	noa exe 'normal!' a:w."\<C-w>x"
+	noa exe win_id2win(p).'wincmd w'
+	noa exe win_id2win(w).'wincmd w'
+endfunc
+
 function s:InSel()
 	let p = getpos('.')
 	let v = s:visual
@@ -656,6 +667,24 @@ function s:RightRelease(click) range
 	call feedkeys(":let v:hlsearch=1\<CR>", 'n')
 endfunc
 
+function s:ScrollWheelDown()
+	call s:PreClick('')
+	if s:click.winid == 0
+		call s:SwapWin(winnr() + 1)
+	else
+		exe "normal! \<ScrollWheelDown>"
+	endif
+endfunc
+
+function s:ScrollWheelUp()
+	call s:PreClick('')
+	if s:click.winid == 0
+		call s:SwapWin(winnr() - 1)
+	else
+		exe "normal! \<ScrollWheelUp>"
+	endif
+endfunc
+
 function s:TermLeftMouse()
 	call s:PreClick('t')
 	if s:clickstatus == 0 && s:clickwin == s:click.winid &&
@@ -745,6 +774,8 @@ noremap <silent> <MiddleDrag> <LeftDrag>
 vnoremap <silent> <MiddleRelease> :<C-u>call <SID>MiddleRelease(-1)<CR>
 noremap <silent> <RightDrag> <LeftDrag>
 vnoremap <silent> <RightRelease> :<C-u>call <SID>RightRelease(-1)<CR>
+nnoremap <silent> <ScrollWheelDown> :call <SID>ScrollWheelDown()<CR>
+nnoremap <silent> <ScrollWheelUp> :call <SID>ScrollWheelUp()<CR>
 tnoremap <expr> <silent> <LeftMouse> <SID>TermLeftMouse()
 au TerminalOpen * nnoremap <buffer> <silent> <LeftRelease>
 	\ :call <SID>TermLeftRelease()<CR>
