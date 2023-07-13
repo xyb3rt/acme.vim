@@ -333,7 +333,7 @@ function s:ListDir()
 	if len(lst) < line('$')
 		silent exe len(lst)+1.',$d _'
 	endif
-	setl bufhidden=unload buftype=nofile noswapfile
+	setl bufhidden=unload buftype=nowrite noswapfile
 endfunc
 
 au BufEnter * call s:ListDir()
