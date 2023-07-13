@@ -461,9 +461,13 @@ function s:Open(text, click)
 			endif
 		endif
 	endfor
-	let m = s:Match(a:text, a:click, '(\f+)%([:](%([0-9]+)|%([/?].+)))?')
-	if m != [] && s:OpenFile(m[1], m[2])
-		return 1
+	let m = s:Match(a:text, a:click,
+		\ '(\f+)%(%([:](%([0-9]+)|%([/?].+)))|%(\(([0-9]+)\)))?')
+	if m != []
+		let pos = m[2] != '' ? m[2] : m[3]
+		if s:OpenFile(m[1], pos)
+			return 1
+		endif
 	endif
 	let m = s:Match(a:text, a:click, '\#(\d+)')
 	return m != [] && s:OpenBuf(str2nr(m[1]))
