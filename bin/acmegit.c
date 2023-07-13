@@ -276,7 +276,7 @@ int main(int argc, char *argv[]) {
 
 void cmd_add(void) {
 	set("git", "add", NULL);
-	if (setprompt("add: -e .")) {
+	if (setprompt("add: --edit ./")) {
 		clear(CHECKTIME);
 		run();
 	}
@@ -284,7 +284,7 @@ void cmd_add(void) {
 
 void cmd_checkout(void) {
 	set("git", "checkout", NULL);
-	if (setprompt("checkout: .")) {
+	if (setprompt("checkout: ./")) {
 		clear(CHECKTIME);
 		run();
 	}
@@ -292,7 +292,7 @@ void cmd_checkout(void) {
 
 void cmd_clean(void) {
 	set("git", "clean", NULL);
-	if (setprompt("clean: -d -f -n .")) {
+	if (setprompt("clean: --dry-run --force ./")) {
 		clear(CHECKTIME);
 		run();
 	}
@@ -300,7 +300,7 @@ void cmd_clean(void) {
 
 void cmd_commit(void) {
 	set("git", "commit", "-v", NULL);
-	if (setprompt("commit: -a --fixup")) {
+	if (setprompt("commit: --all --fixup")) {
 		clear(CHECKTIME);
 		run();
 	}
@@ -358,7 +358,7 @@ void cmd_push(void) {
 	set("git", "remote", NULL);
 	run();
 	set("git", "push", NULL);
-	if (setprompt("push: --all --tags -u")) {
+	if (setprompt("push: --all --dry-run --force --set-upstream --tags")) {
 		clear(REDRAW);
 		run();
 	}
@@ -374,7 +374,7 @@ void cmd_rebase(void) {
 
 void cmd_reset(void) {
 	set("git", "reset", "-q", NULL);
-	if (setprompt("reset: HEAD -- .")) {
+	if (setprompt("reset: HEAD -- ./")) {
 		clear(CHECKTIME);
 		run();
 	}
@@ -392,7 +392,7 @@ void cmd_stash(void) {
 	set("git", "stash", "list", NULL);
 	run();
 	set("git", "stash", NULL);
-	if (setprompt("stash: -u pop drop")) {
+	if (setprompt("stash: --include-untracked pop drop")) {
 		clear(CHECKTIME);
 		run();
 	}
@@ -402,7 +402,7 @@ void cmd_switch(void) {
 	set("git", "branch", "-a", NULL);
 	run();
 	set("git", "switch", NULL);
-	if (setprompt("switch: -c")) {
+	if (setprompt("switch: --create")) {
 		clear(CHECKTIME);
 		run();
 	}
