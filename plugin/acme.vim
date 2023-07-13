@@ -505,8 +505,13 @@ endfunc
 
 command -nargs=1 -complete=tag T call s:Tag(<q-args>)
 
+function s:CmpBuf(a, b)
+	return a:a.name == a:b.name ? 0 : a:a.name > a:b.name ? 1 : -1
+endfunc
+
 function s:ListBufs()
 	let bufs = getbufinfo({'buflisted': 1})
+	call sort(bufs, 's:CmpBuf')
 	let nl = max(map(copy(bufs), 'len(v:val.bufnr)'))
 	call map(bufs, 'printf("#%-".nl."s %s", v:val.bufnr,' .
 		\ 'v:val.name != "" ? fnamemodify(v:val.name, ":~:.") : "")')
