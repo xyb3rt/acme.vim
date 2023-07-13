@@ -76,6 +76,7 @@ function s:Exited(job, status)
 			call s:UpdateStatus(job.buf)
 			if fnamemodify(bufname(job.buf), ':t') == '+Errors'
 				checktime
+				call s:ReloadDirs()
 			endif
 			for b in range(bufnr('$'))
 				if getbufvar(b, 'acme_send_buf', -1) == job.buf
@@ -318,7 +319,7 @@ function s:Exec(cmd)
 		\ 'err_io': 'null', 'in_io': 'null', 'out_io': 'null'})
 endfunc
 
-function s:DirList()
+function s:ListDir()
 	let dir = expand('%')
 	if !isdirectory(dir) || !&modifiable
 		return
@@ -332,18 +333,17 @@ function s:DirList()
 	setl bufhidden=unload buftype=nofile noswapfile
 endfunc
 
-au BufEnter * call s:DirList()
+au BufEnter * call s:ListDir()
 
-function s:InitDirs()
-	let c = winnr()
+function s:ReloadDirs(...)
 	for w in range(1, winnr('$'))
-		if w != c
-			call win_execute(win_getid(w), 'noa call s:DirList()')
+		if a:0 == 0 || w != a:1
+			call win_execute(win_getid(w), 'noa call s:ListDir()')
 		endif
 	endfor
 endfunc
 
-au VimEnter * call s:InitDirs()
+au VimEnter * call s:ReloadDirs(winnr())
 
 function s:Readable(path)
 	" Reject binary files, i.e. files containing null characters (which
@@ -801,6 +801,7 @@ function s:CtrlRecv(ch, data)
 			call s:CtrlSend(pid, 'cleared')
 		elseif msg[2] == 'checktime'
 			checktime
+			call s:ReloadDirs()
 			call s:CtrlSend(pid, 'timechecked')
 		elseif msg[2] == 'scratch'
 			if len(msg) > 3
