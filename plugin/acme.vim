@@ -396,7 +396,8 @@ function s:Readable(path)
 endfunc
 
 function s:FileOpen(path, pos)
-	let path = simplify(fnamemodify(a:path, ':p:s?/$??'))
+	let path = simplify(fnamemodify(a:path, ':p'))
+	let path = len(path) > 1 && path[-1:] == '/' ? path[:-2] : path
 	let w = s:Win(path)
 	if w != 0
 		exe w.'wincmd w'
