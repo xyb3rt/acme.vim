@@ -101,7 +101,7 @@ function s:Kill(p)
 	endfor
 endfunc
 
-command -nargs=? K call s:Kill(<q-args>)
+command -nargs=? K call s:Kill(<q-args> != '' ? <q-args> : bufnr())
 
 function s:Expand(s)
 	return substitute(a:s, '\v^\t+',
