@@ -255,20 +255,20 @@ function s:ParseCmd(cmd)
 	return [cmd, io]
 endfunc
 
-function s:Run(cmd, io, dir) range
-	if a:cmd != ''
-		if a:io =~ '[|<]'
-			call s:Filter(a:cmd, a:io, a:dir)
-		elseif a:io == '^'
-			call s:ScratchExec(a:cmd, a:dir)
-		else
-			call s:ErrorExec(a:cmd, a:io, a:dir)
-		endif
+function s:Run(cmd, ...) range
+	let dir = a:0 == 0 || a:1 == '' ? s:Dir() : ''
+	let [cmd, io] = s:ParseCmd(a:cmd)
+	if cmd == ''
+	elseif io =~ '[|<]'
+		call s:Filter(cmd, io, dir)
+	elseif io == '^'
+		call s:ScratchExec(cmd, dir)
+	else
+		call s:ErrorExec(cmd, io, dir)
 	endif
 endfunc
 
-command -nargs=1 -complete=file -range R
-	\ call call('s:Run', s:ParseCmd(<q-args>) + [''])
+command -bang -nargs=1 -complete=file -range R call s:Run(<q-args>, "<bang>")
 
 function s:ScratchNew()
 	let buf = 0
@@ -615,12 +615,10 @@ function s:MiddleRelease(click) range
 	let cmd = a:click <= 0 || s:clicksel ? s:Sel()[0] : expand('<cWORD>')
 	call s:RestVisual(s:visual)
 	let b = bufnr()
-	let dir = s:Dir()
 	let w = win_getid()
 	exe win_id2win(s:clickwin).'wincmd w'
 	if !s:Receiver(b)
-		let [cmd, io] = s:ParseCmd(cmd)
-		call s:Run(cmd, io, dir)
+		call s:Run(cmd)
 	elseif w == s:clickwin || a:click <= 0
 		call s:Send(w, cmd)
 	else
