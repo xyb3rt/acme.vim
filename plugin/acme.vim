@@ -318,6 +318,42 @@ function s:Exec(cmd)
 		\ 'err_io': 'null', 'in_io': 'null', 'out_io': 'null'})
 endfunc
 
+function s:BufWidth(b)
+	let width = -1
+	for w in range(1, winnr('$'))
+		if winbufnr(w) == a:b && (width == -1 || width > winwidth(w))
+			let width = winwidth(w)
+		endif
+	endfor
+	return width
+endfunc
+
+function s:Columnate(words, width)
+	let space = 2
+	let wordw = map(copy(a:words), 'strwidth(v:val)')
+	let ncol = min([len(a:words), a:width / (space + 1)])
+	while ncol > 1
+		let colw = repeat([0], ncol)
+		let nrow = (len(a:words) + ncol - 1) / ncol
+		for i in range(len(wordw))
+			let colw[i / nrow] = max([colw[i / nrow], wordw[i]])
+		endfor
+		let width = reduce(colw, {n, v -> n + v}, (ncol - 1) * space)
+		if width > a:width
+			let ncol -= 1
+			continue
+		endif
+		let lines = repeat([''], nrow)
+		for i in range(len(a:words))
+			let sep = i + nrow >= len(a:words) ? '' :
+				\ repeat(' ', colw[i / nrow] - wordw[i] + space)
+			let lines[i % nrow] .= a:words[i] . sep
+		endfor
+		return lines
+	endwhile
+	return a:words
+endfunc
+
 function s:ListDir()
 	let dir = expand('%')
 	if !isdirectory(dir) || !&modifiable
@@ -325,24 +361,32 @@ function s:ListDir()
 	endif
 	let lst = ['..'] + readdir(dir, {f -> f[0] != '.'}, {'sort': 'collate'})
 	call map(lst, 'isdirectory(dir."/".v:val) ? v:val."/" : v:val')
+	let width = s:BufWidth(bufnr())
+	let lst = s:Columnate(lst, width)
 	call setline(1, lst)
 	if len(lst) < line('$')
 		silent exe len(lst)+1.',$d _'
 	endif
 	setl bufhidden=unload buftype=nowrite noswapfile
+	call setbufvar(bufnr(), 'acme_width', width)
 endfunc
 
 au BufEnter * call s:ListDir()
 
 function s:ReloadDirs(...)
+	let done = {}
 	for w in range(1, winnr('$'))
-		if a:0 == 0 || w != a:1
+		let b = winbufnr(w)
+		if !has_key(done, b) && (a:0 == 0 || (w != a:1 &&
+			\ s:BufWidth(b) != getbufvar(b, 'acme_width')))
+			let done[b] = 1
 			call win_execute(win_getid(w), 'noa call s:ListDir()')
 		endif
 	endfor
 endfunc
 
 au VimEnter * call s:ReloadDirs(winnr())
+au WinResized * call s:ReloadDirs(0)
 
 function s:Readable(path)
 	" Reject binary files, i.e. files containing null characters (which
