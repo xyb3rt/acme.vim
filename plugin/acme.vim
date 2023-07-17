@@ -27,10 +27,9 @@ function s:Sel()
 endfunc
 
 function s:Dir()
-	let dir = getbufvar(bufnr(), 'acme_dir', '')
 	let name = expand('%')
-	if dir != ''
-		return dir
+	if has_key(s:scratchdir, bufnr())
+		return s:scratchdir[bufnr()]
 	elseif name == ''
 		return getcwd()
 	elseif isdirectory(name)
@@ -81,9 +80,9 @@ function s:Exited(job, status)
 				checktime
 				call s:ReloadDirs()
 			endif
-			for b in range(bufnr('$'))
-				if getbufvar(b, 'acme_send_buf', -1) == job.buf
-					call setbufvar(b, 'acme_send_buf', -1)
+			for [s, r] in items(s:sendbuf)
+				if r == job.buf
+					call remove(s:sendbuf, s)
 				endif
 			endfor
 			break
@@ -108,12 +107,20 @@ function s:Expand(s)
 		\ '\=repeat(" ", len(submatch(0)) * 8)', '')
 endfunc
 
+let s:sendbuf = {}
+
 function s:Send(w, inp)
 	let b = winbufnr(a:w)
 	if !s:Receiver(b)
 		return
 	endif
-	if getbufvar(b, '&buftype') == 'terminal'
+	if has_key(s:scratchbufs, b)
+		let inp = a:inp
+		if inp[-1] != "\n"
+			let inp .= "\n"
+		endif
+		call ch_sendraw(s:Jobs(b)[0].h, inp)
+	else
 		let keys = 'i'
 		if a:w != win_getid()
 			let keys = win_id2win(a:w)."\<C-w>wi\<C-w>p"
@@ -123,21 +130,15 @@ function s:Send(w, inp)
 		endif
 		let inp = map(split(a:inp, '\n'), 's:Expand(v:val)')
 		call ch_sendraw(term_getjob(b), "\<C-u>".join(inp, "\r")."\r")
-	else
-		let inp = a:inp
-		if inp[-1] != "\n"
-			let inp .= "\n"
-		endif
-		call ch_sendraw(s:Jobs(b)[0].h, inp)
 	endif
-	if a:w != win_getid()
-		call setbufvar(bufnr(), 'acme_send_buf', b)
+	if bufnr() != b
+		let s:sendbuf[bufnr()] = b
 	endif
 endfunc
 
 function s:Receiver(b)
-	return getbufvar(a:b, '&buftype') == 'terminal' ||
-		\ (getbufvar(a:b, 'acme_scratch') && s:Jobs(a:b) != [])
+	return term_getstatus(a:b) =~ 'running' ||
+		\ (has_key(s:scratchbufs, a:b) && s:Jobs(a:b) != [])
 endfunc
 
 function s:Receivers()
@@ -152,7 +153,7 @@ endfunc
 
 function s:Ctrl_S(inp)
 	let b = bufnr()
-	let w = s:Win(getbufvar(b, 'acme_send_buf', -1))
+	let w = s:Win(get(s:sendbuf, b))
 	let r = s:Receivers()
 	if s:Receiver(b)
 		call s:Send(win_getid(), a:inp)
@@ -168,9 +169,9 @@ vnoremap <silent> <C-s> :<C-u>call <SID>Ctrl_S(<SID>Sel()[0])<CR>
 
 function s:Unload()
 	let buf = expand('<abuf>')
-	for b in range(bufnr('$'))
-		if getbufvar(b, 'acme_send_buf', -1) == buf
-			call setbufvar(b, 'acme_send_buf', -1)
+	for [s, r] in items(s:sendbuf)
+		if r == buf
+			call remove(s:sendbuf, s)
 		endif
 	endfor
 endfunc
@@ -270,10 +271,13 @@ endfunc
 
 command -bang -nargs=1 -complete=file -range R call s:Run(<q-args>, "<bang>")
 
+let s:scratchbufs = {}
+let s:scratchdir = {}
+
 function s:ScratchNew()
 	let buf = 0
-	for b in range(1, bufnr('$'))
-		if !buflisted(b) && !bufloaded(b) && bufname(b) == ''
+	for b in keys(s:scratchbufs)
+		if !bufloaded(b)
 			let buf = b
 			break
 		endif
@@ -282,9 +286,9 @@ function s:ScratchNew()
 		call s:New('sp | b '.buf)
 	else
 		call s:New('new')
+		let s:scratchbufs[bufnr()] = 1
 	endif
 	setl bufhidden=unload buftype=nofile nobuflisted noswapfile
-	call setbufvar(bufnr(), 'acme_scratch', 1)
 endfunc
 
 function s:ScratchCb(b, ch, msg)
@@ -310,7 +314,7 @@ function s:ScratchExec(cmd, dir)
 	endif
 	let job = job_start(s:Argv(a:cmd), opts)
 	call s:Started(job, b, a:cmd)
-	call setbufvar(b, 'acme_dir', fnamemodify(a:dir, ':p'))
+	let s:scratchdir[b] = fnamemodify(a:dir, ':p')
 endfunc
 
 function s:Exec(cmd)
@@ -354,6 +358,8 @@ function s:Columnate(words, width)
 	return a:words
 endfunc
 
+let s:dirwidth = {}
+
 function s:ListDir()
 	let dir = expand('%')
 	if !isdirectory(dir) || !&modifiable
@@ -368,7 +374,7 @@ function s:ListDir()
 		silent exe len(lst)+1.',$d _'
 	endif
 	setl bufhidden=unload buftype=nowrite noswapfile
-	call setbufvar(bufnr(), 'acme_width', width)
+	let s:dirwidth[bufnr()] = width
 endfunc
 
 au BufEnter * call s:ListDir()
@@ -378,7 +384,7 @@ function s:ReloadDirs(...)
 	for w in range(1, winnr('$'))
 		let b = winbufnr(w)
 		if !has_key(done, b) && (a:0 == 0 || (w != a:1 &&
-			\ s:BufWidth(b) != getbufvar(b, 'acme_width')))
+			\ s:BufWidth(b) != get(s:dirwidth, b)))
 			let done[b] = 1
 			call win_execute(win_getid(w), 'noa call s:ListDir()')
 		endif
@@ -431,9 +437,8 @@ endfunc
 
 function s:Cwds()
 	let dirs = [expand('%:p:h'), getcwd()]
-	let dir = getbufvar(bufnr(), 'acme_dir', '')
-	if dir != ''
-		call insert(dirs, dir)
+	if has_key(s:scratchdir, bufnr())
+		call insert(dirs, s:scratchdir[bufnr()])
 	endif
 	if expand('%:t') == '+Errors'
 		let [d, q] = ['directory:? ', "[`'\"]"]
@@ -624,8 +629,7 @@ function AcmeClick()
 	let s:visual = s:SaveVisual()
 	let s:clicksel = s:clickmode == 'v' && win_getid() == s:clickwin &&
 		\ s:InSel()
-	if getbufvar(bufnr(), '&buftype') == 'terminal' &&
-		\ term_getstatus(bufnr()) == 'running'
+	if term_getstatus(bufnr()) == 'running'
 		call feedkeys("\<C-w>N\<LeftMouse>", 'in')
 	endif
 endfunc
@@ -835,7 +839,7 @@ tnoremap <expr> <silent> <ScrollWheelUp> <SID>TermScrollWheelUp()
 
 function s:Clear(b, top)
 	call deletebufline(a:b, 1, "$")
-	if a:top && getbufvar(a:b, 'acme_scratch')
+	if a:top && has_key(s:scratchbufs, a:b)
 		for job in s:Jobs(a:b)
 			call ch_setoptions(job.h,
 				\ {'callback': function('s:ScratchCb', [a:b])})
