@@ -848,13 +848,13 @@ function s:Clear(b, top)
 endfunc
 
 let s:editbufs = {}
-let s:editpids = {}
+let s:editcids = {}
 
-function s:Edit(file, pid)
+function s:Edit(file, cid)
 	call s:FileOpen(a:file, '')
 	let b = bufnr()
-	let s:editbufs[a:pid] = get(s:editbufs, a:pid) + 1
-	let s:editpids[b] = add(get(s:editpids, b, []), a:pid)
+	let s:editbufs[a:cid] = get(s:editbufs, a:cid) + 1
+	let s:editcids[b] = add(get(s:editcids, b, []), a:cid)
 endfunc
 
 let s:ctrlrx = ''
@@ -875,25 +875,25 @@ function s:CtrlRecv(ch, data)
 		elseif len(msg) < 3
 			continue
 		endif
-		let pid = msg[1]
+		let cid = msg[1]
 		if msg[2] == 'edit'
 			for file in msg[3:]
-				call s:Edit(file, pid)
+				call s:Edit(file, cid)
 			endfor
 		elseif msg[2] =~ '\vclear\^?'
 			for b in msg[3:]
 				call s:Clear(str2nr(b), msg[2] == 'clear^')
 			endfor
-			call s:CtrlSend(pid, 'cleared')
+			call s:CtrlSend(cid, 'cleared')
 		elseif msg[2] == 'checktime'
 			checktime
 			call s:ReloadDirs()
-			call s:CtrlSend(pid, 'timechecked')
+			call s:CtrlSend(cid, 'timechecked')
 		elseif msg[2] == 'scratch'
 			if len(msg) > 3
 				call s:ScratchExec(msg[3:], '')
 			endif
-			call s:CtrlSend(pid, 'scratched')
+			call s:CtrlSend(cid, 'scratched')
 		endif
 	endfor
 endfunc
@@ -906,12 +906,12 @@ endfunc
 function s:BufWinLeave()
 	let b = str2nr(expand('<abuf>'))
 	call s:Kill(b)
-	if !getbufvar(b, '&modified') && has_key(s:editpids, b)
-		for pid in remove(s:editpids, b)
-			let s:editbufs[pid] -= 1
-			if s:editbufs[pid] <= 0
-				call remove(s:editbufs, pid)
-				call s:CtrlSend(pid, 'done')
+	if !getbufvar(b, '&modified') && has_key(s:editcids, b)
+		for cid in remove(s:editcids, b)
+			let s:editbufs[cid] -= 1
+			if s:editbufs[cid] <= 0
+				call remove(s:editbufs, cid)
+				call s:CtrlSend(cid, 'done')
 			endif
 		endfor
 	endif
@@ -922,6 +922,6 @@ au BufWinLeave * call s:BufWinLeave()
 if $ACMEVIMPORT != ""
 	let s:ctrlch = ch_open('localhost:'.$ACMEVIMPORT, {
 		\ 'mode': 'raw', 'callback': 's:CtrlRecv'})
-	let $ACMEVIMPID = getpid()
+	let $ACMEVIMID = getpid()
 	let $EDITOR = expand('<sfile>:p:h:h').'/bin/acmevim'
 endif

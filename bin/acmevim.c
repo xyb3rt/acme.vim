@@ -125,15 +125,15 @@ acmevim_strv msg(const char *cmd, char *argv[], size_t argc) {
 }
 
 void request(char *argv[], size_t argc) {
-	const char *acmevimpid = getenv("ACMEVIMPID");
-	if (acmevimpid == NULL) {
-		error(EXIT_FAILURE, 0, "ACMEVIMPID not set");
+	const char *acmevimid = getenv("ACMEVIMID");
+	if (acmevimid == NULL) {
+		error(EXIT_FAILURE, 0, "ACMEVIMID not set");
 	}
-	char pid[16];
-	snprintf(pid, sizeof(pid), "%d", getpid());
+	char id[16];
+	snprintf(id, sizeof(id), "%d", getpid());
 	vec_push(&conns, acmevim_connect());
 	acmevim_strv req = msg(cmd(flags), argv, argc);
-	acmevim_send(conns[0], acmevimpid, pid,
+	acmevim_send(conns[0], acmevimid, id,
 	             (const char **)req, vec_len(&req));
 	vec_free(&req);
 }
