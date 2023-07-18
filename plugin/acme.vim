@@ -498,17 +498,22 @@ endfunc
 function s:Open(text, click)
 	for [pat, Handler] in get(g:, 'acme_plumbing', [])
 		let m = s:Match(a:text, a:click, pat)
-		if m != []
-			let [cmd, io] = s:ParseCmd(call(Handler, [m]))
-			if cmd != ''
-				if io == '^'
-					call s:ScratchExec(cmd, s:Dir())
-				else
-					call s:Exec(cmd)
-				endif
-				return 1
-			endif
+		if m == []
+			continue
 		endif
+		let [cmd, io] = s:ParseCmd(call(Handler, [m]))
+		if cmd == ''
+			continue
+		endif
+		let outp = systemlist(cmd)
+		if v:shell_error != 0
+			continue
+		endif
+		if io == '^'
+			call s:ScratchNew()
+			call setline('$', outp)
+		endif
+		return 1
 	endfor
 	let m = s:Match(a:text, a:click,
 		\ '(\f+)%(%([:](%([0-9]+)|%([/?].+)))|%(\(([0-9]+)\)))?')
