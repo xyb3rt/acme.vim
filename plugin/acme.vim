@@ -275,14 +275,14 @@ let s:scratchbufs = {}
 let s:scratchdir = {}
 
 function s:ScratchNew()
-	let buf = 0
+	let buf = ''
 	for b in keys(s:scratchbufs)
-		if !bufloaded(b)
+		if !bufloaded(str2nr(b))
 			let buf = b
 			break
 		endif
 	endfor
-	if buf != 0
+	if buf != ''
 		call s:New('sp | b '.buf)
 	else
 		call s:New('new')
