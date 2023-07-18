@@ -51,8 +51,9 @@ Bringing the spirit of Plan 9 acme to vim.
 	the buffer.
 
 	Commands can also be started with the `R` command, which uses the
-	current working directory. All running commands matching a given
-	pattern can be killed with the `K` command.
+	current working directory with `!`. All commands of the current buffer
+	or the ones matching a given pattern can be killed with the `K`
+	command.
 
 * Send text to commands:
 
@@ -109,9 +110,16 @@ hashes, that you can add to your `~/.vimrc`:
 
 ```
 let g:acme_plumbing = [
-	\ ['\vhttps?\:\/\/([A-Za-z][-_0-9A-Za-z]*\.){1,}(\w{2,}\.?){1,}(:[0-9]{1,5})?\S*', {m -> 'xdg-open '.shellescape(m[0])}],
-	\ ['\v(\f+)\s*\((\d)\)', {m -> '^man '.m[2].' '.m[1]}],
-	\ ['\v([a-fA-F0-9]{7,64})|(<stash\@\{\d+\})', {m -> '^git show '.m[0]}]]
+        \ ['\vhttps?\:\/\/(\a(\w|\-)*\.)+(\w{2,}\.?)+(:\d{1,5})?\S*',
+                \ {m -> 'xdg-open '.shellescape(m[0])}],
+        \ ['\v(\f+)\s*\((\d\a*)\)',
+                \ {m -> '^man '.shellescape(m[2]).' '.shellescape(m[1])}],
+        \ ['\v[a-fA-F0-9]{7,64}',
+                \ {m -> '^git show '.shellescape(m[0])}],
+        \ ['\v<stash\@\{\d+\}',
+                \ {m -> '^git stash show -p '.shellescape(m[0])}],
+        \ ['\v\f+\.\.\.?\f+',
+                \ {m -> '^git log -s --left-right '.shellescape(m[0])}]]
 ```
 
 To get simple right-clickable directory listings you have to disable vim's
