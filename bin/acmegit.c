@@ -300,7 +300,7 @@ void cmd_clean(void) {
 
 void cmd_commit(void) {
 	set("git", "commit", "-v", NULL);
-	if (setprompt("commit: --all --fixup")) {
+	if (setprompt("commit: --all --amend --no-edit --fixup")) {
 		clear(CHECKTIME);
 		run();
 	}
