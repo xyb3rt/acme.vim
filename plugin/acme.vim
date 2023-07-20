@@ -701,7 +701,7 @@ function s:RightRelease(click) range
 		let pat = '\V'.escape(word, '/\')
 		call s:RestVisual(s:visual)
 	else
-		if @/ != ''
+		if v:hlsearch != 0 && @/ != ''
 			let pos = getpos('.')
 			let b = searchpos(@/, 'bc', pos[1])[1]
 			let e = searchpos(@/, 'ce', pos[1])[1]
@@ -724,7 +724,7 @@ function s:RightRelease(click) range
 	endif
 	call s:Tag('^'.word.'$', 1)
 	let @/ = pat
-	call feedkeys(":let v:hlsearch=1\<CR>", 'n')
+	call feedkeys(&hlsearch ? ":let v:hlsearch=1\<CR>" : 'n', 'n')
 endfunc
 
 function s:ScrollWheelDown()
