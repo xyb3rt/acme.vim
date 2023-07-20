@@ -568,7 +568,7 @@ function s:ListBufs()
 	call sort(bufs, 's:CmpBuf')
 	let nl = max(map(copy(bufs), 'len(v:val.bufnr)'))
 	call map(bufs, 'printf("#%-".nl."s %s", v:val.bufnr,' .
-		\ 'v:val.name != "" ? fnamemodify(v:val.name, ":~:.") : "")')
+		\ 'v:val.name != "" ? s:Normalize(v:val.name) : "")')
 	call s:ErrorOpen('+Errors', bufs)
 endfunc
 
