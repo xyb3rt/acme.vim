@@ -560,7 +560,7 @@ endfunc
 command -nargs=1 -complete=tag T call s:Tag(<q-args>)
 
 function s:CmpBuf(a, b)
-	return a:a.name == a:b.name ? 0 : a:a.name > a:b.name ? 1 : -1
+	return a:a.name ==# a:b.name ? 0 : a:a.name ># a:b.name ? 1 : -1
 endfunc
 
 function s:ListBufs()
