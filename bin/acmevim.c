@@ -1,53 +1,54 @@
 #include "acmevim.h"
 #include <fcntl.h>
 
-enum flags {
-	CLEAR = 1,
-	DETACH = 2,
-	SCRATCH = 4,
+enum mode {
+	CLEAR = 'c',
+	DETACH = 'd',
+	SCRATCH = 's'
 };
 
 struct acmevim_conn **conns;
-enum flags flags;
 void (*handle)(acmevim_strv, size_t);
 acmevim_strv ids;
+enum mode mode;
 
-enum flags parse(int argc, char *argv[]) {
-	enum flags flags = 0;
+enum mode parse(int argc, char *argv[]) {
+	enum mode mode = 0;
 	int opt;
 	opterr = 0;
+	setenv("POSIXLY_CORRECT", "1", 1);
 	while ((opt = getopt(argc, argv, "cds")) != -1) {
 		switch (opt) {
 		case 'c':
-			flags |= CLEAR;
-			break;
 		case 'd':
-			flags |= DETACH;
-			break;
 		case 's':
-			flags |= SCRATCH;
+			if (mode != 0 && mode != opt) {
+				error(EXIT_FAILURE, 0,
+				      "conflicting flags: -%c -%c", mode, opt);
+			}
+			mode = opt;
 			break;
 		default:
 			error(EXIT_FAILURE, 0, "invalid option: %c", optopt);
 		}
 	}
-	return flags;
+	return mode;
 }
 
-const char *cmd(enum flags flags) {
-	if (flags & CLEAR) {
+const char *cmd(enum mode mode) {
+	if (mode == CLEAR) {
 		return "clear";
-	} else if (flags & SCRATCH) {
+	} else if (mode == SCRATCH) {
 		return "scratch";
 	} else {
 		return "edit";
 	}
 }
 
-const char *resp(enum flags flags) {
-	if (flags & CLEAR) {
+const char *resp(enum mode mode) {
+	if (mode == CLEAR) {
 		return "cleared";
-	} else if (flags & SCRATCH) {
+	} else if (mode == SCRATCH) {
 		return "scratched";
 	} else {
 		return "done";
@@ -132,7 +133,7 @@ void request(char *argv[], size_t argc) {
 	char id[16];
 	snprintf(id, sizeof(id), "%d", getpid());
 	vec_push(&conns, acmevim_connect());
-	acmevim_strv req = msg(cmd(flags), argv, argc);
+	acmevim_strv req = msg(cmd(mode), argv, argc);
 	acmevim_send(conns[0], acmevimid, id,
 	             (const char **)req, vec_len(&req));
 	vec_free(&req);
@@ -159,7 +160,7 @@ void client(acmevim_strv msg, size_t c) {
 	if (msg == NULL) {
 		error(EXIT_FAILURE, conns[c]->err, "connection closed");
 	}
-	if (vec_len(&msg) > 2 && strcmp(msg[2], resp(flags)) == 0) {
+	if (vec_len(&msg) > 2 && strcmp(msg[2], resp(mode)) == 0) {
 		exit(0);
 	}
 }
@@ -184,12 +185,12 @@ int main(int argc, char *argv[]) {
 	argv0 = argv[0];
 	conns = vec_new();
 	ids = vec_new();
-	flags = parse(argc, argv);
+	mode = parse(argc, argv);
 	int listenfd = -1;
 	if (optind == argc) {
 		handle = server;
 		listenfd = startlisten();
-		if (flags & DETACH) {
+		if (mode == DETACH) {
 			detach();
 		}
 	} else {
