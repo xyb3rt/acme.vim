@@ -179,7 +179,7 @@ enum reply prompt(const char *p) {
 	input();
 	if (strcmp(buf.d, "<<") == 0) {
 		return CANCEL;
-	} else if (strcmp(buf.d, ">>") == 0) {
+	} else if (strcmp(buf.d, ">>") == 0 || buf.d[0] == '\0') {
 		return CONFIRM;
 	} else {
 		return SELECT;
