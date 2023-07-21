@@ -134,8 +134,14 @@ void request(char *argv[], size_t argc) {
 	snprintf(id, sizeof(id), "%d", getpid());
 	vec_push(&conns, acmevim_connect());
 	acmevim_strv req = msg(cmd(mode), argv, argc);
+	char *cwd = NULL;
+	if (mode == 's') {
+		cwd = egetcwd();
+		vec_insert(&req, 1, cwd);
+	}
 	acmevim_send(conns[0], acmevimid, id,
 	             (const char **)req, vec_len(&req));
+	free(cwd);
 	vec_free(&req);
 }
 

@@ -64,6 +64,7 @@ const char *acmevimid;
 acmevim_strv argv;
 struct { char *d; size_t len, size; } buf;
 struct acmevim_conn *conn;
+char *cwd;
 enum dirty dirty = REDRAW;
 char id[16];
 
@@ -247,6 +248,7 @@ void init(void) {
 	    acmevimid == NULL || acmevimid[0] == '\0') {
 		error(EXIT_FAILURE, 0, "not in acme.vim");
 	}
+	cwd = egetcwd();
 	snprintf(id, sizeof(id), "%d", getpid());
 	conn = acmevim_connect();
 	acmevim_send(conn, "", id, NULL, 0);
@@ -313,7 +315,7 @@ void cmd_config(void) {
 }
 
 void cmd_diff(void) {
-	set("scratch", "git", "diff", NULL);
+	set("scratch", cwd, "git", "diff", NULL);
 	if (setprompt("diff: --cached HEAD @{u} --")) {
 		clear(REDRAW);
 		request("scratched");
@@ -331,13 +333,14 @@ void cmd_fetch(void) {
 }
 
 void cmd_graph(void) {
-	set("scratch", "git", "log", "--graph", "--oneline", "--decorate",
+	set("scratch", cwd, "git", "log", "--graph", "--oneline", "--decorate",
 	    "--all", "--date-order", NULL);
 	request("scratched");
 }
 
 void cmd_log(void) {
-	set("scratch", "git", "log", "--decorate", "--left-right", "-s", NULL);
+	set("scratch", cwd, "git", "log", "--decorate", "--left-right", "-s",
+	    NULL);
 	if (setprompt("log: HEAD ...@{u}")) {
 		clear(REDRAW);
 		request("scratched");

@@ -11,6 +11,8 @@
 	_vec_len((void **)(v))
 #define vec_dig(v, i, n) \
 	((typeof(*(v)))_vec_dig((void **)(v), (i), (n), sizeof(**(v))))
+#define vec_insert(v, i, val) \
+	(*vec_dig((v), (i), 1) = (val))
 #define vec_push(v, val) \
 	(*vec_dig((v), -1, 1) = (val))
 #define vec_erase(v, i, n) \

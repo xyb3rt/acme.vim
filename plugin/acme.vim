@@ -897,8 +897,8 @@ function s:CtrlRecv(ch, data)
 			call s:ReloadDirs()
 			call s:CtrlSend(cid, 'timechecked')
 		elseif msg[2] == 'scratch'
-			if len(msg) > 3
-				call s:ScratchExec(msg[3:], '')
+			if len(msg) > 4
+				call s:ScratchExec(msg[4:], msg[3])
 			endif
 			call s:CtrlSend(cid, 'scratched')
 		endif

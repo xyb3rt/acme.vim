@@ -66,3 +66,18 @@ static int call(char *const argv[]) {
 	}
 	return status;
 }
+
+char *egetcwd(void) {
+	char *buf = NULL;
+	size_t size = 1024;
+	for (;;) {
+		buf = erealloc(buf, size);
+		if (getcwd(buf, size) != NULL) {
+			break;
+		} else if (errno != ERANGE) {
+			error(EXIT_FAILURE, errno, "getcwd");
+		}
+		size *= 2;
+	}
+	return buf;
+}
