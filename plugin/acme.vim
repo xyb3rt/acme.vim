@@ -495,36 +495,38 @@ function s:OpenBuf(b)
 	return 1
 endfunc
 
+let s:plumbing = [
+	\ ['(\f+)%(%([:](%([0-9]+)|%([/?].+)))|%(\(([0-9]+)\)))',
+		\ {m -> s:OpenFile(m[1], m[2] != '' ? m[2] : m[3])}],
+	\ ['\f+', {m -> s:OpenFile(m[0], '')}],
+	\ ['\#(\d+)', {m -> s:OpenBuf(str2nr(m[1]))}]]
+
 function s:Open(text, click)
-	for [pat, Handler] in get(g:, 'acme_plumbing', [])
+	for [pat, Handler] in get(g:, 'acme_plumbing', []) + s:plumbing
 		let m = s:Match(a:text, a:click, pat)
 		if m == []
 			continue
 		endif
-		let [cmd, io] = s:ParseCmd(call(Handler, [m]))
+		let r = call(Handler, [m])
+		if type(r) != type('')
+			if r
+				return 1
+			endif
+			continue
+		endif
+		let [cmd, io] = s:ParseCmd(r)
 		if cmd == ''
 			continue
 		endif
 		let outp = systemlist(cmd)
-		if v:shell_error != 0
-			continue
-		endif
-		if io == '^'
-			call s:ScratchNew()
-			call setline('$', outp)
-		endif
-		return 1
-	endfor
-	let m = s:Match(a:text, a:click,
-		\ '(\f+)%(%([:](%([0-9]+)|%([/?].+)))|%(\(([0-9]+)\)))?')
-	if m != []
-		let pos = m[2] != '' ? m[2] : m[3]
-		if s:OpenFile(m[1], pos)
+		if v:shell_error == 0
+			if io == '^'
+				call s:ScratchNew()
+				call setline('$', outp)
+			endif
 			return 1
 		endif
-	endif
-	let m = s:Match(a:text, a:click, '\#(\d+)')
-	return m != [] && s:OpenBuf(str2nr(m[1]))
+	endfor
 endfunc
 
 command -nargs=1 -complete=file O call s:Open(expand(<q-args>), 0)
