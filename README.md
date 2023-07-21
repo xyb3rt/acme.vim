@@ -118,8 +118,8 @@ let g:acme_plumbing = [
                 \ {m -> '^git show '.shellescape(m[0])}],
         \ ['\v<stash\@\{\d+\}',
                 \ {m -> '^git stash show -p '.shellescape(m[0])}],
-        \ ['\v\f+\.\.\.?\f+',
-                \ {m -> '^git log -s --left-right '.shellescape(m[0])}]]
+	\ ['\v\f+\.\.(\.|\w)\f+',
+		\ {m -> '^git log -s --left-right '.shellescape(m[0])}]]
 ```
 
 To get simple right-clickable directory listings you have to disable vim's
