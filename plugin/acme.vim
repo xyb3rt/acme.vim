@@ -211,11 +211,10 @@ function s:ErrorOpen(name, ...)
 	normal! G0
 endfunc
 
-function s:ErrorExec(cmd, io, dir)
+function s:ErrorExec(cmd, dir, inp)
 	let name = '+Errors'
-	let inp = a:io == '>' ? s:Sel()[0] : ''
 	let opts = {'exit_cb': 's:Exited', 'err_io': 'out', 'out_io': 'buffer',
-		\ 'in_io': (inp != '' ? 'pipe' : 'null'), 'out_msg': 0}
+		\ 'in_io': (a:inp != '' ? 'pipe' : 'null'), 'out_msg': 0}
 	if a:dir != ''
 		let name = a:dir.'/'.name
 		let opts['cwd'] = a:dir
@@ -225,22 +224,30 @@ function s:ErrorExec(cmd, io, dir)
 	let opts['out_buf'] = bufnr()
 	let job = job_start(s:Argv(a:cmd), opts)
 	call s:Started(job, bufnr(), a:cmd)
-	if inp != ''
-		call ch_sendraw(job, inp)
+	if a:inp != ''
+		call ch_sendraw(job, a:inp)
 		call ch_close_in(job)
 	endif
 endfunc
 
-function s:Filter(cmd, io, dir)
-	let sel = s:Sel()
-	let cmd = a:cmd
+function s:System(cmd, dir, inp)
 	let cwd = a:dir != '' ? chdir(a:dir) : ''
-	let out = system(cmd, a:io == '|' ? sel[0] : '')
-	call setreg('"', out, sel[1])
-	normal! gvp
+	let out = system(a:cmd, a:inp)
 	if cwd != ''
 		call chdir(cwd)
 	endif
+	return out
+endfunc
+
+function s:Filter(cmd, dir)
+	let sel = s:Sel()
+	call setreg('"', s:System(a:cmd, a:dir, sel[0]), sel[1])
+	normal! gvp
+endfunc
+
+function s:Read(cmd, dir)
+	call setreg('"', s:System(a:cmd, a:dir, ''), 'c')
+	normal! P
 endfunc
 
 function s:ParseCmd(cmd)
@@ -259,12 +266,14 @@ endfunc
 function s:Run(cmd, dir) range
 	let [cmd, io] = s:ParseCmd(a:cmd)
 	if cmd == ''
-	elseif io =~ '[|<]'
-		call s:Filter(cmd, io, a:dir)
+	elseif io == '|'
+		call s:Filter(cmd, a:dir)
+	elseif io == '<'
+		call s:Read(cmd, a:dir)
 	elseif io == '^'
 		call s:ScratchExec(cmd, a:dir)
 	else
-		call s:ErrorExec(cmd, io, a:dir)
+		call s:ErrorExec(cmd, a:dir, io == '>' ? s:Sel()[0] : '')
 	endif
 endfunc
 
