@@ -40,10 +40,9 @@ Bringing the spirit of Plan 9 acme to vim.
 	status lines of the buffer's windows. The commands of a buffer are
 	killed when the last of its windows is closed.
 
-	The selection can be used as the input and output for commands by using
-	the same command prefixes as in Plan 9 acme (`<`, `>`, `|`). This works
-	across windows: It is possible to select text in one window and
-	formatting it by middle-clicking `|fmt` in another window.
+	Commands can have the same IO prefixes as in Plan 9 acme (`<`, `>`,
+	`|`). They work across windows: It is possible to select text in one
+	window and format it by middle-clicking `|fmt` in another window.
 
 	Additionally *acme.vim* supports the new output prefix `^`: The output
 	of the command goes to a new scratch window. Commands can also have
