@@ -88,6 +88,10 @@ function s:Exited(job, status)
 					call remove(s:sendbuf, s)
 				endif
 			endfor
+			if has_key(s:scratchbufs, job.buf)
+				call win_execute(win_getid(s:Win(job.buf)),
+					\ 'filetype detect')
+			endif
 			break
 		endif
 	endfor
@@ -535,6 +539,7 @@ function s:Open(text, click)
 			if io == '^'
 				call s:ScratchNew()
 				call setline('$', outp)
+				filetype detect
 			endif
 			return 1
 		endif
