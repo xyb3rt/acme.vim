@@ -41,10 +41,13 @@ endfunc
 
 function s:Normalize(path)
 	let path = fnamemodify(simplify(fnamemodify(a:path, ':p')), ':~:.')
+	if path == ''
+		let path = '.'
+	endif
 	if isdirectory(path) && path !~ '/$'
 		let path .= '/'
 	endif
-	return path != '' ? path : '.'
+	return path
 endfunc
 
 let s:jobs = []
