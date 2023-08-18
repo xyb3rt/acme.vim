@@ -121,12 +121,9 @@ function s:Send(w, inp)
 	if !s:Receiver(b)
 		return
 	endif
+	let inp = split(a:inp, '\n')
 	if has_key(s:scratchbufs, b)
-		let inp = a:inp
-		if inp[-1] != "\n"
-			let inp .= "\n"
-		endif
-		call ch_sendraw(s:Jobs(b)[0].h, inp)
+		call ch_sendraw(s:Jobs(b)[0].h, join(inp, "\n")."\n")
 	else
 		let keys = 'i'
 		if a:w != win_getid()
@@ -135,7 +132,7 @@ function s:Send(w, inp)
 		if term_getstatus(b) =~ '\v<normal>'
 			exe 'normal!' keys
 		endif
-		let inp = map(split(a:inp, '\n'), 's:Expand(v:val)')
+		let inp = map(inp, 's:Expand(v:val)')
 		call ch_sendraw(term_getjob(b), "\<C-u>".join(inp, "\r")."\r")
 	endif
 	if bufnr() != b
