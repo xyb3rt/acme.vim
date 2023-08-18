@@ -123,7 +123,9 @@ function s:Send(w, inp)
 	endif
 	let inp = split(a:inp, '\n')
 	if has_key(s:scratchbufs, b)
-		call ch_sendraw(s:Jobs(b)[0].h, join(inp, "\n")."\n")
+		let job = s:Jobs(b)[0].h
+		call ch_setoptions(job, {'callback': ''})
+		call ch_sendraw(job, join(inp, "\n")."\n")
 	else
 		let keys = 'i'
 		if a:w != win_getid()
