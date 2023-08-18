@@ -46,7 +46,7 @@ Bringing the spirit of Plan 9 acme to vim.
 
 	Additionally *acme.vim* supports the new output prefix `^`: The output
 	of the command goes to a new scratch window. Commands can also have
-	suffixes: `+` is replaced with the selection, `%` with the filename of
+	suffixes: `$` is replaced with the selection, `%` with the filename of
 	the buffer.
 
 	Commands can also be started with the `R` command, which uses the

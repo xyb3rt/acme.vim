@@ -252,35 +252,37 @@ function s:Filter(cmd, dir)
 	normal! gvp
 endfunc
 
-function s:Read(cmd, dir)
-	call setreg('"', s:System(a:cmd, a:dir, ''), 'c')
+function s:Read(cmd, dir, inp)
+	call setreg('"', s:System(a:cmd, a:dir, a:inp), 'c')
 	normal! P
 endfunc
 
 function s:ParseCmd(cmd)
-	let cmd = trim(a:cmd)
-	let io = matchstr(cmd, '\v^[<>|^]')
-	let arg = matchstr(cmd, '\v[+%]$')
-	let cmd = trim(cmd[len(io):-len(arg)-1])
-	if arg == '+'
-		let cmd .= ' '.shellescape(s:Sel()[0])
-	elseif arg == '%'
-		let cmd .= ' '.shellescape(expand('%:p'))
-	endif
-	return [cmd, io]
+	let io = matchstr(a:cmd, '\v^([<>|^]|\s)+')
+	let args = matchstr(a:cmd, '\v([$%]|\s)+$')
+	let cmd = a:cmd[len(io):-len(args)-1]
+	for arg in split(args, '\zs')
+		if arg == '$'
+			let cmd .= ' '.shellescape(s:Sel()[0])
+		elseif arg == '%'
+			let cmd .= ' '.shellescape(expand('%:p'))
+		endif
+	endfor
+	return [cmd, matchstr(io, '[<|^]').matchstr(io, '>')]
 endfunc
 
 function s:Run(cmd, dir) range
 	let [cmd, io] = s:ParseCmd(a:cmd)
+	let inp = io =~ '>' ? s:Sel()[0] : ''
 	if cmd == ''
-	elseif io == '|'
+	elseif io =~ '|'
 		call s:Filter(cmd, a:dir)
-	elseif io == '<'
-		call s:Read(cmd, a:dir)
-	elseif io == '^'
-		call s:ScratchExec(cmd, a:dir)
+	elseif io =~ '<'
+		call s:Read(cmd, a:dir, inp)
+	elseif io =~ '\^'
+		call s:ScratchExec(cmd, a:dir, inp)
 	else
-		call s:ErrorExec(cmd, a:dir, io == '>' ? s:Sel()[0] : '')
+		call s:ErrorExec(cmd, a:dir, inp)
 	endif
 endfunc
 
@@ -318,7 +320,7 @@ function s:ScratchCb(b, ch, msg)
 	endif
 endfunc
 
-function s:ScratchExec(cmd, dir)
+function s:ScratchExec(cmd, dir, inp)
 	call s:ScratchNew()
 	let b = bufnr()
 	let opts = {'callback': function('s:ScratchCb', [b]),
@@ -331,6 +333,10 @@ function s:ScratchExec(cmd, dir)
 	let job = job_start(s:Argv(a:cmd), opts)
 	call s:Started(job, b, a:cmd)
 	let s:scratchdir[b] = fnamemodify(a:dir, ':p')
+	if a:inp != ''
+		call ch_sendraw(job, a:inp)
+		call ch_close_in(job)
+	endif
 endfunc
 
 function s:Exec(cmd)
@@ -916,7 +922,7 @@ function s:CtrlRecv(ch, data)
 			call s:CtrlSend(cid, 'timechecked')
 		elseif msg[2] == 'scratch'
 			if len(msg) > 4
-				call s:ScratchExec(msg[4:], msg[3])
+				call s:ScratchExec(msg[4:], msg[3], '')
 			endif
 			call s:CtrlSend(cid, 'scratched')
 		endif
