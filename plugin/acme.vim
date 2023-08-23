@@ -26,6 +26,12 @@ function s:Sel()
 	return sel
 endfunc
 
+function s:SelRange(line1, line2)
+	let view = winsaveview()
+	exe 'normal! '.a:line1.'GV'.a:line2.'GV'
+	call winrestview(view)
+endfunc
+
 function s:Dir()
 	let name = expand('%')
 	if has_key(s:scratchdir, bufnr())
@@ -286,6 +292,9 @@ function s:Run(cmd, dir)
 endfunc
 
 command -bang -nargs=1 -complete=file -range R
+	\ if <count> > 0 |
+		\ call s:SelRange(<line1>, <line2>) |
+	\ endif |
 	\ call s:Run(<q-args>, "<bang>" == '' ? s:Dir() : '')
 
 let s:scratchbufs = {}
