@@ -270,7 +270,7 @@ function s:ParseCmd(cmd)
 	return [cmd, matchstr(io, '[<|^]').matchstr(io, '>')]
 endfunc
 
-function s:Run(cmd, dir) range
+function s:Run(cmd, dir)
 	let [cmd, io] = s:ParseCmd(a:cmd)
 	let inp = io =~ '>' ? s:Sel()[0] : ''
 	if cmd == ''
@@ -556,7 +556,7 @@ command -nargs=1 -complete=file O call s:Open(expand(<q-args>), 0)
 nnoremap <silent> <C-m> :call <SID>Open(getline('.'), col('.'))<CR>
 vnoremap <silent> <C-m> :<C-u>call <SID>Open(<SID>Sel()[0], -1)<CR>
 
-function s:Tag(pat, ...) range
+function s:Tag(pat, ...)
 	let tf = tagfiles()
 	let dir = len(tf) == 1 ? fnamemodify(tf[0], ':p:h') : ''
 	let cwd = dir != '' ? chdir(dir) : ''
@@ -680,7 +680,7 @@ function s:MiddleMouse(mode)
 	call AcmeClick()
 endfunc
 
-function s:MiddleRelease(click) range
+function s:MiddleRelease(click)
 	if s:click.winid == 0
 		return
 	elseif s:clickstatus != 0
@@ -710,7 +710,7 @@ function s:RightMouse(mode)
 	call AcmeClick()
 endfunc
 
-function s:RightRelease(click) range
+function s:RightRelease(click)
 	if s:click.winid == 0
 		return
 	elseif s:clickstatus != 0
