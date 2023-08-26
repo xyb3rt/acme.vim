@@ -74,24 +74,27 @@ function s:Started(job, buf, cmd)
 	call s:UpdateStatus(a:buf)
 endfunc
 
+function s:RemoveJob(i)
+	let job = remove(s:jobs, a:i)
+	call s:UpdateStatus(job.buf)
+	if fnamemodify(bufname(job.buf), ':t') == '+Errors'
+		checktime
+		call s:ReloadDirs()
+	endif
+	for [s, r] in items(s:sendbuf)
+		if r == job.buf
+			call remove(s:sendbuf, s)
+		endif
+	endfor
+	if has_key(s:scratchbufs, job.buf)
+		call win_execute(win_getid(s:Win(job.buf)), 'filetype detect')
+	endif
+endfunc
+
 function s:Exited(job, status)
 	for i in range(len(s:jobs))
 		if s:jobs[i].h == a:job
-			let job = remove(s:jobs, i)
-			call s:UpdateStatus(job.buf)
-			if fnamemodify(bufname(job.buf), ':t') == '+Errors'
-				checktime
-				call s:ReloadDirs()
-			endif
-			for [s, r] in items(s:sendbuf)
-				if r == job.buf
-					call remove(s:sendbuf, s)
-				endif
-			endfor
-			if has_key(s:scratchbufs, job.buf)
-				call win_execute(win_getid(s:Win(job.buf)),
-					\ 'filetype detect')
-			endif
+			call s:RemoveJob(i)
 			break
 		endif
 	endfor
