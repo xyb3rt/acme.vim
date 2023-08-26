@@ -26,12 +26,6 @@ function s:Sel()
 	return sel
 endfunc
 
-function s:SelRange(line1, line2)
-	let view = winsaveview()
-	exe 'normal! '.a:line1.'GV'.a:line2.'GV'
-	call winrestview(view)
-endfunc
-
 function s:Dir()
 	let name = expand('%')
 	if has_key(s:scratchdir, bufnr())
@@ -292,10 +286,26 @@ function s:Run(cmd, dir)
 endfunc
 
 command -bang -nargs=1 -complete=file -range R
-	\ if <count> > 0 |
-		\ call s:SelRange(<line1>, <line2>) |
-	\ endif |
 	\ call s:Run(<q-args>, "<bang>" == '' ? s:Dir() : '')
+
+command -range V exe 'normal! '.<line1>.'GV'.<line2>.'G'
+
+function s:Exe(cmd)
+	let v:errmsg = ''
+	let pat = @/
+	let out = execute(a:cmd, 'silent!')
+	if v:errmsg != ''
+		let out .= "\n".v:errmsg
+	endif
+	if out != ''
+		call s:ErrorOpen('+Errors', split(out, '\n'))
+	endif
+	if @/ != pat
+		" Fix function-search-undo
+		let @/ = @/
+		call feedkeys(":let v:hlsearch=1\<CR>", 'n')
+	endif
+endfunc
 
 let s:scratchbufs = {}
 let s:scratchdir = {}
@@ -705,12 +715,19 @@ function s:MiddleRelease(click)
 	let dir = s:Dir()
 	let w = win_getid()
 	exe win_id2win(s:clickwin).'wincmd w'
-	if !s:Receiver(b)
-		call s:Run(cmd, dir)
-	elseif w == s:clickwin || a:click <= 0
+	if s:Receiver(b)
+		if w != s:clickwin && a:click > 0
+			let cmd = s:Sel()[0]
+		endif
 		call s:Send(w, cmd)
+	elseif cmd =~ '^\s*:'
+		let cmd = substitute(cmd, '^\s*:', '', '')
+		if s:clickmode == 'v'
+			let cmd = "'<,'>".cmd
+		endif
+		call s:Exe(cmd)
 	else
-		call s:Send(w, s:Sel()[0])
+		call s:Run(cmd, dir)
 	endif
 endfunc
 
