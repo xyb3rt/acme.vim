@@ -80,6 +80,11 @@ function s:RemoveJob(i)
 	if fnamemodify(bufname(job.buf), ':t') == '+Errors'
 		checktime
 		call s:ReloadDirs()
+		let w = s:Win(job.buf)
+		if s:Jobs(job.buf) == [] && line('$', win_getid(w)) == 1 &&
+			\ getbufline(job.buf, '$')[0] == ''
+			exe w.'close'
+		endif
 	endif
 	for [s, r] in items(s:sendbuf)
 		if r == job.buf
