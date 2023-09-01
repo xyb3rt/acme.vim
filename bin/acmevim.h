@@ -1,10 +1,10 @@
-#include "base.h"
-#include "vec.h"
+#include "indispensbl/vec.h"
 #include <arpa/inet.h>
 #include <limits.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 typedef char *acmevim_buf;
 typedef char **acmevim_strv;
@@ -68,7 +68,7 @@ void acmevim_send(struct acmevim_conn *conn, const char *dst, const char *src,
 }
 
 struct acmevim_conn *acmevim_create(int sockfd) {
-	struct acmevim_conn *conn = erealloc(NULL, sizeof(*conn));
+	struct acmevim_conn *conn = xrealloc(NULL, sizeof(*conn));
 	conn->fd = sockfd;
 	conn->err = 0;
 	conn->rx = vec_new();
@@ -79,12 +79,12 @@ struct acmevim_conn *acmevim_create(int sockfd) {
 struct acmevim_conn *acmevim_connect(void) {
 	const char *acmevimport = getenv("ACMEVIMPORT");
 	if (acmevimport == NULL) {
-		error(EXIT_FAILURE, 0, "ACMEVIMPORT not set");
+		fail(EINVAL, "ACMEVIMPORT");
 	}
 	char *end;
 	unsigned long port = strtoul(acmevimport, &end, 0);
 	if (*end != '\0' || port > USHRT_MAX) {
-		error(EXIT_FAILURE, 0, "invalid ACMEVIMPORT");
+		fail(EINVAL, "ACMEVIMPORT");
 	}
 	struct sockaddr_in addr;
 	memset(&addr, 0, sizeof(addr));
@@ -93,10 +93,10 @@ struct acmevim_conn *acmevim_connect(void) {
 	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	int sockfd = socket(PF_INET, SOCK_STREAM, 0);
 	if (sockfd == -1) {
-		error(EXIT_FAILURE, errno, "socket");
+		fail(errno, "socket");
 	}
 	if (connect(sockfd, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
-		error(EXIT_FAILURE, errno, "connect");
+		fail(errno, "connect");
 	}
 	return acmevim_create(sockfd);
 }
@@ -156,7 +156,7 @@ int acmevim_sync(struct acmevim_conn **conns, size_t count, int listenfd) {
 	}
 	while (select(nfds, &readfds, &writefds, NULL, NULL) == -1) {
 		if (errno != EINTR) {
-			error(EXIT_FAILURE, errno, "select");
+			fail(errno, "select");
 		}
 	}
 	for (size_t i = 0; i < count; i++) {

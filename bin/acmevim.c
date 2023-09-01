@@ -1,4 +1,5 @@
 #include "acmevim.h"
+#include "indispensbl/cwd.h"
 #include <fcntl.h>
 
 enum mode {
@@ -23,13 +24,12 @@ enum mode parse(int argc, char *argv[]) {
 		case 'd':
 		case 's':
 			if (mode != 0 && mode != opt) {
-				error(EXIT_FAILURE, 0,
-				      "conflicting flags: -%c -%c", mode, opt);
+				fail(EINVAL, "-%c -%c", mode, opt);
 			}
 			mode = opt;
 			break;
 		default:
-			error(EXIT_FAILURE, 0, "invalid option: %c", optopt);
+			fail(EINVAL, "-%c", optopt);
 		}
 	}
 	return mode;
@@ -58,21 +58,21 @@ const char *resp(enum mode mode) {
 int startlisten(void) {
 	int sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (sockfd == -1) {
-		error(EXIT_FAILURE, errno, "socket");
+		fail(errno, "socket");
 	}
 	struct sockaddr_in addr;
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	if (bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
-		error(EXIT_FAILURE, errno, "bind");
+		fail(errno, "bind");
 	}
 	if (listen(sockfd, 10) == -1) {
-		error(EXIT_FAILURE, errno, "listen");
+		fail(errno, "listen");
 	}
 	socklen_t len = sizeof(addr);
 	if (getsockname(sockfd, (struct sockaddr *)&addr, &len) == -1) {
-		error(EXIT_FAILURE, errno, "getsockname");
+		fail(errno, "getsockname");
 	}
 	printf("ACMEVIMPORT=%d; export ACMEVIMPORT;\n", htons(addr.sin_port));
 	return sockfd;
@@ -99,7 +99,7 @@ void closeconn(size_t c) {
 void detach(void) {
 	pid_t pid = fork();
 	if (pid == -1) {
-		error(EXIT_FAILURE, errno, "fork");
+		fail(errno, "fork");
 	} else if (pid != 0) {
 		exit(0);
 	}
@@ -127,8 +127,8 @@ acmevim_strv msg(const char *cmd, char *argv[], size_t argc) {
 
 void request(char *argv[], size_t argc) {
 	const char *acmevimid = getenv("ACMEVIMID");
-	if (acmevimid == NULL) {
-		error(EXIT_FAILURE, 0, "ACMEVIMID not set");
+	if (acmevimid == NULL || acmevimid[0] == '\0') {
+		fail(EINVAL, "ACMEVIMID");
 	}
 	char id[16];
 	snprintf(id, sizeof(id), "%d", getpid());
@@ -136,7 +136,7 @@ void request(char *argv[], size_t argc) {
 	acmevim_strv req = msg(cmd(mode), argv, argc);
 	char *cwd = NULL;
 	if (mode == 's') {
-		cwd = egetcwd();
+		cwd = xgetcwd();
 		vec_insert(&req, 1, cwd);
 	}
 	acmevim_send(conns[0], acmevimid, id,
@@ -150,7 +150,7 @@ void server(acmevim_strv msg, size_t c) {
 		return;
 	}
 	if (ids[c] == NULL) {
-		ids[c] = estrdup(msg[1]);
+		ids[c] = xstrdup(msg[1]);
 	} else if (strcmp(ids[c], msg[1]) != 0) {
 		return;
 	}
@@ -164,7 +164,7 @@ void server(acmevim_strv msg, size_t c) {
 
 void client(acmevim_strv msg, size_t c) {
 	if (msg == NULL) {
-		error(EXIT_FAILURE, conns[c]->err, "connection closed");
+		fail(conns[c]->err, "connection closed");
 	}
 	if (vec_len(&msg) > 2 && strcmp(msg[2], resp(mode)) == 0) {
 		exit(0);

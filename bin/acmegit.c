@@ -2,6 +2,8 @@
  * acmegit: Simple git UI in acme.vim scratch buffer
  */
 #include "acmevim.h"
+#include "indispensbl/call.h"
+#include "indispensbl/cwd.h"
 
 enum dirty {
 	CLEAN,
@@ -72,7 +74,7 @@ void set(const char *arg, ...) {
 	va_list ap;
 	va_start(ap, arg);
 	while (arg != NULL) {
-		vec_push(&argv, estrdup(arg));
+		vec_push(&argv, xstrdup(arg));
 		arg = va_arg(ap, const char *);
 	}
 	va_end(ap);
@@ -92,7 +94,7 @@ void nl(void) {
 
 int process(const char *resp) {
 	if (conn->fd == -1) {
-		error(EXIT_FAILURE, conn->err, "connection closed");
+		fail(conn->err, "connection closed");
 	}
 	size_t pos = 0;
 	for (;;) {
@@ -147,7 +149,7 @@ void block(void) {
 		FD_SET(conn->fd, &readfds);
 		while (select(nfds, &readfds, NULL, NULL, NULL) == -1) {
 			if (errno != EINTR) {
-				error(EXIT_FAILURE, errno, "select");
+				fail(errno, "select");
 			}
 		}
 		if (FD_ISSET(conn->fd, &readfds)) {
@@ -209,7 +211,7 @@ int run(void) {
 		nl();
 	}
 	vec_push(&argv, NULL);
-	int ret = call(argv);
+	int ret = call(argv, NULL);
 	reset();
 	return ret;
 }
@@ -223,7 +225,7 @@ int setprompt(const char *p) {
 		}
 		printf("%s\n", buf.d);
 		fflush(stdout);
-		vec_push(&argv, estrdup(buf.d));
+		vec_push(&argv, xstrdup(buf.d));
 		p = NULL;
 	}
 	if (reply == CANCEL) {
@@ -243,14 +245,16 @@ void status(void) {
 void init(void) {
 	argv = vec_new();
 	acmevimbuf = getenv("ACMEVIMBUF");
-	acmevimid = getenv("ACMEVIMID");
-	if (acmevimbuf == NULL || acmevimbuf[0] == '\0' ||
-	    acmevimid == NULL || acmevimid[0] == '\0') {
-		error(EXIT_FAILURE, 0, "not in acme.vim");
+	if (acmevimbuf == NULL || acmevimbuf[0] == '\0') {
+		fail(EINVAL, "ACMEVIMBUF");
 	}
-	cwd = egetcwd();
-	snprintf(id, sizeof(id), "%d", getpid());
+	acmevimid = getenv("ACMEVIMID");
+	if (acmevimid == NULL || acmevimid[0] == '\0') {
+		fail(EINVAL, "ACMEVIMID");
+	}
 	conn = acmevim_connect();
+	cwd = xgetcwd();
+	snprintf(id, sizeof(id), "%d", getpid());
 	acmevim_send(conn, "", id, NULL, 0);
 }
 
