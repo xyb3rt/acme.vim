@@ -622,16 +622,6 @@ function s:ListBufs()
 	call s:ErrorOpen('+Errors', bufs)
 endfunc
 
-function s:Zoom(w)
-	exe a:w.'wincmd w'
-	let [w, h] = [winwidth(0), winheight(0)]
-	wincmd _
-	wincmd |
-	if w == winwidth(0) && h == winheight(0)
-		wincmd =
-	endif
-endfunc
-
 function s:SwapWin(w)
 	if a:w < 1 || a:w > winnr('$')
 		return
@@ -750,7 +740,8 @@ function s:RightRelease(click)
 		if s:clickmode == 't'
 			normal! i
 		endif
-		call s:Zoom(s:clickstatus)
+		exe s:clickstatus.'wincmd w'
+		wincmd _
 		return
 	endif
 	if a:click <= 0 || s:clicksel
