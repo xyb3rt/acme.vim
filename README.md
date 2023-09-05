@@ -23,6 +23,9 @@ Bringing the spirit of Plan 9 acme to vim.
 	Items can also be opened with the `O` command. Tags matching a given
 	pattern can be listed with the `T` command.
 
+	Right-clicking the line below the last window prints the listed buffers
+	in a `+Errors` window. The items in this list are right-clickable.
+
 * Execute external commands with the middle mouse button:
 
 	A simple middle-click executes `cWORD`. The command can be selected
@@ -72,6 +75,14 @@ Bringing the spirit of Plan 9 acme to vim.
 
 	This needs further configuration. Please see below on how to enable
 	this.
+
+* Arrange windows with the mouse:
+
+	A Window can be maximized vertically by right-clicking its status bar.
+	Middle-clicking a status bar closes the window.
+
+	The current window can be moved up or down in its column by scrolling
+	over a status bar, but the window is not moved past this status bar.
 
 
 Installation
