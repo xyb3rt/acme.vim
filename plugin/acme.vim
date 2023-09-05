@@ -683,18 +683,6 @@ function AcmeClick()
 	endif
 endfunc
 
-function s:DoubleLeftMouse()
-	call s:PreClick('')
-	if s:clickstatus != 0 && winnr('$') > 1
-		exe s:clickstatus.'wincmd w'
-		only!
-	elseif s:clickstatus != 0 || s:click.winid == 0
-		call s:ListBufs()
-	else
-		exe "normal! \<2-LeftMouse>"
-	endif
-endfunc
-
 function s:MiddleMouse(mode)
 	call s:PreClick(a:mode)
 	call AcmeClick()
@@ -739,6 +727,7 @@ endfunc
 
 function s:RightRelease(click)
 	if s:click.winid == 0
+		call s:ListBufs()
 		return
 	elseif s:clickstatus != 0
 		if s:clickmode == 't'
@@ -882,7 +871,6 @@ for n in ['', '2-', '3-', '4-']
 	exe 'tnoremap <expr> <silent> <'.n.'RightMouse>'
 		\ '<SID>TermRightMouse()'
 endfor
-noremap <silent> <2-LeftMouse> :call <SID>DoubleLeftMouse()<CR>
 noremap <silent> <MiddleDrag> <LeftDrag>
 vnoremap <silent> <MiddleRelease> :<C-u>call <SID>MiddleRelease(-1)<CR>
 noremap <silent> <RightDrag> <LeftDrag>
