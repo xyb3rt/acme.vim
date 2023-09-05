@@ -622,13 +622,17 @@ function s:ListBufs()
 	call s:ErrorOpen('+Errors', bufs)
 endfunc
 
-function s:SwapWin(w)
-	if a:w < 1 || a:w > winnr('$')
-		return
-	endif
+function s:MoveWin(dir)
 	let w = win_getid()
 	let p = win_getid(winnr('#'))
-	noa exe 'normal!' a:w."\<C-w>x"
+	noa exe 'wincmd' (a:dir > 0 ? 'j' : 'k')
+	let o = win_getid()
+	if o != w && winwidth(o) == winwidth(w)
+		if a:dir > 0
+			wincmd p
+		endif
+		noa exe "normal! \<C-w>x"
+	endif
 	noa exe win_id2win(p).'wincmd w'
 	noa exe win_id2win(w).'wincmd w'
 endfunc
@@ -779,7 +783,7 @@ endfunc
 function s:ScrollWheelDown()
 	call s:PreClick('')
 	if s:click.winid == 0 || s:clickstatus > winnr()
-		call s:SwapWin(winnr() + 1)
+		call s:MoveWin(1)
 	elseif s:clickstatus == 0
 		exe "normal! \<ScrollWheelDown>"
 	endif
@@ -788,7 +792,7 @@ endfunc
 function s:ScrollWheelUp()
 	call s:PreClick('')
 	if s:click.winid == 0 || s:clickstatus >= winnr()
-		call s:SwapWin(winnr() - 1)
+		call s:MoveWin(-1)
 	elseif s:clickstatus == 0
 		exe "normal! \<ScrollWheelUp>"
 	endif
