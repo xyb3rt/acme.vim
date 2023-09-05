@@ -771,7 +771,8 @@ endfunc
 
 function s:ScrollWheelDown()
 	call s:PreClick('')
-	if s:click.winid == 0 || s:clickstatus > winnr()
+	if (s:clickstatus != 0 && s:clickstatus != winnr()) ||
+		\ s:click.winid == 0
 		call s:MoveWin(1)
 	elseif s:clickstatus == 0
 		exe "normal! \<ScrollWheelDown>"
@@ -780,7 +781,8 @@ endfunc
 
 function s:ScrollWheelUp()
 	call s:PreClick('')
-	if s:click.winid == 0 || s:clickstatus >= winnr()
+	if (s:clickstatus != 0 && s:clickstatus != winnr() - 1) ||
+		\ s:click.winid == 0
 		call s:MoveWin(-1)
 	elseif s:clickstatus == 0
 		exe "normal! \<ScrollWheelUp>"
