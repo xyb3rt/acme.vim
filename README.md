@@ -110,16 +110,16 @@ hashes, that you can add to your `~/.vimrc`:
 
 ```
 let g:acme_plumbing = [
-        \ ['\vhttps?\:\/\/(\a(\w|\-)*\.)+(\w{2,}\.?)+(:\d{1,5})?\S*',
-                \ {m -> 'xdg-open '.shellescape(m[0])}],
-        \ ['\v(\f+)\s*\((\d\a*)\)',
-                \ {m -> '^man '.shellescape(m[2]).' '.shellescape(m[1])}],
-        \ ['\v[a-fA-F0-9]{7,64}',
-                \ {m -> '^git show '.shellescape(m[0])}],
-        \ ['\v<stash\@\{\d+\}',
-                \ {m -> '^git stash show -p '.shellescape(m[0])}],
-	\ ['\v\f+\.\.(\.|\w)\f+',
-		\ {m -> '^git log -s --left-right '.shellescape(m[0])}]]
+	\ ['\vhttps?\:\/\/(\a(\w|\-)*\.)+(\w{2,}\.?)+(:\d{1,5})?\S*', {m ->
+		\ AcmePlumb('', 'xdg-open', m[0])}],
+	\ ['\v(\f+)\s*\((\d\a*)\)', {m ->
+		\ AcmePlumb(m[0], 'man', m[2], m[1])}],
+	\ ['\v[a-fA-F0-9]{7,64}', {m ->
+		\ AcmePlumb('git:'.m[0], 'git show', m[0])}],
+	\ ['\v<stash\@\{\d+\}', {m ->
+		\ AcmePlumb('git:'.m[0], 'git stash show -p', m[0])}],
+	\ ['\v\f+\.\.(\.|\w)\f+', {m ->
+		\ AcmePlumb('git:'.m[0], 'git log -s --left-right', m[0])}]]
 ```
 
 To get simple right-clickable directory listings you have to disable vim's

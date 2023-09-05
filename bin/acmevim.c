@@ -138,6 +138,7 @@ void request(char *argv[], size_t argc) {
 	if (mode == 's') {
 		cwd = xgetcwd();
 		vec_insert(&req, 1, cwd);
+		vec_insert(&req, 1, "");
 	}
 	acmevim_send(conns[0], acmevimid, id,
 	             (const char **)req, vec_len(&req));

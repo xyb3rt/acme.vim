@@ -287,7 +287,7 @@ function s:Run(cmd, dir)
 	elseif io =~ '<'
 		call s:Read(cmd, a:dir, inp)
 	elseif io =~ '\^'
-		call s:ScratchExec(cmd, a:dir, inp)
+		call s:ScratchExec(cmd, a:dir, inp, '')
 	else
 		call s:ErrorExec(cmd, a:dir, inp)
 	endif
@@ -318,7 +318,7 @@ endfunc
 let s:scratchbufs = {}
 let s:scratchdir = {}
 
-function s:ScratchNew()
+function s:ScratchNew(name)
 	let buf = ''
 	for b in keys(s:scratchbufs)
 		if !bufloaded(str2nr(b))
@@ -333,6 +333,9 @@ function s:ScratchNew()
 		let s:scratchbufs[bufnr()] = 1
 	endif
 	setl bufhidden=unload buftype=nofile nobuflisted noswapfile
+	if a:name != ''
+		exe 'f' fnameescape('['.a:name.']')
+	endif
 endfunc
 
 function s:ScratchCb(b, ch, msg)
@@ -346,8 +349,8 @@ function s:ScratchCb(b, ch, msg)
 	endif
 endfunc
 
-function s:ScratchExec(cmd, dir, inp)
-	call s:ScratchNew()
+function s:ScratchExec(cmd, dir, inp, name)
+	call s:ScratchNew(a:name)
 	let b = bufnr()
 	let opts = {'callback': function('s:ScratchCb', [b]),
 		\ 'env': {'ACMEVIMBUF': b}, 'exit_cb': 's:Exited',
@@ -543,6 +546,22 @@ function s:OpenBuf(b)
 	return 1
 endfunc
 
+function AcmePlumb(title, cmd, ...)
+	let cmd = a:cmd
+	for arg in a:000
+		let cmd .= ' '.shellescape(arg)
+	endfor
+	let outp = systemlist(cmd)
+	if v:shell_error == 0
+		if a:title != ''
+			call s:ScratchNew(a:title)
+			call setline('$', outp)
+			filetype detect
+		endif
+		return 1
+	endif
+endfunc
+
 let s:plumbing = [
 	\ ['(\f+)%(%([:](%([0-9]+)|%([/?].+)))|%(\(([0-9]+)\)))',
 		\ {m -> s:OpenFile(m[1], m[2] != '' ? m[2] : m[3])}],
@@ -552,27 +571,7 @@ let s:plumbing = [
 function s:Open(text, click)
 	for [pat, Handler] in get(g:, 'acme_plumbing', []) + s:plumbing
 		let m = s:Match(a:text, a:click, pat)
-		if m == []
-			continue
-		endif
-		let r = call(Handler, [m])
-		if type(r) != type('')
-			if r
-				return 1
-			endif
-			continue
-		endif
-		let [cmd, io] = s:ParseCmd(r)
-		if cmd == ''
-			continue
-		endif
-		let outp = systemlist(cmd)
-		if v:shell_error == 0
-			if io == '^'
-				call s:ScratchNew()
-				call setline('$', outp)
-				filetype detect
-			endif
+		if m != [] && call(Handler, [m])
 			return 1
 		endif
 	endfor
@@ -954,8 +953,8 @@ function s:CtrlRecv(ch, data)
 			call s:ReloadDirs()
 			call s:CtrlSend(cid, 'timechecked')
 		elseif msg[2] == 'scratch'
-			if len(msg) > 4
-				call s:ScratchExec(msg[4:], msg[3], '')
+			if len(msg) > 5
+				call s:ScratchExec(msg[5:], msg[3], '', msg[4])
 			endif
 			call s:CtrlSend(cid, 'scratched')
 		endif
