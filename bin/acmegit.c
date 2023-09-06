@@ -319,7 +319,7 @@ void cmd_config(void) {
 }
 
 void cmd_diff(void) {
-	set("scratch", cwd, "git:diff", "git", "diff", NULL);
+	set("scratch", cwd, "git:diff@2@", "git", "diff", NULL);
 	if (setprompt("diff: --cached HEAD @{u} --")) {
 		clear(REDRAW);
 		request("scratched");
@@ -337,15 +337,15 @@ void cmd_fetch(void) {
 }
 
 void cmd_graph(void) {
-	set("scratch", cwd, "git:log", "git", "log", "--graph", "--oneline",
+	set("scratch", cwd, "git:graph", "git", "log", "--graph", "--oneline",
 	    "--decorate", "--all", "--date-order", NULL);
 	request("scratched");
 }
 
 void cmd_log(void) {
-	set("scratch", cwd, "git:log", "git", "log", "--decorate",
+	set("scratch", cwd, "git:log@5@", "git", "log", "--decorate",
 	    "--left-right", "-s", NULL);
-	if (setprompt("log: HEAD ...@{u}")) {
+	if (setprompt("log: -S HEAD ...@{u}")) {
 		clear(REDRAW);
 		request("scratched");
 	}

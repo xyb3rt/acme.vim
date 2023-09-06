@@ -350,7 +350,9 @@ function s:ScratchCb(b, ch, msg)
 endfunc
 
 function s:ScratchExec(cmd, dir, inp, name)
-	call s:ScratchNew(a:name)
+	let name = substitute(a:name, '\v^(.*)\@(\d+)\@$',
+		\ '\=submatch(1)." ".join(a:cmd[submatch(2):])', '')
+	call s:ScratchNew(name)
 	let b = bufnr()
 	let opts = {'callback': function('s:ScratchCb', [b]),
 		\ 'env': {'ACMEVIMBUF': b}, 'exit_cb': 's:Exited',
