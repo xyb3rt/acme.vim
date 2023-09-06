@@ -6,13 +6,13 @@ let loaded_acme_vim = 1
 au TextChanged,TextChangedI guide setl nomodified
 
 function s:Win(buf)
-        let b = bufnr(type(a:buf) == type('') ? '^'.a:buf.'$' : a:buf)
-        for w in range(1, winnr('$'))
-        	if winbufnr(w) == b
-        		return w
-        	endif
-        endfor
-        return 0
+	let b = bufnr(type(a:buf) == type('') ? '^'.a:buf.'$' : a:buf)
+	for w in range(1, winnr('$'))
+		if winbufnr(w) == b
+			return w
+		endif
+	endfor
+	return 0
 endfunc
 
 function s:Sel()
