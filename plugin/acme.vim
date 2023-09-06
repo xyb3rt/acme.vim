@@ -294,7 +294,7 @@ function s:Run(cmd, dir)
 endfunc
 
 command -bang -nargs=1 -complete=file -range R
-	\ call s:Run(<q-args>, "<bang>" == '' ? s:Dir() : '')
+	\ call s:Run(<q-args>, <bang>0 ? s:Dir() : '')
 
 command -range V exe 'normal! '.<line1>.'GV'.<line2>.'G'
 

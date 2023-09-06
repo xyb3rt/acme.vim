@@ -53,9 +53,9 @@ Bringing the spirit of Plan 9 acme to vim.
 	the buffer.
 
 	Commands can also be started with the `R` command, which uses the
-	current working directory with `!`. All commands of the current buffer
-	or the ones matching a given pattern can be killed with the `K`
-	command.
+	current working directory, or the directory containing the current file
+	when used with `!`. All commands of the current buffer or the ones
+	matching a given pattern can be killed with the `K` command.
 
 * Send text to commands:
 
