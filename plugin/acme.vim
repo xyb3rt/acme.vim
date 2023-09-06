@@ -710,6 +710,7 @@ function s:MiddleRelease(click)
 		exe s:clickstatus.'close!'
 		return
 	endif
+	exe "normal! \<LeftRelease>"
 	let cmd = a:click <= 0 || s:clicksel ? s:Sel()[0] : expand('<cWORD>')
 	call s:RestVisual(s:visual)
 	let b = bufnr()
@@ -754,6 +755,7 @@ function s:RightRelease(click)
 		endif
 		return
 	endif
+	exe "normal! \<LeftRelease>"
 	if a:click <= 0 || s:clicksel
 		let text = trim(s:Sel()[0], "\r\n", 2)
 		let word = text
