@@ -84,6 +84,10 @@ Bringing the spirit of Plan 9 acme to vim.
 	The current window can be moved up or down in its column by scrolling
 	over a status bar, but the window is not moved past this status bar.
 
+	Dragging a status bar while holding down the right button moves the
+	window to a new split of the window over which the button is released.
+	With this a window can be moved from one column to another.
+
 
 Installation
 ------------

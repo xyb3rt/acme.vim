@@ -629,9 +629,19 @@ function s:MoveWin(dir)
 	let o = win_getid()
 	if o != w && winwidth(o) == winwidth(w)
 		if a:dir > 0
-			wincmd p
+			noa wincmd p
 		endif
 		noa exe "normal! \<C-w>x"
+	endif
+	noa exe win_id2win(p).'wincmd w'
+	noa exe win_id2win(w).'wincmd w'
+endfunc
+
+function s:SplitMoveWin(other)
+	let w = win_getid()
+	let p = win_getid(winnr('#'))
+	if w != a:other
+		call win_splitmove(win_id2win(w), win_id2win(a:other))
 	endif
 	noa exe win_id2win(p).'wincmd w'
 	noa exe win_id2win(w).'wincmd w'
@@ -734,7 +744,12 @@ function s:RightRelease(click)
 			normal! i
 		endif
 		exe s:clickstatus.'wincmd w'
-		wincmd _
+		let pos = getmousepos()
+		if pos.winid != 0 && pos.winid != s:click.winid
+			call s:SplitMoveWin(pos.winid)
+		elseif pos.line == 0 && pos.winid == s:click.winid
+			wincmd _
+		endif
 		return
 	endif
 	if a:click <= 0 || s:clicksel
