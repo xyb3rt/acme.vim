@@ -60,25 +60,30 @@ function s:Jobs(p)
 		\ : 'v:val.cmd =~ a:p')
 endfunc
 
-function s:UpdateStatus(buf)
-	let jobs = map(s:Jobs(a:buf), '"[".v:val.cmd."]"')
-	let stat = len(jobs) > 0 ? '%f '.join(jobs) : ''
-	for w in range(1, winnr('$'))
-		if winbufnr(w) == a:buf
-			call setwinvar(w, '&statusline', stat)
-		endif
-	endfor
+function AcmeStatusTitle()
+	return get(s:scratchbufs, bufnr(), '')
 endfunc
+
+function AcmeStatusName()
+	return AcmeStatusTitle() != '' ? '[%{AcmeStatusTitle()}]' : '%f'
+endfunc
+
+function AcmeStatusJobs()
+	return join(map(s:Jobs(bufnr()), '"[".v:val.cmd."]"'), '')
+endfunc
+
+let &statusline = '%<%{%AcmeStatusName()%} %h%m%r%{AcmeStatusJobs()}' .
+	\ '%=%-14.(%l,%c%V%) %P'
 
 function s:Started(job, buf, cmd)
 	let cmd = type(a:cmd) == type([]) ? join(a:cmd) : a:cmd
 	call add(s:jobs, {'h': a:job, 'buf': a:buf, 'cmd': cmd})
-	call s:UpdateStatus(a:buf)
+	redrawstatus!
 endfunc
 
 function s:RemoveJob(i)
 	let job = remove(s:jobs, a:i)
-	call s:UpdateStatus(job.buf)
+	redrawstatus!
 	if fnamemodify(bufname(job.buf), ':t') == '+Errors'
 		checktime
 		call s:ReloadDirs()
@@ -332,12 +337,9 @@ function s:ScratchNew(name)
 		call s:New('sp | b '.buf)
 	else
 		call s:New('new')
-		let s:scratchbufs[bufnr()] = 1
 	endif
 	setl bufhidden=unload buftype=nofile nobuflisted noswapfile
-	if a:name != ''
-		exe 'f' fnameescape('['.a:name.']')
-	endif
+	let s:scratchbufs[bufnr()] = a:name
 endfunc
 
 function s:ScratchCb(b, ch, msg)
