@@ -572,6 +572,16 @@ let s:plumbing = [
 	\ ['\f+', {m -> s:OpenFile(m[0], '')}],
 	\ ['\#(\d+)', {m -> s:OpenBuf(str2nr(m[1]))}]]
 
+function s:RgOpen()
+	let m = matchlist(getline('.'), '\v^\s*(\d+)%>'.col('.').'c[-:]')
+	if m != []
+		let l = search('\v^(\s*(\d+[-:]|\-\-\s*$))@!', 'bnW')
+		if l != 0 && (l == 1 || getline(l - 1) == '')
+			return s:OpenFile(getline(l), m[1])
+		endif
+	endif
+endfunc
+
 function s:Open(text, click)
 	for [pat, Handler] in get(g:, 'acme_plumbing', []) + s:plumbing
 		let m = s:Match(a:text, a:click, pat)
@@ -579,6 +589,7 @@ function s:Open(text, click)
 			return 1
 		endif
 	endfor
+	return a:click > 0 && s:RgOpen()
 endfunc
 
 command -nargs=1 -complete=file O call s:Open(expand(<q-args>), 0)
