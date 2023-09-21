@@ -162,20 +162,10 @@ function s:Receiver(b)
 		\ (has_key(s:scratchbufs, a:b) && s:Jobs(a:b) != [])
 endfunc
 
-function s:Receivers()
-	let r = []
-	for w in range(1, winnr('$'))
-		if s:Receiver(winbufnr(w))
-			call add(r, w)
-		endif
-	endfor
-	return r
-endfunc
-
 function s:Ctrl_S(inp)
 	let b = bufnr()
-	let w = s:Win(get(s:sendbuf, b))
-	let r = s:Receivers()
+	let w = s:Win(get(s:sendbuf, b, -1))
+	let r = filter(range(1, winnr('$')), 's:Receiver(winbufnr(v:val))')
 	if s:Receiver(b)
 		call s:Send(win_getid(), a:inp)
 	elseif w != 0
