@@ -68,12 +68,20 @@ function AcmeStatusName()
 	return AcmeStatusTitle() != '' ? '[%{AcmeStatusTitle()}]' : '%f'
 endfunc
 
-function AcmeStatusJobs()
-	return join(map(s:Jobs(bufnr()), '"[".v:val.cmd."]"'), '')
+function AcmeStatusFlags()
+	return '%h'.(&modified ? '%m' : '').'%r'
 endfunc
 
-let &statusline = '%<%{%AcmeStatusName()%} %h%m%r%{AcmeStatusJobs()}' .
-	\ '%=%-14.(%l,%c%V%) %P'
+function AcmeStatusJobs()
+	return join(map(s:Jobs(bufnr()), '"{".v:val.cmd."}"'), '')
+endfunc
+
+function AcmeStatusRuler()
+	return &ruler ? &ruf != '' ? &ruf : '%-14.(%l,%c%V%) %P' : ''
+endfunc
+
+let &statusline = '%<%{%AcmeStatusName()%} %{%AcmeStatusFlags()%}' .
+	\ '%{AcmeStatusJobs()}%=%{%AcmeStatusRuler()%}'
 
 function s:Started(job, buf, cmd)
 	let cmd = type(a:cmd) == type([]) ? join(a:cmd) : a:cmd
