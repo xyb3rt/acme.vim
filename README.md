@@ -62,8 +62,8 @@ Bringing the spirit of Plan 9 acme to vim.
 
 	Middle-clicking in scratch and terminal windows sends the text to the
 	command running in the window instead of executing it. Middle-clicking
-	anywhere in a scratch or terminal window from another window sends that
-	window's selection.
+	anywhere in a scratch or terminal window from another window in visual
+	mode sends that window's selection.
 
 * Commands open files in the vim instance they are running in:
 

@@ -720,7 +720,7 @@ function s:MiddleRelease(click)
 	let w = win_getid()
 	exe win_id2win(s:clickwin).'wincmd w'
 	if s:Receiver(b)
-		if w != s:clickwin && a:click > 0
+		if w != s:clickwin && s:clickmode == 'v' && a:click > 0
 			let cmd = s:Sel()[0]
 		endif
 		call s:Send(w, cmd)
