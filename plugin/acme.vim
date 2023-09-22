@@ -258,39 +258,29 @@ function s:System(cmd, dir, inp)
 	return out
 endfunc
 
-function s:Filter(cmd, dir)
-	let sel = s:Sel()
-	call setreg('"', s:System(a:cmd, a:dir, sel[0]), sel[1])
-	normal! gvp
-endfunc
-
-function s:Read(cmd, dir, inp)
-	call setreg('"', s:System(a:cmd, a:dir, a:inp), 'c')
-	normal! P
+function s:Filter(cmd, dir, inp, vis)
+	let out = s:System(a:cmd, a:dir, a:inp)
+	call setreg('"', out, a:vis ? s:Sel()[1] : 'c')
+	exe 'normal!' (a:vis ? 'gvp' : 'P')
 endfunc
 
 function s:ParseCmd(cmd)
 	let io = matchstr(a:cmd, '\v^([<>|^]|\s)+')
-	let args = matchstr(a:cmd, '\v([$%]|\s)+$')
-	let cmd = a:cmd[len(io):-len(args)-1]
-	for arg in split(args, '\zs')
-		if arg == '$'
-			let cmd .= ' '.shellescape(s:Sel()[0])
-		elseif arg == '%'
-			let cmd .= ' '.shellescape(expand('%:p'))
-		endif
-	endfor
+	let cmd = trim(a:cmd[len(io):])
 	return [cmd, matchstr(io, '[<|^]').matchstr(io, '>')]
 endfunc
 
-function s:Run(cmd, dir)
+function s:Run(cmd, dir, vis)
 	let [cmd, io] = s:ParseCmd(a:cmd)
-	let inp = io =~ '>' ? s:Sel()[0] : ''
 	if cmd == ''
-	elseif io =~ '|'
-		call s:Filter(cmd, a:dir)
-	elseif io =~ '<'
-		call s:Read(cmd, a:dir, inp)
+		return
+	endif
+	if a:vis && io !~ '[<>|]'
+		let cmd .= ' '.shellescape(s:Sel()[0])
+	endif
+	let inp = io =~ '[>|]' ? s:Sel()[0] : ''
+	if io =~ '[<|]'
+		call s:Filter(cmd, a:dir, inp, a:vis || io =~ '|')
 	elseif io =~ '\^'
 		call s:ScratchExec(cmd, a:dir, inp, '')
 	else
@@ -299,7 +289,7 @@ function s:Run(cmd, dir)
 endfunc
 
 command -bang -nargs=1 -complete=file -range R
-	\ call s:Run(<q-args>, <bang>0 ? s:Dir() : '')
+	\ call s:Run(<q-args>, <bang>0 ? s:Dir() : '', 0)
 
 command -range V exe 'normal! '.<line1>.'GV'.<line2>.'G'
 
@@ -723,6 +713,7 @@ function s:MiddleRelease(click)
 	endif
 	exe "normal! \<LeftRelease>"
 	let cmd = a:click <= 0 || s:clicksel ? s:Sel()[0] : expand('<cWORD>')
+	let vis = s:clickmode == 'v' && (a:click <= 0 || !s:clicksel)
 	call s:RestVisual(s:visual)
 	let b = bufnr()
 	let dir = s:Dir()
@@ -734,13 +725,10 @@ function s:MiddleRelease(click)
 		endif
 		call s:Send(w, cmd)
 	elseif cmd =~ '^\s*:'
-		let cmd = substitute(cmd, '^\s*:', '', '')
-		if s:clickmode == 'v'
-			let cmd = "'<,'>".cmd
-		endif
+		let cmd = substitute(cmd, '^\s*:', vis ? "'<,'>" : '', '')
 		call s:Exe(cmd)
 	else
-		call s:Run(cmd, dir)
+		call s:Run(cmd, dir, vis)
 	endif
 endfunc
 

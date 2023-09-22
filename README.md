@@ -47,10 +47,11 @@ Bringing the spirit of Plan 9 acme to vim.
 	`|`). They work across windows: It is possible to select text in one
 	window and format it by middle-clicking `|fmt` in another window.
 
-	Additionally *acme.vim* supports the new output prefix `^`: The output
-	of the command goes to a new scratch window. Commands can also have
-	suffixes: `$` is replaced with the selection, `%` with the filename of
-	the buffer.
+	The selected text is given as an argument to the command if it has no
+	IO prefix and visual mode is active before middle-clicking it.
+
+	Additionally *acme.vim* supports the new prefix `^`: The output of the
+	command goes to a new scratch window.
 
 	Commands can also be started with the `R` command, which uses the
 	current working directory, or the directory containing the current file
