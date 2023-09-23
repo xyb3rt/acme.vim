@@ -216,6 +216,7 @@ function s:Argv(cmd)
 endfunc
 
 function s:ErrorOpen(name, ...)
+	let p = win_getid()
 	let name = s:Normalize(a:name)
 	let w = s:Win(name)
 	if w != 0
@@ -231,6 +232,9 @@ function s:ErrorOpen(name, ...)
 		endif
 	endif
 	normal! G0
+	let b = bufnr()
+	exe win_id2win(p).'wincmd w'
+	return b
 endfunc
 
 function s:ErrorExec(cmd, dir, inp)
@@ -242,10 +246,10 @@ function s:ErrorExec(cmd, dir, inp)
 		let opts['cwd'] = a:dir
 	endif
 	silent! wall
-	call s:ErrorOpen(name)
-	let opts['out_buf'] = bufnr()
+	let b = s:ErrorOpen(name)
+	let opts['out_buf'] = b
 	let job = job_start(s:Argv(a:cmd), opts)
-	call s:Started(job, bufnr(), a:cmd)
+	call s:Started(job, b, a:cmd)
 	if a:inp != ''
 		call ch_sendraw(job, a:inp)
 		call ch_close_in(job)
