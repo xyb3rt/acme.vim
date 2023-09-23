@@ -61,7 +61,7 @@ function s:Jobs(p)
 endfunc
 
 function AcmeStatusTitle()
-	return get(s:scratchbufs, bufnr(), '')
+	return get(get(s:scratchbufs, bufnr(), {}), 'title', '')
 endfunc
 
 function AcmeStatusName()
@@ -146,6 +146,9 @@ function s:Send(w, inp)
 	endif
 	let inp = split(a:inp, '\n')
 	if has_key(s:scratchbufs, b)
+		if !get(s:scratchbufs[b], 'top')
+			call win_execute(a:w, 'normal! G')
+		endif
 		let job = s:Jobs(b)[0].h
 		call ch_setoptions(job, {'callback': ''})
 		call ch_sendraw(job, join(inp, "\n")."\n")
@@ -327,7 +330,7 @@ function s:ScratchNew(name)
 		call s:New('new')
 	endif
 	setl bufhidden=unload buftype=nofile nobuflisted noswapfile
-	let s:scratchbufs[bufnr()] = a:name
+	let s:scratchbufs[bufnr()] = {'title': a:name}
 endfunc
 
 function s:ScratchCb(b, ch, msg)
@@ -906,6 +909,7 @@ tnoremap <expr> <silent> <ScrollWheelUp> <SID>TermScrollWheelUp()
 function s:Clear(b, top)
 	call deletebufline(a:b, 1, "$")
 	if a:top && has_key(s:scratchbufs, a:b)
+		let s:scratchbufs[a:b].top = 1
 		for job in s:Jobs(a:b)
 			call ch_setoptions(job.h,
 				\ {'callback': function('s:ScratchCb', [a:b])})

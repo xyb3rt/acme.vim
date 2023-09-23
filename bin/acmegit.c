@@ -67,7 +67,7 @@ acmevim_strv argv;
 struct { char *d; size_t len, size; } buf;
 struct acmevim_conn *conn;
 char *cwd;
-enum dirty dirty = REDRAW;
+enum dirty dirty;
 char id[16];
 
 void set(const char *arg, ...) {
@@ -256,6 +256,7 @@ void init(void) {
 	cwd = xgetcwd();
 	snprintf(id, sizeof(id), "%d", getpid());
 	acmevim_send(conn, "", id, NULL, 0);
+	clear(REDRAW);
 }
 
 int main(int argc, char *argv[]) {
