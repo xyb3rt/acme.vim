@@ -303,12 +303,11 @@ command -range V exe 'normal! '.<line1>.'GV'.<line2>.'G'
 function s:Exe(cmd)
 	let v:errmsg = ''
 	let pat = @/
-	let out = execute(a:cmd, 'silent!')
-	if v:errmsg != ''
-		let out .= "\n".v:errmsg
-	endif
-	if out != ''
-		call s:ErrorOpen('+Errors', split(out, '\n'))
+	let out = split(execute(a:cmd, 'silent!'), '\n')
+	if len(out) == 1 && v:errmsg == ''
+		echo out[0]
+	elseif out != [] || v:errmsg != ''
+		call s:ErrorOpen('+Errors', out + split(v:errmsg, '\n'))
 	endif
 	if @/ != pat
 		" Fix function-search-undo
