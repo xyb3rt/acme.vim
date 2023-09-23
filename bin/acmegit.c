@@ -17,6 +17,7 @@ enum reply {
 	CONFIRM,
 };
 
+typedef void msg_cb(acmevim_strv);
 typedef void cmd_func(void);
 
 struct cmd {
@@ -89,7 +90,7 @@ void nl(void) {
 	fflush(stdout);
 }
 
-int process(const char *resp) {
+int process(const char *resp, msg_cb *cb) {
 	if (conn->fd == -1) {
 		fail(conn->err, "connection closed");
 	}
@@ -99,8 +100,10 @@ int process(const char *resp) {
 		if (msg == NULL) {
 			break;
 		}
-		if (vec_len(&msg) > 2 && strcmp(msg[1], acmevimid) == 0 &&
-		    resp != NULL && strcmp(msg[2], (char *)resp) == 0) {
+		if (vec_len(&msg) > 2 && resp && strcmp(msg[2], resp) == 0) {
+			if (cb != NULL) {
+				cb(msg);
+			}
 			resp = NULL;
 		}
 		vec_free(&msg);
@@ -111,29 +114,26 @@ int process(const char *resp) {
 	return resp == NULL;
 }
 
-void requestv(const char *resp, const char **argv, size_t argc) {
+void requestv(const char *resp, const char **argv, size_t argc, msg_cb *cb) {
 	acmevim_send(conn, acmevimid, id, argv, argc);
-	for (;;) {
+	do {
 		acmevim_sync(&conn, 1, -1);
-		if (process(resp)) {
-			break;
-		}
-	}
+	} while (!process(resp, cb));
 }
 
-void request(const char *resp) {
-	requestv(resp, (const char **)argv, vec_len(&argv));
+void request(const char *resp, msg_cb *cb) {
+	requestv(resp, (const char **)argv, vec_len(&argv), cb);
 }
 
 void clear(enum dirty d) {
 	const char *argv[] = {"clear^", acmevimbuf};
-	requestv("cleared", argv, ARRLEN(argv));
+	requestv("cleared", argv, ARRLEN(argv), NULL);
 	dirty = d;
 }
 
 void checktime(void) {
 	const char *argv[] = {"checktime"};
-	requestv("timechecked", argv, ARRLEN(argv));
+	requestv("timechecked", argv, ARRLEN(argv), NULL);
 }
 
 void block(void) {
@@ -150,7 +150,7 @@ void block(void) {
 		}
 		if (FD_ISSET(conn->fd, &readfds)) {
 			acmevim_rx(conn);
-			process(NULL);
+			process(NULL, NULL);
 		}
 		if (FD_ISSET(0, &readfds)) {
 			break;
@@ -316,7 +316,7 @@ void cmd_diff(void) {
 	set("scratch", cwd, "git:diff", "git", "diff", NULL);
 	if (add("diff: --cached HEAD @{u} --")) {
 		clear(REDRAW);
-		request("scratched");
+		request("scratched", NULL);
 	}
 }
 
@@ -333,15 +333,26 @@ void cmd_fetch(void) {
 void cmd_graph(void) {
 	set("scratch", cwd, "git:graph", "git", "log", "--graph", "--oneline",
 	    "--decorate", "--all", "--date-order", NULL);
-	request("scratched");
+	request("scratched", NULL);
+}
+
+void log_L(acmevim_strv msg) {
+	size_t n = strlen(cwd);
+	if (vec_len(&msg) > 5 && strncmp(cwd, msg[3], n) == 0 &&
+	    msg[3][n] == '/' && access(&msg[3][n + 1], F_OK) == 0 &&
+	    strcmp(msg[4], "0") != 0) {
+		printf("\n-L%s,%s:%s\n", msg[4], msg[5], &msg[3][n + 1]);
+	}
 }
 
 void cmd_log(void) {
+	set("visual", NULL);
+	request("visual", &log_L);
 	set("scratch", cwd, "git:log", "git", "log", "--decorate",
-	    "--left-right", "-s", NULL);
+	    "--left-right", NULL);
 	if (add("log: -S HEAD ...@{u}")) {
 		clear(REDRAW);
-		request("scratched");
+		request("scratched", NULL);
 	}
 }
 

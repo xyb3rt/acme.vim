@@ -953,7 +953,7 @@ function s:CtrlRecv(ch, data)
 			for file in msg[3:]
 				call s:Edit(file, cid)
 			endfor
-		elseif msg[2] =~ '\vclear\^?'
+		elseif msg[2] =~ '\v^clear\^?'
 			for b in msg[3:]
 				call s:Clear(str2nr(b), msg[2] == 'clear^')
 			endfor
@@ -967,6 +967,9 @@ function s:CtrlRecv(ch, data)
 				call s:ScratchExec(msg[5:], msg[3], '', msg[4])
 			endif
 			call s:CtrlSend(cid, 'scratched')
+		elseif msg[2] == 'visual'
+			call s:CtrlSend(cid, 'visual', expand('%:p'),
+				\ getpos("'<")[1], getpos("'>")[1])
 		endif
 	endfor
 endfunc
