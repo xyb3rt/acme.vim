@@ -73,18 +73,15 @@ char id[16];
 void set(const char *arg, ...) {
 	va_list ap;
 	va_start(ap, arg);
+	for (size_t i = 0, n = vec_len(&argv); i < n; i++) {
+		free(argv[i]);
+	}
+	vec_clear(&argv);
 	while (arg != NULL) {
 		vec_push(&argv, xstrdup(arg));
 		arg = va_arg(ap, const char *);
 	}
 	va_end(ap);
-}
-
-void reset(void) {
-	for (size_t i = 0, n = vec_len(&argv); i < n; i++) {
-		free(argv[i]);
-	}
-	vec_clear(&argv);
 }
 
 void nl(void) {
@@ -126,7 +123,6 @@ void requestv(const char *resp, const char **argv, size_t argc) {
 
 void request(const char *resp) {
 	requestv(resp, (const char **)argv, vec_len(&argv));
-	reset();
 }
 
 void clear(enum dirty d) {
@@ -211,12 +207,10 @@ int run(void) {
 		nl();
 	}
 	vec_push(&argv, NULL);
-	int ret = call(argv, NULL);
-	reset();
-	return ret;
+	return call(argv, NULL);
 }
 
-int setprompt(const char *p) {
+int add(const char *p) {
 	enum reply reply;
 	for (;;) {
 		reply = prompt(p);
@@ -230,7 +224,6 @@ int setprompt(const char *p) {
 	}
 	if (reply == CANCEL) {
 		clear(REDRAW);
-		reset();
 	}
 	return reply == CONFIRM;
 }
@@ -283,7 +276,7 @@ int main(int argc, char *argv[]) {
 
 void cmd_add(void) {
 	set("git", "add", NULL);
-	if (setprompt("add: --edit ./")) {
+	if (add("add: --edit ./")) {
 		clear(CHECKTIME);
 		run();
 	}
@@ -291,7 +284,7 @@ void cmd_add(void) {
 
 void cmd_checkout(void) {
 	set("git", "checkout", NULL);
-	if (setprompt("checkout: ./")) {
+	if (add("checkout: ./")) {
 		clear(CHECKTIME);
 		run();
 	}
@@ -299,7 +292,7 @@ void cmd_checkout(void) {
 
 void cmd_clean(void) {
 	set("git", "clean", NULL);
-	if (setprompt("clean: --dry-run --force ./")) {
+	if (add("clean: --dry-run --force ./")) {
 		clear(CHECKTIME);
 		run();
 	}
@@ -307,7 +300,7 @@ void cmd_clean(void) {
 
 void cmd_commit(void) {
 	set("git", "commit", "-v", NULL);
-	if (setprompt("commit: --all --amend --no-edit --fixup")) {
+	if (add("commit: --all --amend --no-edit --fixup")) {
 		clear(CHECKTIME);
 		run();
 	}
@@ -321,7 +314,7 @@ void cmd_config(void) {
 
 void cmd_diff(void) {
 	set("scratch", cwd, "git:diff", "git", "diff", NULL);
-	if (setprompt("diff: --cached HEAD @{u} --")) {
+	if (add("diff: --cached HEAD @{u} --")) {
 		clear(REDRAW);
 		request("scratched");
 	}
@@ -331,7 +324,7 @@ void cmd_fetch(void) {
 	set("git", "remote", NULL);
 	run();
 	set("git", "fetch", NULL);
-	if (setprompt("fetch: --all --prune")) {
+	if (add("fetch: --all --prune")) {
 		clear(REDRAW);
 		run();
 	}
@@ -346,7 +339,7 @@ void cmd_graph(void) {
 void cmd_log(void) {
 	set("scratch", cwd, "git:log", "git", "log", "--decorate",
 	    "--left-right", "-s", NULL);
-	if (setprompt("log: -S HEAD ...@{u}")) {
+	if (add("log: -S HEAD ...@{u}")) {
 		clear(REDRAW);
 		request("scratched");
 	}
@@ -356,7 +349,7 @@ void cmd_merge(void) {
 	set("git", "branch", "-vv", NULL);
 	run();
 	set("git", "merge", NULL);
-	if (setprompt("merge: @{u}")) {
+	if (add("merge: @{u}")) {
 		clear(CHECKTIME);
 		run();
 	}
@@ -366,7 +359,7 @@ void cmd_push(void) {
 	set("git", "remote", NULL);
 	run();
 	set("git", "push", NULL);
-	if (setprompt("push: --all --dry-run --force --set-upstream --tags")) {
+	if (add("push: --all --dry-run --force --set-upstream --tags")) {
 		clear(REDRAW);
 		run();
 	}
@@ -374,7 +367,7 @@ void cmd_push(void) {
 
 void cmd_rebase(void) {
 	set("git", "rebase", "-i", "--autosquash", NULL);
-	if (setprompt("rebase: @{u}")) {
+	if (add("rebase: @{u}")) {
 		clear(CHECKTIME);
 		run();
 	}
@@ -382,7 +375,7 @@ void cmd_rebase(void) {
 
 void cmd_reset(void) {
 	set("git", "reset", "-q", NULL);
-	if (setprompt("reset: HEAD -- ./")) {
+	if (add("reset: HEAD -- ./")) {
 		clear(CHECKTIME);
 		run();
 	}
@@ -390,7 +383,7 @@ void cmd_reset(void) {
 
 void cmd_rm(void) {
 	set("git", "rm", "--", NULL);
-	if (setprompt("rm:")) {
+	if (add("rm:")) {
 		clear(CHECKTIME);
 		run();
 	}
@@ -400,7 +393,7 @@ void cmd_stash(void) {
 	set("git", "stash", "list", NULL);
 	run();
 	set("git", "stash", NULL);
-	if (setprompt("stash: --include-untracked pop drop")) {
+	if (add("stash: --include-untracked pop drop")) {
 		clear(CHECKTIME);
 		run();
 	}
@@ -410,7 +403,7 @@ void cmd_switch(void) {
 	set("git", "branch", "-a", NULL);
 	run();
 	set("git", "switch", NULL);
-	if (setprompt("switch: --create")) {
+	if (add("switch: --create")) {
 		clear(CHECKTIME);
 		run();
 	}
