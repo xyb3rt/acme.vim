@@ -646,11 +646,12 @@ function s:MoveWin(dir)
 	noa exe win_id2win(w).'wincmd w'
 endfunc
 
-function s:SplitMoveWin(other)
+function s:SplitMoveWin(other, below)
 	let w = win_getid()
 	let p = win_getid(winnr('#'))
 	if w != a:other
-		call win_splitmove(win_id2win(w), win_id2win(a:other))
+		call win_splitmove(win_id2win(w), win_id2win(a:other),
+			\ {'rightbelow': a:below})
 	endif
 	noa exe win_id2win(p).'wincmd w'
 	noa exe win_id2win(w).'wincmd w'
@@ -754,7 +755,8 @@ function s:RightRelease(click)
 		exe s:clickstatus.'wincmd w'
 		let pos = getmousepos()
 		if pos.winid != 0 && pos.winid != s:click.winid
-			call s:SplitMoveWin(pos.winid)
+			let below = pos.winrow > (winheight(pos.winid) + 1) / 2
+			call s:SplitMoveWin(pos.winid, below)
 		elseif pos.line == 0 && pos.winid == s:click.winid
 			wincmd _
 		endif
