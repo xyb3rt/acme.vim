@@ -570,7 +570,7 @@ function s:RgOpen()
 	let m = matchlist(getline('.'), '\v^\s*(\d+)%>'.col('.').'c[-:]')
 	if m != []
 		let l = search('\v^(\s*(\d+[-:]|\-\-\s*$))@!', 'bnW')
-		if l != 0 && (l == 1 || getline(l - 1) == '')
+		if l != 0
 			return s:OpenFile(getline(l), m[1])
 		endif
 	endif
