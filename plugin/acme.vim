@@ -577,13 +577,15 @@ function s:RgOpen()
 endfunc
 
 function s:Open(text, click)
-	for [pat, Handler] in get(g:, 'acme_plumbing', []) + s:plumbing
+	if a:click > 0 && s:RgOpen()
+		return 1
+	endif
+	for [pat, Handler] in s:plumbing + get(g:, 'acme_plumbing', [])
 		let m = s:Match(a:text, a:click, pat)
 		if m != [] && call(Handler, [m])
 			return 1
 		endif
 	endfor
-	return a:click > 0 && s:RgOpen()
 endfunc
 
 command -nargs=1 -complete=file O call s:Open(expand(<q-args>), 0)
