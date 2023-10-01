@@ -932,6 +932,19 @@ function s:Edit(file, cid)
 	let s:editcids[b] = add(get(s:editcids, b, []), a:cid)
 endfunc
 
+function s:Visuals()
+	let v = []
+	for i in range(1, winnr('$'))
+		let w = win_getid(i)
+		let l = line("'<", w)
+		if l != 0
+			let path = fnamemodify(bufname(winbufnr(w)), ':p')
+			let v += [path, l, line("'>", w)]
+		endif
+	endfor
+	return v
+endfunc
+
 let s:ctrlrx = ''
 
 function s:CtrlRecv(ch, data)
@@ -970,8 +983,7 @@ function s:CtrlRecv(ch, data)
 			endif
 			call s:CtrlSend(cid, 'scratched')
 		elseif msg[2] == 'visual'
-			call s:CtrlSend(cid, 'visual', expand('%:p'),
-				\ getpos("'<")[1], getpos("'>")[1])
+			call call('s:CtrlSend', [cid, 'visual'] + s:Visuals())
 		endif
 	endfor
 endfunc
