@@ -550,7 +550,7 @@ function AcmePlumb(title, cmd, ...)
 		let cmd .= ' '.shellescape(arg)
 	endfor
 	let outp = systemlist(cmd)
-	if v:shell_error == 0
+	if v:shell_error == 0 && (a:title == '' || outp != [])
 		if a:title != ''
 			call s:ScratchNew(a:title)
 			call setline('$', outp)
