@@ -122,20 +122,20 @@ fi
 
 *acme.vim* supports rudimentary plumbing via the global `g:acme_plumbing`
 variable. Here is an example to get right-clickable URLs, man pages and git
-hashes, that you can add to your `~/.vimrc`:
+refs, that you can add to your `~/.vimrc`:
 
 ```
 let g:acme_plumbing = [
 	\ ['\vhttps?\:\/\/(\a(\w|\-)*\.)+(\w{2,}\.?)+(:\d{1,5})?\S*', {m ->
 		\ AcmePlumb('', 'xdg-open', m[0])}],
-	\ ['\v(\f+)\s*\((\d\a*)\)', {m ->
+	\ ['\v([[:graph:]]+)\s*\((\d\a*)\)', {m ->
 		\ AcmePlumb(m[0], 'man', m[2], m[1])}],
-	\ ['\v[a-fA-F0-9]{7,64}', {m ->
-		\ AcmePlumb('git:'.m[0], 'git show', m[0])}],
 	\ ['\v<stash\@\{\d+\}', {m ->
 		\ AcmePlumb('git:'.m[0], 'git stash show -p', m[0])}],
-	\ ['\v\f+\.\.(\.|\w)\f+', {m ->
-		\ AcmePlumb('git:'.m[0], 'git log -s --left-right', m[0])}]]
+	\ ['\v(\f|[@{}])+\.\.\.?(\f|[@{}])+', {m ->
+		\ AcmePlumb('git:'.m[0], 'git log -s --left-right', m[0])}],
+	\ ['\v(\f|[@{}])+', {m ->
+		\ AcmePlumb('git:'.m[0], 'git show', m[0])}]]
 ```
 
 To get simple right-clickable directory listings you have to disable vim's
