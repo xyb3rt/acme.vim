@@ -132,7 +132,7 @@ let g:acme_plumbing = [
 		\ AcmePlumb(m[0], 'man', m[2], m[1])}],
 	\ ['<stash\@\{\d+\}', {m ->
 		\ AcmePlumb('git:'.m[0], 'git stash show -p', m[0])}],
-	\ ['(\f|[@{}])+\.\.\.?(\f|[@{}])+', {m ->
+	\ ['(\f|[@{}])*\.\.\.?(\f|[@{}])*', {m ->
 		\ AcmePlumb('git:'.m[0], 'git log -s --left-right', m[0])}],
 	\ ['(\f|[@{}])+', {m ->
 		\ AcmePlumb('git:'.m[0], 'git show', m[0])}]]
