@@ -126,15 +126,15 @@ refs, that you can add to your `~/.vimrc`:
 
 ```
 let g:acme_plumbing = [
-	\ ['\vhttps?\:\/\/(\a(\w|\-)*\.)+(\w{2,}\.?)+(:\d{1,5})?\S*', {m ->
+	\ ['https?\:\/\/(\a(\w|\-)*\.)+(\w{2,}\.?)+(:\d{1,5})?\S*', {m ->
 		\ AcmePlumb('', 'xdg-open', m[0])}],
-	\ ['\v([[:graph:]]+)\s*\((\d\a*)\)', {m ->
+	\ ['([[:graph:]]+)\s*\((\d\a*)\)', {m ->
 		\ AcmePlumb(m[0], 'man', m[2], m[1])}],
-	\ ['\v<stash\@\{\d+\}', {m ->
+	\ ['<stash\@\{\d+\}', {m ->
 		\ AcmePlumb('git:'.m[0], 'git stash show -p', m[0])}],
-	\ ['\v(\f|[@{}])+\.\.\.?(\f|[@{}])+', {m ->
+	\ ['(\f|[@{}])+\.\.\.?(\f|[@{}])+', {m ->
 		\ AcmePlumb('git:'.m[0], 'git log -s --left-right', m[0])}],
-	\ ['\v(\f|[@{}])+', {m ->
+	\ ['(\f|[@{}])+', {m ->
 		\ AcmePlumb('git:'.m[0], 'git show', m[0])}]]
 ```
 
