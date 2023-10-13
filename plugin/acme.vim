@@ -633,7 +633,7 @@ function s:ListBufs()
 	call s:ErrorOpen('+Errors', bufs)
 endfunc
 
-function s:MoveWin(dir)
+function AcmeMoveWin(dir)
 	let w = win_getid()
 	let p = win_getid(winnr('#'))
 	noa exe 'wincmd' (a:dir > 0 ? 'j' : 'k')
@@ -801,7 +801,7 @@ function s:ScrollWheelDown()
 	call s:PreClick('')
 	if (s:clickstatus != 0 && s:clickstatus != winnr()) ||
 		\ s:click.winid == 0
-		call s:MoveWin(1)
+		call AcmeMoveWin(1)
 	elseif s:clickstatus == 0
 		exe "normal! \<ScrollWheelDown>"
 	endif
@@ -811,7 +811,7 @@ function s:ScrollWheelUp()
 	call s:PreClick('')
 	if (s:clickstatus != 0 && s:clickstatus != winnr() - 1) ||
 		\ s:click.winid == 0
-		call s:MoveWin(-1)
+		call AcmeMoveWin(-1)
 	elseif s:clickstatus == 0
 		exe "normal! \<ScrollWheelUp>"
 	endif
@@ -857,21 +857,31 @@ endfunc
 
 function s:TermScrollWheelDown()
 	call s:PreClick('t')
-	if s:clickstatus == 0 && s:clickwin == s:click.winid &&
+	if (s:clickstatus != 0 && s:clickstatus != winnr()) ||
+		\ s:click.winid == 0
+		return "\<C-w>N:call AcmeMoveWin(1)\<CR>i"
+	elseif s:clickstatus == 0 && s:clickwin == s:click.winid &&
 		\ !term_getaltscreen(bufnr())
 		return "\<C-w>N\<ScrollWheelDown>"
-	else
+	elseif s:clickstatus == 0
 		return "\<ScrollWheelDown>"
+	else
+		return ''
 	endif
 endfunc
 
 function s:TermScrollWheelUp()
 	call s:PreClick('t')
-	if s:clickstatus == 0 && s:clickwin == s:click.winid &&
+	if (s:clickstatus != 0 && s:clickstatus != winnr() - 1) ||
+		\ s:click.winid == 0
+		return "\<C-w>N:call AcmeMoveWin(-1)\<CR>i"
+	elseif s:clickstatus == 0 && s:clickwin == s:click.winid &&
 		\ !term_getaltscreen(bufnr())
 		return "\<C-w>N\<ScrollWheelUp>"
-	else
+	elseif s:clickstatus == 0
 		return "\<ScrollWheelUp>"
+	else
+		return ''
 	endif
 endfunc
 
