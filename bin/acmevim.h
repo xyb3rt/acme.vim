@@ -17,7 +17,7 @@ struct acmevim_conn {
 
 acmevim_strv acmevim_parse(acmevim_buf *buf, size_t *pos) {
 	int field = 1;
-	acmevim_strv msg = vec_new();
+	acmevim_strv msg = (acmevim_strv)vec_new();
 	for (size_t i = *pos, n = vec_len(buf); i < n; i++) {
 		if (field) {
 			vec_push(&msg, &(*buf)[i]);
@@ -68,23 +68,24 @@ void acmevim_send(struct acmevim_conn *conn, const char *dst, const char *src,
 }
 
 struct acmevim_conn *acmevim_create(int sockfd) {
-	struct acmevim_conn *conn = xrealloc(NULL, sizeof(*conn));
+	struct acmevim_conn *conn;
+	conn = (struct acmevim_conn *)xrealloc(NULL, sizeof(*conn));
 	conn->fd = sockfd;
 	conn->err = 0;
-	conn->rx = vec_new();
-	conn->tx = vec_new();
+	conn->rx = (acmevim_buf)vec_new();
+	conn->tx = (acmevim_buf)vec_new();
 	return conn;
 }
 
 struct acmevim_conn *acmevim_connect(void) {
 	const char *acmevimport = getenv("ACMEVIMPORT");
 	if (acmevimport == NULL) {
-		fail(EINVAL, "ACMEVIMPORT");
+		error(EXIT_FAILURE, EINVAL, "ACMEVIMPORT");
 	}
 	char *end;
 	unsigned long port = strtoul(acmevimport, &end, 0);
 	if (*end != '\0' || port > USHRT_MAX) {
-		fail(EINVAL, "ACMEVIMPORT");
+		error(EXIT_FAILURE, EINVAL, "ACMEVIMPORT");
 	}
 	struct sockaddr_in addr;
 	memset(&addr, 0, sizeof(addr));
@@ -93,10 +94,10 @@ struct acmevim_conn *acmevim_connect(void) {
 	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	int sockfd = socket(PF_INET, SOCK_STREAM, 0);
 	if (sockfd == -1) {
-		fail(errno, "socket");
+		error(EXIT_FAILURE, errno, "socket");
 	}
 	if (connect(sockfd, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
-		fail(errno, "connect");
+		error(EXIT_FAILURE, errno, "connect");
 	}
 	return acmevim_create(sockfd);
 }
@@ -156,7 +157,7 @@ int acmevim_sync(struct acmevim_conn **conns, size_t count, int listenfd) {
 	}
 	while (select(nfds, &readfds, &writefds, NULL, NULL) == -1) {
 		if (errno != EINTR) {
-			fail(errno, "select");
+			error(EXIT_FAILURE, errno, "select");
 		}
 	}
 	for (size_t i = 0; i < count; i++) {

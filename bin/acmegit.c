@@ -92,7 +92,7 @@ void nl(void) {
 
 int process(const char *resp, msg_cb *cb) {
 	if (conn->fd == -1) {
-		fail(conn->err, "connection closed");
+		error(EXIT_FAILURE, conn->err, "connection closed");
 	}
 	size_t pos = 0;
 	for (;;) {
@@ -145,7 +145,7 @@ void block(void) {
 		FD_SET(conn->fd, &readfds);
 		while (select(nfds, &readfds, NULL, NULL, NULL) == -1) {
 			if (errno != EINTR) {
-				fail(errno, "select");
+				error(EXIT_FAILURE, errno, "select");
 			}
 		}
 		if (FD_ISSET(conn->fd, &readfds)) {
@@ -239,11 +239,11 @@ void init(void) {
 	argv = vec_new();
 	acmevimbuf = getenv("ACMEVIMBUF");
 	if (acmevimbuf == NULL || acmevimbuf[0] == '\0') {
-		fail(EINVAL, "ACMEVIMBUF");
+		error(EXIT_FAILURE, EINVAL, "ACMEVIMBUF");
 	}
 	acmevimid = getenv("ACMEVIMID");
 	if (acmevimid == NULL || acmevimid[0] == '\0') {
-		fail(EINVAL, "ACMEVIMID");
+		error(EXIT_FAILURE, EINVAL, "ACMEVIMID");
 	}
 	conn = acmevim_connect();
 	cwd = xgetcwd();

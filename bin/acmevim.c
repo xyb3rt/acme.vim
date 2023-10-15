@@ -24,12 +24,12 @@ enum mode parse(int argc, char *argv[]) {
 		case 'd':
 		case 's':
 			if (mode != 0 && mode != opt) {
-				fail(EINVAL, "-%c -%c", mode, opt);
+				error(EXIT_FAILURE, EINVAL, "-%c -%c", mode, opt);
 			}
 			mode = opt;
 			break;
 		default:
-			fail(EINVAL, "-%c", optopt);
+			error(EXIT_FAILURE, EINVAL, "-%c", optopt);
 		}
 	}
 	return mode;
@@ -58,21 +58,21 @@ const char *resp(enum mode mode) {
 int startlisten(void) {
 	int sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (sockfd == -1) {
-		fail(errno, "socket");
+		error(EXIT_FAILURE, errno, "socket");
 	}
 	struct sockaddr_in addr;
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	if (bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
-		fail(errno, "bind");
+		error(EXIT_FAILURE, errno, "bind");
 	}
 	if (listen(sockfd, 10) == -1) {
-		fail(errno, "listen");
+		error(EXIT_FAILURE, errno, "listen");
 	}
 	socklen_t len = sizeof(addr);
 	if (getsockname(sockfd, (struct sockaddr *)&addr, &len) == -1) {
-		fail(errno, "getsockname");
+		error(EXIT_FAILURE, errno, "getsockname");
 	}
 	printf("ACMEVIMPORT=%d; export ACMEVIMPORT;\n", htons(addr.sin_port));
 	return sockfd;
@@ -99,7 +99,7 @@ void closeconn(size_t c) {
 void detach(void) {
 	pid_t pid = fork();
 	if (pid == -1) {
-		fail(errno, "fork");
+		error(EXIT_FAILURE, errno, "fork");
 	} else if (pid != 0) {
 		exit(0);
 	}
@@ -128,7 +128,7 @@ acmevim_strv msg(const char *cmd, char *argv[], size_t argc) {
 void request(char *argv[], size_t argc) {
 	const char *acmevimid = getenv("ACMEVIMID");
 	if (acmevimid == NULL || acmevimid[0] == '\0') {
-		fail(EINVAL, "ACMEVIMID");
+		error(EXIT_FAILURE, EINVAL, "ACMEVIMID");
 	}
 	char id[16];
 	snprintf(id, sizeof(id), "%d", getpid());
@@ -165,7 +165,7 @@ void server(acmevim_strv msg, size_t c) {
 
 void client(acmevim_strv msg, size_t c) {
 	if (msg == NULL) {
-		fail(conns[c]->err, "connection closed");
+		error(EXIT_FAILURE, conns[c]->err, "connection closed");
 	}
 	if (vec_len(&msg) > 2 && strcmp(msg[2], resp(mode)) == 0) {
 		exit(0);
