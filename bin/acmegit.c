@@ -337,16 +337,12 @@ void cmd_graph(void) {
 }
 
 void log_L(acmevim_strv msg) {
-	size_t cwdlen = strlen(cwd);
 	const char *nl = "\n";
 	for (size_t i = 3; i + 2 < vec_len(&msg); i += 3) {
-		char *path = msg[i], *l1 = msg[i + 1], *l2 = msg[i + 2];
-		if (strncmp(cwd, path, cwdlen) != 0 || path[cwdlen] != '/') {
-			continue;
-		}
-		char *base = &path[cwdlen + 1];
-		if (access(base, F_OK) == 0) {
-			printf("%s-L%s,%s:%s\n", nl, l1, l2, base);
+		char *path = indir(msg[i], cwd);
+		char *l1 = msg[i + 1], *l2 = msg[i + 2];
+		if (path != NULL) {
+			printf("%s-L%s,%s:%s\n", nl, l1, l2, path);
 			nl = "";
 		}
 	}
