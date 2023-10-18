@@ -948,10 +948,10 @@ function s:Visuals()
 	let v = []
 	for i in range(1, winnr('$'))
 		let w = win_getid(i)
-		let l = line("'<", w)
-		if l != 0
-			let path = fnamemodify(bufname(winbufnr(w)), ':p')
-			let v += [path, l, line("'>", w)]
+		let b = winbufnr(w)
+		let l = [line("'<", w), line("'>", w)]
+		if getbufvar(b, '&buftype', '') == '' && l[0] != 0
+			let v += [fnamemodify(bufname(b), ':p')] + l
 		endif
 	endfor
 	return v
