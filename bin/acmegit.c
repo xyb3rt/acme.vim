@@ -338,10 +338,10 @@ void cmd_graph(void) {
 
 void log_L(acmevim_strv msg) {
 	const char *nl = "\n";
-	for (size_t i = 3; i + 2 < vec_len(&msg); i += 3) {
+	for (size_t i = 3; i + 4 < vec_len(&msg); i += 5) {
 		char *path = indir(msg[i], cwd);
-		char *l1 = msg[i + 1], *l2 = msg[i + 2];
-		if (path != NULL) {
+		char *l1 = msg[i + 3], *l2 = msg[i + 4];
+		if (path != NULL && strcmp(l1, "0") != 0) {
 			printf("%s-L%s,%s:%s\n", nl, l1, l2, path);
 			nl = "";
 		}
@@ -349,8 +349,8 @@ void log_L(acmevim_strv msg) {
 }
 
 void cmd_log(void) {
-	set("visual", NULL);
-	request("visual", &log_L);
+	set("bufinfo", NULL);
+	request("bufinfo", &log_L);
 	set("scratch", cwd, "git:log", "git", "log", "--decorate",
 	    "--left-right", NULL);
 	if (add("log: -S HEAD ...@{u}")) {

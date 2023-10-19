@@ -944,14 +944,14 @@ function s:Edit(file, cid)
 	let s:editcids[b] = add(get(s:editcids, b, []), a:cid)
 endfunc
 
-function s:Visuals()
+function s:BufInfo()
 	let v = []
-	for i in range(1, winnr('$'))
-		let w = win_getid(i)
+	for w in range(1, winnr('$'))
 		let b = winbufnr(w)
-		let l = [line("'<", w), line("'>", w)]
-		if getbufvar(b, '&buftype', '') == '' && l[0] != 0
-			let v += [fnamemodify(bufname(b), ':p')] + l
+		if getbufvar(b, '&buftype', '') == ''
+			let i = [fnamemodify(bufname(b), ':p'),
+				\ line('.'), col('.'), line("'<"), line("'>")]
+			call extend(v, i, w == winnr() ? 0 : len(v))
 		endif
 	endfor
 	return v
@@ -994,8 +994,8 @@ function s:CtrlRecv(ch, data)
 				call s:ScratchExec(msg[5:], msg[3], '', msg[4])
 			endif
 			call s:CtrlSend(cid, 'scratched')
-		elseif msg[2] == 'visual'
-			call call('s:CtrlSend', [cid, 'visual'] + s:Visuals())
+		elseif msg[2] == 'bufinfo'
+			call call('s:CtrlSend', [cid, 'bufinfo'] + s:BufInfo())
 		endif
 	endfor
 endfunc
