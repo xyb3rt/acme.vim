@@ -1,28 +1,13 @@
 /*
  * acmegit: Simple git UI in acme.vim scratch buffer
  */
-#include "acmevim.h"
+#include "acmecmd.h"
 #include "indispensbl/call.h"
-#include "indispensbl/cwd.h"
-
-enum dirty {
-	CLEAN,
-	REDRAW,
-	CHECKTIME,
-};
 
 enum reply {
 	CANCEL,
 	SELECT,
 	CONFIRM,
-};
-
-typedef void msg_cb(acmevim_strv);
-typedef void cmd_func(void);
-
-struct cmd {
-	char *name;
-	cmd_func *func;
 };
 
 cmd_func cmd_add;
@@ -60,112 +45,32 @@ struct cmd cmds[] = {
 	{"checkout", cmd_checkout},
 	{"clean",    cmd_clean},
 	{"rm",       cmd_rm},
+	{NULL}
 };
 
-const char *acmevimbuf;
-const char *acmevimid;
-acmevim_strv argv;
-struct { char *d; size_t len, size; } buf;
-struct acmevim_conn *conn;
-char *cwd;
-enum dirty dirty;
-char id[16];
+acmevim_strv cmdv;
 
 void set(const char *arg, ...) {
 	va_list ap;
 	va_start(ap, arg);
-	for (size_t i = 0, n = vec_len(&argv); i < n; i++) {
-		free(argv[i]);
+	for (size_t i = 0, n = vec_len(&cmdv); i < n; i++) {
+		free(cmdv[i]);
 	}
-	vec_clear(&argv);
+	vec_clear(&cmdv);
 	while (arg != NULL) {
-		vec_push(&argv, xstrdup(arg));
+		vec_push(&cmdv, xstrdup(arg));
 		arg = va_arg(ap, const char *);
 	}
 	va_end(ap);
 }
 
-void nl(void) {
-	putchar('\n');
-	fflush(stdout);
-}
-
-int process(const char *resp, msg_cb *cb) {
-	if (conn->fd == -1) {
-		error(EXIT_FAILURE, conn->err, "connection closed");
-	}
-	size_t pos = 0;
-	for (;;) {
-		acmevim_strv msg = acmevim_parse(&conn->rx, &pos);
-		if (msg == NULL) {
-			break;
-		}
-		if (vec_len(&msg) > 2 && resp && strcmp(msg[2], resp) == 0) {
-			if (cb != NULL) {
-				cb(msg);
-			}
-			resp = NULL;
-		}
-		vec_free(&msg);
-	}
-	if (pos > 0) {
-		acmevim_pop(&conn->rx, pos);
-	}
-	return resp == NULL;
-}
-
-void requestv(const char *resp, const char **argv, size_t argc, msg_cb *cb) {
-	acmevim_send(conn, acmevimid, id, argv, argc);
-	do {
-		acmevim_sync(&conn, 1, -1);
-	} while (!process(resp, cb));
-}
-
 void request(const char *resp, msg_cb *cb) {
-	requestv(resp, (const char **)argv, vec_len(&argv), cb);
-}
-
-void clear(enum dirty d) {
-	const char *argv[] = {"clear^", acmevimbuf};
-	requestv("cleared", argv, ARRLEN(argv), NULL);
-	dirty = d;
+	requestv(resp, (const char **)cmdv, vec_len(&cmdv), cb);
 }
 
 void checktime(void) {
-	const char *argv[] = {"checktime"};
-	requestv("timechecked", argv, ARRLEN(argv), NULL);
-}
-
-void block(void) {
-	int nfds = conn->fd + 1;
-	fd_set readfds;
-	for (;;) {
-		FD_ZERO(&readfds);
-		FD_SET(0, &readfds);
-		FD_SET(conn->fd, &readfds);
-		while (select(nfds, &readfds, NULL, NULL, NULL) == -1) {
-			if (errno != EINTR) {
-				error(EXIT_FAILURE, errno, "select");
-			}
-		}
-		if (FD_ISSET(conn->fd, &readfds)) {
-			acmevim_rx(conn);
-			process(NULL, NULL);
-		}
-		if (FD_ISSET(0, &readfds)) {
-			break;
-		}
-	}
-}
-
-void input(void) {
-	buf.len = getline(&buf.d, &buf.size, stdin);
-	if (buf.len == -1) {
-		exit(0);
-	}
-	if (buf.len > 0 && buf.d[buf.len - 1] == '\n') {
-		buf.d[--buf.len] = '\0';
-	}
+	const char *cmd[] = {"checktime"};
+	requestv("timechecked", cmd, ARRLEN(cmd), NULL);
 }
 
 enum reply prompt(const char *p) {
@@ -173,7 +78,7 @@ enum reply prompt(const char *p) {
 		printf("\n<< %s >>", p);
 		nl();
 	}
-	block();
+	block(-1);
 	input();
 	if (strcmp(buf.d, "<<") == 0) {
 		return CANCEL;
@@ -184,30 +89,12 @@ enum reply prompt(const char *p) {
 	}
 }
 
-struct cmd *match(void) {
-	for (size_t i = 0; i < ARRLEN(cmds); i++) {
-		if (strcmp(buf.d, cmds[i].name) == 0) {
-			return &cmds[i];
-		}
-	}
-	return NULL;
-}
-
-void menu(void) {
-	printf("\n<");
-	for (size_t i = 0; i < ARRLEN(cmds); i++) {
-		printf(" %s", cmds[i].name);
-	}
-	printf(" >");
-	nl();
-}
-
 int run(void) {
 	if (!dirty) {
 		nl();
 	}
-	vec_push(&argv, NULL);
-	return call(argv, NULL);
+	vec_push(&cmdv, NULL);
+	return call(cmdv, NULL);
 }
 
 int add(const char *p) {
@@ -219,7 +106,7 @@ int add(const char *p) {
 		}
 		printf("%s\n", buf.d);
 		fflush(stdout);
-		vec_push(&argv, xstrdup(buf.d));
+		vec_push(&cmdv, xstrdup(buf.d));
 		p = NULL;
 	}
 	if (reply == CANCEL) {
@@ -235,25 +122,9 @@ void status(void) {
 	}
 }
 
-void init(void) {
-	argv = vec_new();
-	acmevimbuf = getenv("ACMEVIMBUF");
-	if (acmevimbuf == NULL || acmevimbuf[0] == '\0') {
-		error(EXIT_FAILURE, EINVAL, "ACMEVIMBUF");
-	}
-	acmevimid = getenv("ACMEVIMID");
-	if (acmevimid == NULL || acmevimid[0] == '\0') {
-		error(EXIT_FAILURE, EINVAL, "ACMEVIMID");
-	}
-	conn = acmevim_connect();
-	cwd = xgetcwd();
-	snprintf(id, sizeof(id), "%d", getpid());
-	acmevim_send(conn, "", id, NULL, 0);
-	clear(REDRAW);
-}
-
 int main(int argc, char *argv[]) {
 	argv0 = argv[0];
+	cmdv = vec_new();
 	init();
 	for (;;) {
 		if (dirty) {
@@ -262,11 +133,11 @@ int main(int argc, char *argv[]) {
 			}
 			dirty = CLEAN;
 			status();
-			menu();
+			menu(cmds);
 		}
-		block();
+		block(-1);
 		input();
-		struct cmd *cmd = match();
+		struct cmd *cmd = match(cmds);
 		if (cmd != NULL) {
 			cmd->func();
 		}
