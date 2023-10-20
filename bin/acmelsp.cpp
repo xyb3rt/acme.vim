@@ -22,6 +22,7 @@ cmd_func cmd_impl;
 cmd_func cmd_all;
 cmd_func cmd_refs;
 cmd_func cmd_typedef;
+cmd_func cmd_syms;
 
 struct cmd cmds[] = {
 	{"decl",    cmd_decl},
@@ -30,7 +31,16 @@ struct cmd cmds[] = {
 	{"all",     cmd_all},
 	{"refs",    cmd_refs},
 	{"typedef", cmd_typedef},
+	{"syms",    cmd_syms},
 	{NULL}
+};
+
+const char *symkind[] = {
+	"", "file", "module", "namespace", "package", "class", "method",
+	"property", "field", "constructor", "enum", "interface", "function",
+	"variable", "constant", "string", "number", "boolean", "array",
+	"object", "key", "null", "enum-member", "struct", "event", "operator",
+	"type-param"
 };
 
 struct filepos filepos;
@@ -116,6 +126,30 @@ void gotomatch(const QJsonObject &msg) {
 	}
 }
 
+void showsym(const QJsonObject &sym, const QByteArray &indent) {
+	QByteArray name = sym.value("name").toString().toUtf8();
+	QStringList linePath = {"range", "start", "line"};
+	if (sym.contains("location")) {
+		linePath.insert(0, "location");
+	}
+	int line = get(sym, linePath).toInt(-1);
+	size_t k = sym.value("kind").toInt();
+	const char *kind = k < ARRLEN(symkind) ? symkind[k] : "";
+	if (!name.isEmpty() && line >= 0) {
+		printf("%6d: %s%s%s%s\n", line + 1, indent.data(), kind,
+		       kind[0] != '\0' ? " " : "", name.data());
+	}
+	for (const QJsonValue &i : sym.value("children").toArray()) {
+		showsym(i.toObject(), indent + "\t");
+	}
+}
+
+void showsyms(const QJsonObject &msg) {
+	for (const QJsonValue &i : msg.value("result").toArray()) {
+		showsym(i.toObject(), "");
+	}
+}
+
 QJsonObject capabilities(void) {
 	return QJsonObject{
 		{"general", QJsonObject{
@@ -127,6 +161,9 @@ QJsonObject capabilities(void) {
 			{"implementation", QJsonObject{}},
 			{"references", QJsonObject{}},
 			{"typeDefinition", QJsonObject{}},
+			{"documentSymbol", QJsonObject{
+				{"hierarchicalDocumentSymbolSupport", true}
+			}},
 		}},
 	};
 }
@@ -255,7 +292,11 @@ void txtdoc(const char *method, const QJsonObject &extra = QJsonObject()) {
 		params[i.key()] = i.value();
 	}
 	QJsonObject msg = newreq(QString("textDocument/") + method, params);
-	if (strcmp(method, "references") != 0) {
+	if (strcmp(method, "documentSymbol") == 0) {
+		char *path = indir(filepos.path.data(), cwd);
+		printf("%s\n", path ? path : filepos.path.data());
+		handler[msg.value("id").toInt()] = showsyms;
+	} else if (strcmp(method, "references") != 0) {
 		handler[msg.value("id").toInt()] = gotomatch;
 	} else {
 		handler[msg.value("id").toInt()] = showmatches;
@@ -366,4 +407,8 @@ void cmd_refs(void) {
 
 void cmd_typedef(void) {
 	txtdoc("typeDefinition");
+}
+
+void cmd_syms(void) {
+	txtdoc("documentSymbol");
 }
