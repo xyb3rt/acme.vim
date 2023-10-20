@@ -50,11 +50,11 @@ FILE *rx, *tx;
 void setpos(acmevim_strv msg) {
 	filepos.path.clear();
 	if (vec_len(&msg) > 5) {
-		char *path = indir(msg[3], cwd);
+		const char *path = msg[3];
 		int line = atoi(msg[4]);
 		int col = atoi(msg[5]);
-		if (path != NULL && line > 0 && col > 0) {
-			filepos.path = msg[3];
+		if (indir(path, cwd) && line > 0 && col > 0) {
+			filepos.path = path;
 			filepos.line = line - 1;
 			filepos.col = col - 1;
 		}
@@ -74,6 +74,11 @@ QJsonValue get(QJsonValue v, const QStringList &keys) {
 	return v;
 }
 
+const char *relpath(const char *path) {
+	const char *relpath = indir(path, cwd);
+	return relpath ? relpath : path;
+}
+
 int parseloc(const QJsonObject &loc, struct filepos *pos) {
 	int line = get(loc, {"range", "start", "line"}).toInt(-1);
 	QString uri = loc.value("uri").toString();
@@ -87,17 +92,16 @@ int parseloc(const QJsonObject &loc, struct filepos *pos) {
 }
 
 void showmatches(const QJsonObject &msg) {
-	QByteArray curpath;
+	QByteArray path;
 	QList<QByteArray> lines;
 	for (const QJsonValue &i : msg.value("result").toArray()) {
 		struct filepos pos;
 		if (parseloc(i.toObject(), &pos)) {
-			if (curpath != pos.path) {
-				const char *path = indir(pos.path.data(), cwd);
-				printf("%s%s\n", curpath.isEmpty() ? "" : "\n",
-				       path ? path : pos.path.data());
+			if (path != pos.path) {
+				printf("%s%s\n", path.isEmpty() ? "" : "\n",
+				       relpath(pos.path.data()));
 				QFile file(pos.path);
-				curpath = pos.path;
+				path = pos.path;
 				lines.clear();
 				if (file.open(QIODevice::ReadOnly)) {
 					lines = file.readAll().split('\n');
@@ -119,9 +123,7 @@ void gotomatch(const QJsonObject &msg) {
 		showmatches(msg);
 	} else if (parseloc(result.at(0).toObject(), &pos)) {
 		QByteArray line = QByteArray::number(pos.line + 1);
-		const char *path = indir(pos.path.data(), cwd);
-		const char *cmd[] = {"open", path ? path : pos.path.data(),
-		                     line.data()};
+		const char *cmd[] = {"open", pos.path.data(), line.data()};
 		requestv("opened", cmd, ARRLEN(cmd), NULL);
 	}
 }
@@ -293,8 +295,7 @@ void txtdoc(const char *method, const QJsonObject &extra = QJsonObject()) {
 	}
 	QJsonObject msg = newreq(QString("textDocument/") + method, params);
 	if (strcmp(method, "documentSymbol") == 0) {
-		char *path = indir(filepos.path.data(), cwd);
-		printf("%s\n", path ? path : filepos.path.data());
+		printf("%s\n", relpath(filepos.path.data()));
 		handler[msg.value("id").toInt()] = showsyms;
 	} else if (strcmp(method, "references") != 0) {
 		handler[msg.value("id").toInt()] = gotomatch;
