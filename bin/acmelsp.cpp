@@ -93,71 +93,6 @@ int parseloc(const QJsonObject &loc, struct filepos *pos) {
 	return 1;
 }
 
-void showmatches(const QJsonObject &msg) {
-	QByteArray path;
-	QList<QByteArray> lines;
-	for (const QJsonValue &i : msg.value("result").toArray()) {
-		struct filepos pos;
-		if (parseloc(i.toObject(), &pos)) {
-			if (path != pos.path) {
-				printf("%s%s\n", printed ? "\n" : "",
-				       relpath(pos.path.data()));
-				QFile file(pos.path);
-				path = pos.path;
-				lines.clear();
-				if (file.open(QIODevice::ReadOnly)) {
-					lines = file.readAll().split('\n');
-				}
-			}
-			if (pos.line < lines.size()) {
-				printf("%6d: %s\n", pos.line + 1,
-				       lines.at(pos.line).data());
-			}
-			printed = true;
-		}
-	}
-}
-
-void gotomatch(const QJsonObject &msg) {
-	struct filepos pos;
-	QJsonArray result = msg.value("result").toArray();
-	if (result.size() != 1) {
-		showmatches(msg);
-	} else if (parseloc(result.at(0).toObject(), &pos)) {
-		QByteArray line = QByteArray::number(pos.line + 1);
-		const char *cmd[] = {"open", pos.path.data(), line.data()};
-		requestv("opened", cmd, ARRLEN(cmd), NULL);
-	}
-}
-
-void showsym(const QJsonObject &sym, const QByteArray &indent) {
-	QByteArray name = sym.value("name").toString().toUtf8();
-	QStringList linePath = {"range", "start", "line"};
-	if (sym.contains("location")) {
-		linePath.insert(0, "location");
-	}
-	int line = get(sym, linePath).toInt(-1);
-	size_t k = sym.value("kind").toInt();
-	const char *kind = k < ARRLEN(symkind) ? symkind[k] : "";
-	if (!name.isEmpty() && line >= 0) {
-		if (!printed) {
-			printf("%s\n", relpath(docpath.data()));
-			printed = true;
-		}
-		printf("%6d: %s%s%s%s\n", line + 1, indent.data(), kind,
-		       kind[0] != '\0' ? " " : "", name.data());
-	}
-	for (const QJsonValue &i : sym.value("children").toArray()) {
-		showsym(i.toObject(), indent + "\t");
-	}
-}
-
-void showsyms(const QJsonObject &msg) {
-	for (const QJsonValue &i : msg.value("result").toArray()) {
-		showsym(i.toObject(), "");
-	}
-}
-
 QJsonObject capabilities(void) {
 	return QJsonObject{
 		{"general", QJsonObject{
@@ -267,6 +202,71 @@ void send(const QJsonObject &msg) {
 	fflush(tx);
 }
 
+void showmatches(const QJsonObject &msg) {
+	QByteArray path;
+	QList<QByteArray> lines;
+	for (const QJsonValue &i : msg.value("result").toArray()) {
+		struct filepos pos;
+		if (parseloc(i.toObject(), &pos)) {
+			if (path != pos.path) {
+				printf("%s%s\n", printed ? "\n" : "",
+				       relpath(pos.path.data()));
+				QFile file(pos.path);
+				path = pos.path;
+				lines.clear();
+				if (file.open(QIODevice::ReadOnly)) {
+					lines = file.readAll().split('\n');
+				}
+			}
+			if (pos.line < lines.size()) {
+				printf("%6d: %s\n", pos.line + 1,
+				       lines.at(pos.line).data());
+			}
+			printed = true;
+		}
+	}
+}
+
+void gotomatch(const QJsonObject &msg) {
+	struct filepos pos;
+	QJsonArray result = msg.value("result").toArray();
+	if (result.size() != 1) {
+		showmatches(msg);
+	} else if (parseloc(result.at(0).toObject(), &pos)) {
+		QByteArray line = QByteArray::number(pos.line + 1);
+		const char *cmd[] = {"open", pos.path.data(), line.data()};
+		requestv("opened", cmd, ARRLEN(cmd), NULL);
+	}
+}
+
+void showsym(const QJsonObject &sym, const QByteArray &indent) {
+	QByteArray name = sym.value("name").toString().toUtf8();
+	QStringList linePath = {"range", "start", "line"};
+	if (sym.contains("location")) {
+		linePath.insert(0, "location");
+	}
+	int line = get(sym, linePath).toInt(-1);
+	size_t k = sym.value("kind").toInt();
+	const char *kind = k < ARRLEN(symkind) ? symkind[k] : "";
+	if (!name.isEmpty() && line >= 0) {
+		if (!printed) {
+			printf("%s\n", relpath(docpath.data()));
+			printed = true;
+		}
+		printf("%6d: %s%s%s%s\n", line + 1, indent.data(), kind,
+		       kind[0] != '\0' ? " " : "", name.data());
+	}
+	for (const QJsonValue &i : sym.value("children").toArray()) {
+		showsym(i.toObject(), indent + "\t");
+	}
+}
+
+void showsyms(const QJsonObject &msg) {
+	for (const QJsonValue &i : msg.value("result").toArray()) {
+		showsym(i.toObject(), "");
+	}
+}
+
 int txtdocopen(const QString &path) {
 	QFile file(path);
 	if (!file.open(QIODevice::ReadOnly)) {
@@ -301,9 +301,9 @@ void txtdoc(const char *method, msghandler *cb,
 	for (auto i = extra.begin(), end = extra.end(); i != end; i++) {
 		params[i.key()] = i.value();
 	}
-	QJsonObject msg = newreq(QString("textDocument/") + method, params);
-	handler[msg.value("id").toInt()] = cb;
-	send(msg);
+	QJsonObject req = newreq(QString("textDocument/") + method, params);
+	handler[req.value("id").toInt()] = cb;
+	send(req);
 	txtdocclose(filepos.path);
 }
 
