@@ -385,6 +385,10 @@ int main(int argc, char *argv[]) {
 			QJsonValue data = receive();
 			if (data.isObject()) {
 				handle(data.toObject());
+			} else if (data.isArray()) {
+				for (const QJsonValue &i : data.toArray()) {
+					handle(i.toObject());
+				}
 			}
 		}
 	}
