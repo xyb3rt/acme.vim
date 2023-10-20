@@ -290,7 +290,8 @@ void txtdocclose(const QString &path) {
 	}));
 }
 
-void txtdoc(const char *method, const QJsonObject &extra = QJsonObject()) {
+void txtdoc(const char *method, msghandler *cb,
+            const QJsonObject &extra = QJsonObject()) {
 	if (!getpos() || !txtdocopen(filepos.path)) {
 		return;
 	}
@@ -301,13 +302,7 @@ void txtdoc(const char *method, const QJsonObject &extra = QJsonObject()) {
 		params[i.key()] = i.value();
 	}
 	QJsonObject msg = newreq(QString("textDocument/") + method, params);
-	if (strcmp(method, "documentSymbol") == 0) {
-		handler[msg.value("id").toInt()] = showsyms;
-	} else if (strcmp(method, "references") != 0) {
-		handler[msg.value("id").toInt()] = gotomatch;
-	} else {
-		handler[msg.value("id").toInt()] = showmatches;
-	}
+	handler[msg.value("id").toInt()] = cb;
 	send(msg);
 	txtdocclose(filepos.path);
 }
@@ -396,31 +391,31 @@ int main(int argc, char *argv[]) {
 }
 
 void cmd_decl(void) {
-	txtdoc("declaration");
+	txtdoc("declaration", gotomatch);
 }
 
 void cmd_def(void) {
-	txtdoc("definition");
+	txtdoc("definition", gotomatch);
 }
 
 void cmd_impl(void) {
-	txtdoc("implementation");
+	txtdoc("implementation", gotomatch);
 }
 
 void cmd_all(void) {
-	txtdoc("references", QJsonObject{
+	txtdoc("references", showmatches, QJsonObject{
 		{"context", QJsonObject{{"includeDeclaration", true}}}
 	});
 }
 
 void cmd_refs(void) {
-	txtdoc("references");
+	txtdoc("references", showmatches);
 }
 
 void cmd_typedef(void) {
-	txtdoc("typeDefinition");
+	txtdoc("typeDefinition", gotomatch);
 }
 
 void cmd_syms(void) {
-	txtdoc("documentSymbol");
+	txtdoc("documentSymbol", showsyms);
 }
