@@ -980,6 +980,11 @@ function s:CtrlRecv(ch, data)
 			for file in msg[3:]
 				call s:Edit(file, cid)
 			endfor
+		elseif msg[2] == 'open'
+			if len(msg) == 5
+				call s:FileOpen(msg[3], msg[4])
+			endif
+			call s:CtrlSend(cid, 'opened', msg[3])
 		elseif msg[2] =~ '\v^clear\^?'
 			for b in msg[3:]
 				call s:Clear(str2nr(b), msg[2] == 'clear^')

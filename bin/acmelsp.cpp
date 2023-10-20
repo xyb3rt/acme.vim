@@ -8,6 +8,12 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
+struct filepos {
+	QByteArray path;
+	int line;
+	int col;
+};
+
 typedef void msghandler(const QJsonObject &);
 
 cmd_func cmd_decl;
@@ -27,7 +33,7 @@ struct cmd cmds[] = {
 	{NULL}
 };
 
-struct { QByteArray path; int line, col; } filepos;
+struct filepos filepos;
 QHash<unsigned int, msghandler *> handler;
 FILE *rx, *tx;
 
@@ -58,30 +64,56 @@ QJsonValue get(QJsonValue v, const QStringList &keys) {
 	return v;
 }
 
-void showmatch(const QJsonObject &msg) {
+int parseloc(const QJsonObject &loc, struct filepos *pos) {
+	int line = get(loc, {"range", "start", "line"}).toInt(-1);
+	QString uri = loc.value("uri").toString();
+	if (!uri.startsWith("file:///") || line < 0) {
+		return 0;
+	}
+	pos->path = uri.mid(7).toUtf8();
+	pos->line = line;
+	pos->col = 0;
+	return 1;
+}
+
+void showmatches(const QJsonObject &msg) {
 	QByteArray curpath;
 	QList<QByteArray> lines;
 	for (const QJsonValue &i : msg.value("result").toArray()) {
-		int line = get(i, {"range", "start", "line"}).toInt(-1);
-		QString uri = get(i, {"uri"}).toString();
-		if (uri.startsWith("file:///") && line >= 0) {
-			QByteArray path = uri.mid(7).toUtf8();
-			if (curpath != path) {
-				const char *p = indir(path.data(), cwd);
+		struct filepos pos;
+		if (parseloc(i.toObject(), &pos)) {
+			if (curpath != pos.path) {
+				const char *path = indir(pos.path.data(), cwd);
 				printf("%s%s\n", curpath.isEmpty() ? "" : "\n",
-				       p != NULL ? p : path.data());
-				QFile file(path);
-				curpath = path;
+				       path ? path : pos.path.data());
+				QFile file(pos.path);
+				curpath = pos.path;
 				lines.clear();
 				if (file.open(QIODevice::ReadOnly)) {
 					lines = file.readAll().split('\n');
 				}
 			}
-			printf("%6d: %s\n", line + 1, line < lines.size() ?
-			       lines.at(line).data() : "<...>");
+			if (pos.line < lines.size()) {
+				printf("%6d: %s\n", pos.line + 1,
+				       lines.at(pos.line).data());
+			}
 		}
 	}
 	fflush(stdout);
+}
+
+void gotomatch(const QJsonObject &msg) {
+	struct filepos pos;
+	QJsonArray result = msg.value("result").toArray();
+	if (result.size() != 1) {
+		showmatches(msg);
+	} else if (parseloc(result.at(0).toObject(), &pos)) {
+		QByteArray line = QByteArray::number(pos.line + 1);
+		const char *path = indir(pos.path.data(), cwd);
+		const char *cmd[] = {"open", path ? path : pos.path.data(),
+		                     line.data()};
+		requestv("opened", cmd, ARRLEN(cmd), NULL);
+	}
 }
 
 QJsonObject capabilities(void) {
@@ -223,7 +255,11 @@ void txtdoc(const char *method, const QJsonObject &extra = QJsonObject()) {
 		params[i.key()] = i.value();
 	}
 	QJsonObject msg = newreq(QString("textDocument/") + method, params);
-	handler[msg.value("id").toInt()] = showmatch;
+	if (strcmp(method, "references") != 0) {
+		handler[msg.value("id").toInt()] = gotomatch;
+	} else {
+		handler[msg.value("id").toInt()] = showmatches;
+	}
 	send(msg);
 	txtdocclose(filepos.path);
 }
