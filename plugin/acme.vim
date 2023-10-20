@@ -970,7 +970,7 @@ function s:CtrlRecv(ch, data)
 	let msgs = map(split(msgs, "\x1e", 1), 'split(v:val, "\x1f")')
 	for msg in msgs
 		if len(msg) == 0
-			call s:CtrlSend('')
+			call s:CtrlSend('', [])
 			continue
 		elseif len(msg) < 3
 			continue
@@ -984,29 +984,29 @@ function s:CtrlRecv(ch, data)
 			if len(msg) == 5
 				call s:FileOpen(msg[3], msg[4])
 			endif
-			call s:CtrlSend(cid, 'opened', msg[3])
+			call s:CtrlSend(cid, ['opened'])
 		elseif msg[2] =~ '\v^clear\^?'
 			for b in msg[3:]
 				call s:Clear(str2nr(b), msg[2] == 'clear^')
 			endfor
-			call s:CtrlSend(cid, 'cleared')
+			call s:CtrlSend(cid, ['cleared'])
 		elseif msg[2] == 'checktime'
 			checktime
 			call s:ReloadDirs()
-			call s:CtrlSend(cid, 'timechecked')
+			call s:CtrlSend(cid, ['timechecked'])
 		elseif msg[2] == 'scratch'
 			if len(msg) > 5
 				call s:ScratchExec(msg[5:], msg[3], '', msg[4])
 			endif
-			call s:CtrlSend(cid, 'scratched')
+			call s:CtrlSend(cid, ['scratched'])
 		elseif msg[2] == 'bufinfo'
-			call call('s:CtrlSend', [cid, 'bufinfo'] + s:BufInfo())
+			call s:CtrlSend(cid, ['bufinfo'] + s:BufInfo())
 		endif
 	endfor
 endfunc
 
-function s:CtrlSend(dst, ...)
-	let msg = join([a:dst, getpid()] + a:000, "\x1f") . "\x1e"
+function s:CtrlSend(dst, msg)
+	let msg = join([a:dst, getpid()] + a:msg, "\x1f") . "\x1e"
 	call ch_sendraw(s:ctrlch, msg)
 endfunc
 
@@ -1018,7 +1018,7 @@ function s:BufWinLeave()
 			let s:editbufs[cid] -= 1
 			if s:editbufs[cid] <= 0
 				call remove(s:editbufs, cid)
-				call s:CtrlSend(cid, 'done')
+				call s:CtrlSend(cid, ['done'])
 			endif
 		endfor
 	endif
