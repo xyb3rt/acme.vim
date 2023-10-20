@@ -43,8 +43,10 @@ const char *symkind[] = {
 	"type-param"
 };
 
+QByteArray docpath;
 struct filepos filepos;
 QHash<unsigned int, msghandler *> handler;
+bool printed;
 FILE *rx, *tx;
 
 void setpos(acmevim_strv msg) {
@@ -98,7 +100,7 @@ void showmatches(const QJsonObject &msg) {
 		struct filepos pos;
 		if (parseloc(i.toObject(), &pos)) {
 			if (path != pos.path) {
-				printf("%s%s\n", path.isEmpty() ? "" : "\n",
+				printf("%s%s\n", printed ? "\n" : "",
 				       relpath(pos.path.data()));
 				QFile file(pos.path);
 				path = pos.path;
@@ -111,9 +113,9 @@ void showmatches(const QJsonObject &msg) {
 				printf("%6d: %s\n", pos.line + 1,
 				       lines.at(pos.line).data());
 			}
+			printed = true;
 		}
 	}
-	fflush(stdout);
 }
 
 void gotomatch(const QJsonObject &msg) {
@@ -138,6 +140,10 @@ void showsym(const QJsonObject &sym, const QByteArray &indent) {
 	size_t k = sym.value("kind").toInt();
 	const char *kind = k < ARRLEN(symkind) ? symkind[k] : "";
 	if (!name.isEmpty() && line >= 0) {
+		if (!printed) {
+			printf("%s\n", relpath(docpath.data()));
+			printed = true;
+		}
 		printf("%6d: %s%s%s%s\n", line + 1, indent.data(), kind,
 		       kind[0] != '\0' ? " " : "", name.data());
 	}
@@ -289,13 +295,13 @@ void txtdoc(const char *method, const QJsonObject &extra = QJsonObject()) {
 		return;
 	}
 	clear(REDRAW);
+	docpath = filepos.path;
 	QJsonObject params = txtpos();
 	for (auto i = extra.begin(), end = extra.end(); i != end; i++) {
 		params[i.key()] = i.value();
 	}
 	QJsonObject msg = newreq(QString("textDocument/") + method, params);
 	if (strcmp(method, "documentSymbol") == 0) {
-		printf("%s\n", relpath(filepos.path.data()));
 		handler[msg.value("id").toInt()] = showsyms;
 	} else if (strcmp(method, "references") != 0) {
 		handler[msg.value("id").toInt()] = gotomatch;
@@ -365,8 +371,9 @@ int main(int argc, char *argv[]) {
 	spawn(&argv[1]);
 	for (;;) {
 		if (dirty && handler.isEmpty()) {
+			menu(cmds, printed ? "\n" : "");
 			dirty = CLEAN;
-			menu(cmds);
+			printed = false;
 		}
 		if (block(fileno(rx)) == 0) {
 			input();

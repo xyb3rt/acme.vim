@@ -65,8 +65,8 @@ void nl(void) {
 	fflush(stdout);
 }
 
-void menu(struct cmd cmds[]) {
-	printf("\n<");
+void menu(struct cmd cmds[], const char *prefix) {
+	printf("%s<", prefix);
 	for (size_t i = 0; cmds[i].name != NULL; i++) {
 		printf(" %s", cmds[i].name);
 	}

@@ -133,7 +133,7 @@ int main(int argc, char *argv[]) {
 			}
 			dirty = CLEAN;
 			status();
-			menu(cmds);
+			menu(cmds, "\n");
 		}
 		block(-1);
 		input();
