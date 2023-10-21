@@ -230,11 +230,11 @@ void showmatches(const QJsonObject &msg) {
 		struct filepos pos;
 		if (parseloc(i.toObject(), &pos)) {
 			if (path != pos.path) {
-				printf("%s%s\n", printed ? "\n" : "",
-				       relpath(pos.path.data()));
-				printed = true;
-				QFile file(pos.path);
 				path = pos.path;
+				printf("%s%s\n", printed ? "\n" : "",
+				       relpath(path.data()));
+				printed = true;
+				QFile file(path);
 				lines.clear();
 				if (file.open(QIODevice::ReadOnly)) {
 					lines = file.readAll().split('\n');
@@ -289,14 +289,19 @@ void showsyms(const QJsonObject &msg) {
 }
 
 void showtypes(void) {
+	QByteArray path;
 	qsizetype i = 0;
 	while (i >= 0 && i < types.size()) {
 		const typeinfo &t = types[i];
 		struct filepos pos;
 		QByteArray name = t.obj.value("name").toString().toUtf8();
 		if (!name.isEmpty() && parseloc(t.obj, &pos)) {
-			printf("%s%s\n%6u: %s%s\n", printed ? "\n" : "",
-			       relpath(pos.path.data()), pos.line + 1,
+			if (path != pos.path) {
+				path = pos.path;
+				printf("%s%s\n", printed ? "\n" : "",
+				       relpath(path.data()));
+			}
+			printf("%6u: %s%s\n", pos.line + 1,
 			       indent(t.level).data(), name.data());
 			printed = true;
 		}
