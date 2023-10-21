@@ -353,7 +353,7 @@ void spawn(char *argv[]) {
 		error(EXIT_FAILURE, errno, "fdopen");
 	}
 	send(newreq("initialize", QJsonObject{
-		{"processId", QJsonValue()},
+		{"processId", getpid()},
 		{"capabilities", capabilities()},
 	}));
 	const char *cmd[] = {"bufinfo"};
