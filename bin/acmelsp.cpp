@@ -108,6 +108,7 @@ QJsonObject capabilities(void) {
 		{"general", QJsonObject{
 			{"positionEncodings", QJsonArray{"utf-8"}},
 		}},
+		{"offsetEncoding", QJsonArray{"utf-8"}},
 		{"textDocument", QJsonObject{
 			{"declaration", QJsonObject{}},
 			{"definition", QJsonObject{}},
