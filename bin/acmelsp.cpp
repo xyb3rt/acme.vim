@@ -51,7 +51,6 @@ const char *symkind[] = {
 	"type-param"
 };
 
-QByteArray docpath;
 struct filepos filepos;
 QHash<unsigned int, msghandler *> handler;
 bool printed;
@@ -271,7 +270,7 @@ void showsym(const QJsonObject &sym, int level) {
 	const char *kind = k < ARRLEN(symkind) ? symkind[k] : "";
 	if (!name.isEmpty() && line >= 0) {
 		if (!printed) {
-			printf("%s\n", relpath(docpath.data()));
+			printf("%s\n", relpath(filepos.path.data()));
 			printed = true;
 		}
 		printf("%6u: %s%s%s%s\n", line + 1, indent(level).data(),
@@ -386,7 +385,6 @@ void txtdoc(const char *method, msghandler *cb,
 		return;
 	}
 	clear(REDRAW);
-	docpath = filepos.path;
 	QJsonObject params = txtpos();
 	for (auto i = extra.begin(), end = extra.end(); i != end; i++) {
 		params[i.key()] = i.value();
