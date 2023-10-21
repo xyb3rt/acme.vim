@@ -945,13 +945,16 @@ function s:Edit(file, cid)
 endfunc
 
 function s:BufInfo()
+	let p = 0
 	let v = []
 	for w in range(1, winnr('$'))
 		let b = winbufnr(w)
 		if getbufvar(b, '&buftype', '') == ''
+			let p += w == winnr()
 			let i = [fnamemodify(bufname(b), ':p'),
 				\ line('.'), col('.'), line("'<"), line("'>")]
-			call extend(v, i, w == winnr() ? 0 : len(v))
+			call extend(v, i, w == winnr() ? 0 :
+				\ w == winnr('#') ? p : len(v))
 		endif
 	endfor
 	return v
