@@ -147,7 +147,10 @@ void handle(const QJsonObject &msg) {
 		}
 		unsigned int id = msg.value("id").toInt();
 		if (handler.contains(id)) {
-			handler.take(id)(msg);
+			msghandler *h = handler.take(id);
+			if (error.isEmpty()) {
+				h(msg);
+			}
 		}
 	} else if (msg.contains("id")) {
 		// request
