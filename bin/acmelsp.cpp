@@ -262,7 +262,7 @@ void showsym(const QJsonObject &sym, const QByteArray &indent) {
 		       kind[0] != '\0' ? " " : "", name.data());
 	}
 	for (const QJsonValue &i : sym.value("children").toArray()) {
-		showsym(i.toObject(), indent + "\t");
+		showsym(i.toObject(), indent + "> ");
 	}
 }
 
