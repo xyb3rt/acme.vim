@@ -14,6 +14,12 @@ struct filepos {
 	unsigned int col;
 };
 
+struct typeinfo {
+	QJsonObject obj;
+	unsigned int level;
+	qsizetype next;
+};
+
 typedef void msghandler(const QJsonObject &);
 
 cmd_func cmd_decl;
@@ -22,6 +28,7 @@ cmd_func cmd_impl;
 cmd_func cmd_all;
 cmd_func cmd_refs;
 cmd_func cmd_typedef;
+cmd_func cmd_typehy;
 cmd_func cmd_syms;
 
 struct cmd cmds[] = {
@@ -31,6 +38,7 @@ struct cmd cmds[] = {
 	{"all",     cmd_all},
 	{"refs",    cmd_refs},
 	{"typedef", cmd_typedef},
+	{"typehy",  cmd_typehy},
 	{"syms",    cmd_syms},
 	{NULL}
 };
@@ -48,6 +56,8 @@ struct filepos filepos;
 QHash<unsigned int, msghandler *> handler;
 bool printed;
 FILE *rx, *tx;
+QList<typeinfo> types;
+QHash<unsigned int, qsizetype> parenttype;
 
 void setpos(acmevim_strv msg) {
 	filepos.path.clear();
@@ -104,6 +114,7 @@ QJsonObject capabilities(void) {
 			{"implementation", QJsonObject{}},
 			{"references", QJsonObject{}},
 			{"typeDefinition", QJsonObject{}},
+			{"typeHierarchy", QJsonObject{}},
 			{"documentSymbol", QJsonObject{
 				{"hierarchicalDocumentSymbolSupport", true}
 			}},
@@ -272,6 +283,58 @@ void showsyms(const QJsonObject &msg) {
 	}
 }
 
+void showtypes(void) {
+	qsizetype i = 0;
+	while (i >= 0 && i < types.size()) {
+		const typeinfo &t = types[i];
+		struct filepos pos;
+		QByteArray name = t.obj.value("name").toString().toUtf8();
+		if (!name.isEmpty() && parseloc(t.obj, &pos)) {
+			auto indent = QByteArray("> ").repeated(t.level);
+			printf("%s%s\n%6u: %s%s\n", printed ? "\n" : "",
+			       relpath(pos.path.data()), pos.line + 1,
+			       indent.data(), name.data());
+			printed = true;
+		}
+		i = t.next;
+	}
+}
+
+qsizetype addtype(const QJsonObject &t, unsigned int level, qsizetype p) {
+	qsizetype i = types.size();
+	types.append({t, level, -1});
+	if (p != -1) {
+		qsizetype n = types[p].next;
+		types[p].next = i;
+		types[i].next = n;
+	}
+	return i;
+}
+
+void handletypes(const QJsonObject &msg) {
+	qsizetype p = -1;
+	if (!types.isEmpty()) {
+		unsigned int id = msg.value("id").toInt();
+		if (!parenttype.contains(id)) {
+			return;
+		}
+		p = parenttype.take(id);
+	}
+	unsigned int level = p != -1 ? types[p].level + 1 : 0;
+	for (const QJsonValue &i : msg.value("result").toArray()) {
+		QJsonObject t = i.toObject();
+		if (!t.isEmpty()) {
+			p = addtype(t, level, p);
+			auto params = QJsonObject{{"item", t}};
+			auto req = newreq("typeHierarchy/supertypes", params);
+			unsigned int id = req.value("id").toInt();
+			handler[id] = handletypes;
+			parenttype[id] = p;
+			send(req);
+		}
+	}
+}
+
 bool txtdocopen(const QString &path) {
 	QFile file(path);
 	if (!file.open(QIODevice::ReadOnly)) {
@@ -371,6 +434,11 @@ int main(int argc, char *argv[]) {
 	spawn(&argv[1]);
 	for (;;) {
 		if (dirty && handler.isEmpty()) {
+			if (!types.isEmpty()) {
+				showtypes();
+				types.clear();
+				parenttype.clear();
+			}
 			menu(cmds, printed ? "\n" : "");
 			dirty = CLEAN;
 			printed = false;
@@ -419,6 +487,10 @@ void cmd_refs(void) {
 
 void cmd_typedef(void) {
 	txtdoc("typeDefinition", gotomatch);
+}
+
+void cmd_typehy(void) {
+	txtdoc("prepareTypeHierarchy", handletypes);
 }
 
 void cmd_syms(void) {
