@@ -16,7 +16,7 @@ struct filepos {
 
 struct typeinfo {
 	QJsonObject obj;
-	unsigned int level;
+	int level;
 	qsizetype next;
 };
 
@@ -84,6 +84,10 @@ QJsonValue get(QJsonValue v, const QStringList &keys) {
 		v = v.toObject().value(key);
 	}
 	return v;
+}
+
+QByteArray indent(int level) {
+	return QByteArray(level > 0 ? "> " : "< ").repeated(abs(level));
 }
 
 const char *relpath(const char *path) {
@@ -256,7 +260,7 @@ void gotomatch(const QJsonObject &msg) {
 	}
 }
 
-void showsym(const QJsonObject &sym, const QByteArray &indent) {
+void showsym(const QJsonObject &sym, int level) {
 	QByteArray name = sym.value("name").toString().toUtf8();
 	QStringList linePath = {"range", "start", "line"};
 	if (sym.contains("location")) {
@@ -270,17 +274,17 @@ void showsym(const QJsonObject &sym, const QByteArray &indent) {
 			printf("%s\n", relpath(docpath.data()));
 			printed = true;
 		}
-		printf("%6u: %s%s%s%s\n", line + 1, indent.data(), kind,
-		       kind[0] != '\0' ? " " : "", name.data());
+		printf("%6u: %s%s%s%s\n", line + 1, indent(level).data(),
+		       kind, kind[0] != '\0' ? " " : "", name.data());
 	}
 	for (const QJsonValue &i : sym.value("children").toArray()) {
-		showsym(i.toObject(), indent + "> ");
+		showsym(i.toObject(), level + 1);
 	}
 }
 
 void showsyms(const QJsonObject &msg) {
 	for (const QJsonValue &i : msg.value("result").toArray()) {
-		showsym(i.toObject(), "");
+		showsym(i.toObject(), 0);
 	}
 }
 
@@ -291,17 +295,16 @@ void showtypes(void) {
 		struct filepos pos;
 		QByteArray name = t.obj.value("name").toString().toUtf8();
 		if (!name.isEmpty() && parseloc(t.obj, &pos)) {
-			auto indent = QByteArray("> ").repeated(t.level);
 			printf("%s%s\n%6u: %s%s\n", printed ? "\n" : "",
 			       relpath(pos.path.data()), pos.line + 1,
-			       indent.data(), name.data());
+			       indent(t.level).data(), name.data());
 			printed = true;
 		}
 		i = t.next;
 	}
 }
 
-qsizetype addtype(const QJsonObject &t, unsigned int level, qsizetype p) {
+qsizetype addtype(const QJsonObject &t, int level, qsizetype p) {
 	qsizetype i = types.size();
 	types.append({t, level, -1});
 	if (p != -1) {
@@ -312,27 +315,40 @@ qsizetype addtype(const QJsonObject &t, unsigned int level, qsizetype p) {
 	return i;
 }
 
+msghandler handletypes;
+
+void querytypes(const char *method, qsizetype p) {
+	auto params = QJsonObject{{"item", types[p].obj}};
+	auto req = newreq(QString("typeHierarchy/") + method, params);
+	unsigned int id = req.value("id").toInt();
+	handler[id] = handletypes;
+	parenttype[id] = p;
+	send(req);
+}
+
 void handletypes(const QJsonObject &msg) {
+	static int dir;
 	qsizetype p = -1;
-	if (!types.isEmpty()) {
+	if (types.isEmpty()) {
+		dir = -1;
+	} else {
 		unsigned int id = msg.value("id").toInt();
 		if (!parenttype.contains(id)) {
 			return;
 		}
 		p = parenttype.take(id);
 	}
-	unsigned int level = p != -1 ? types[p].level + 1 : 0;
+	int level = p != -1 ? types[p].level + dir : 0;
 	for (const QJsonValue &i : msg.value("result").toArray()) {
 		QJsonObject t = i.toObject();
 		if (!t.isEmpty()) {
 			p = addtype(t, level, p);
-			auto params = QJsonObject{{"item", t}};
-			auto req = newreq("typeHierarchy/supertypes", params);
-			unsigned int id = req.value("id").toInt();
-			handler[id] = handletypes;
-			parenttype[id] = p;
-			send(req);
+			querytypes(dir < 0 ? "subtypes" : "supertypes", p);
 		}
+	}
+	if (handler.isEmpty() && !types.isEmpty() && dir < 0) {
+		dir = 1;
+		querytypes("supertypes", 0);
 	}
 }
 
