@@ -144,6 +144,7 @@ void handle(const QJsonObject &msg) {
 		QString error = get(msg, {"error", "message"}).toString();
 		if (!error.isEmpty()) {
 			fprintf(stderr, "Error: %s\n", error.toUtf8().data());
+			printed = true;
 		}
 		unsigned int id = msg.value("id").toInt();
 		if (handler.contains(id)) {
@@ -215,6 +216,7 @@ void showmatches(const QJsonObject &msg) {
 			if (path != pos.path) {
 				printf("%s%s\n", printed ? "\n" : "",
 				       relpath(pos.path.data()));
+				printed = true;
 				QFile file(pos.path);
 				path = pos.path;
 				lines.clear();
@@ -226,7 +228,6 @@ void showmatches(const QJsonObject &msg) {
 				printf("%6u: %s\n", pos.line + 1,
 				       lines.at(pos.line).data());
 			}
-			printed = true;
 		}
 	}
 }
