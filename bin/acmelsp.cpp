@@ -287,7 +287,7 @@ void showsyms(const QJsonObject &msg) {
 	}
 }
 
-void showtypes(void) {
+void dumptypes(void) {
 	QByteArray path;
 	qsizetype i = 0;
 	while (i >= 0 && i < types.size()) {
@@ -306,6 +306,8 @@ void showtypes(void) {
 		}
 		i = t.next;
 	}
+	types.clear();
+	parenttype.clear();
 }
 
 qsizetype addtype(const QJsonObject &t, int level, qsizetype p) {
@@ -455,9 +457,7 @@ int main(int argc, char *argv[]) {
 	for (;;) {
 		if (dirty && handler.isEmpty()) {
 			if (!types.isEmpty()) {
-				showtypes();
-				types.clear();
-				parenttype.clear();
+				dumptypes();
 			}
 			menu(cmds, printed ? "\n" : "");
 			dirty = CLEAN;
