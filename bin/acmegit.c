@@ -28,23 +28,23 @@ cmd_func cmd_stash;
 cmd_func cmd_switch;
 
 struct cmd cmds[] = {
-	{"diff",     cmd_diff},
-	{"log",      cmd_log},
-	{"graph",    cmd_graph},
-	{"fetch",    cmd_fetch},
-	{"push",     cmd_push},
-	{"config",   cmd_config},
-	{"stash",    cmd_stash},
+	{"diff", cmd_diff},
+	{"log", cmd_log},
+	{"graph", cmd_graph},
+	{"fetch", cmd_fetch},
+	{"push", cmd_push},
+	{"config", cmd_config},
+	{"stash", cmd_stash},
 	{">\n<"},
-	{"add",      cmd_add},
-	{"reset",    cmd_reset},
-	{"commit",   cmd_commit},
-	{"merge",    cmd_merge},
-	{"rebase",   cmd_rebase},
-	{"switch",   cmd_switch},
+	{"add", cmd_add},
+	{"reset", cmd_reset},
+	{"commit", cmd_commit},
+	{"merge", cmd_merge},
+	{"rebase", cmd_rebase},
+	{"switch", cmd_switch},
 	{"checkout", cmd_checkout},
-	{"clean",    cmd_clean},
-	{"rm",       cmd_rm},
+	{"clean", cmd_clean},
+	{"rm", cmd_rm},
 	{NULL}
 };
 

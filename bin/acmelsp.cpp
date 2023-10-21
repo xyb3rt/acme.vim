@@ -32,14 +32,14 @@ cmd_func cmd_typehy;
 cmd_func cmd_syms;
 
 struct cmd cmds[] = {
-	{"decl",    cmd_decl},
-	{"def",     cmd_def},
-	{"impl",    cmd_impl},
-	{"all",     cmd_all},
-	{"refs",    cmd_refs},
+	{"decl", cmd_decl},
+	{"def", cmd_def},
+	{"impl", cmd_impl},
+	{"all", cmd_all},
+	{"refs", cmd_refs},
 	{"typedef", cmd_typedef},
-	{"typehy",  cmd_typehy},
-	{"syms",    cmd_syms},
+	{"typehy", cmd_typehy},
+	{"syms", cmd_syms},
 	{NULL}
 };
 
