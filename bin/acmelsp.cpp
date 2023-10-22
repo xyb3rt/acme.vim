@@ -31,18 +31,6 @@ cmd_func cmd_typedef;
 cmd_func cmd_typehy;
 cmd_func cmd_syms;
 
-struct cmd cmds[] = {
-	{"decl", cmd_decl},
-	{"def", cmd_def},
-	{"impl", cmd_impl},
-	{"all", cmd_all},
-	{"refs", cmd_refs},
-	{"typedef", cmd_typedef},
-	{"typehy", cmd_typehy},
-	{"syms", cmd_syms},
-	{NULL}
-};
-
 const char *symkind[] = {
 	"", "file", "module", "namespace", "package", "class", "method",
 	"property", "field", "constructor", "enum", "interface", "function",
@@ -51,12 +39,32 @@ const char *symkind[] = {
 	"type-param"
 };
 
+QVector<struct cmd> cmds;
 struct filepos filepos;
 QHash<unsigned int, msghandler *> handler;
 bool printed;
 FILE *rx, *tx;
 QList<typeinfo> types;
 QHash<unsigned int, qsizetype> parenttype;
+
+void addcmd(const char *name, cmd_func *func, const QJsonObject &capabilities,
+            const char *capability) {
+	if (capabilities.contains(capability)) {
+		cmds.append({name, func});
+	}
+}
+
+void initmenu(const QJsonObject &cap) {
+	addcmd("decl", cmd_decl, cap, "declarationProvider");
+	addcmd("def", cmd_def, cap, "definitionProvider");
+	addcmd("impl", cmd_impl, cap, "implementationProvider");
+	addcmd("all", cmd_all, cap, "referencesProvider");
+	addcmd("refs", cmd_refs, cap, "referencesProvider");
+	addcmd("typedef", cmd_typedef, cap, "typeDefinitionProvider");
+	addcmd("typehy", cmd_typehy, cap, "typeHierarchyProvider");
+	addcmd("syms", cmd_syms, cap, "documentSymbolProvider");
+	cmds.append({NULL, NULL});
+}
 
 void setpos(acmevim_strv msg) {
 	filepos.path.clear();
@@ -408,6 +416,7 @@ void trigger(acmevim_strv msg) {
 }
 
 void initialized(const QJsonObject &msg) {
+	initmenu(get(msg, {"result", "capabilities"}).toObject());
 	send(newmsg("initialized", QJsonObject()));
 	const char *cmd[] = {"bufinfo"};
 	requestv("bufinfo", cmd, ARRLEN(cmd), trigger);
@@ -462,13 +471,13 @@ int main(int argc, char *argv[]) {
 			if (!types.isEmpty()) {
 				dumptypes();
 			}
-			menu(cmds, printed ? "\n" : "");
+			menu(cmds.data(), printed ? "\n" : "");
 			dirty = CLEAN;
 			printed = false;
 		}
 		if (block(fileno(rx)) == 0) {
 			input();
-			struct cmd *cmd = match(cmds);
+			struct cmd *cmd = match(cmds.data());
 			if (cmd != NULL && handler.isEmpty()) {
 				cmd->func();
 			}
