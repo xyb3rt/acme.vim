@@ -8,6 +8,11 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
+struct chan {
+	int fd;
+	QByteArray buf;
+};
+
 struct filepos {
 	QByteArray path;
 	unsigned int line;
@@ -43,7 +48,7 @@ QVector<struct cmd> cmds;
 struct filepos filepos;
 QHash<unsigned int, msghandler *> handler;
 bool printed;
-FILE *rx, *tx;
+chan rx, tx;
 QList<typeinfo> types;
 QHash<unsigned int, qsizetype> parenttype;
 
@@ -183,44 +188,59 @@ void handle(const QJsonObject &msg) {
 	}
 }
 
-QJsonValue receive() {
+bool parseheader(const QByteArray &d, qsizetype *i, qsizetype *n) {
 	qsizetype len = 0;
-	QJsonValue v;
+	qsizetype pos = *i;
 	for (;;) {
-		errno = 0;
-		buf.len = getline(&buf.d, &buf.size, rx);
-		if (buf.len == -1) {
-			error(EXIT_FAILURE, errno,
-			      "failure reading from lsp server");
-		}
-		if (buf.len == 2 && strcmp(buf.d, "\r\n") == 0) {
+		qsizetype sep = d.indexOf("\r\n", pos);
+		if (sep == -1) {
 			break;
+		} else if (sep == pos) {
+			*i = sep + 2;
+			*n = len;
+			return true;
 		}
-		int l, n = 0;
-		if (sscanf(buf.d, "Content-Length: %d\r\n%n", &l, &n) == 1 &&
-		    n == buf.len) {
+		const char *h = d.constData() + pos;
+		unsigned long long l;
+		int r = 0;
+		if (sscanf(h, "Content-Length: %llu%n", &l, &r) == 1 &&
+		    r == sep - pos) {
 			len = l;
 		}
+		pos = sep + 2;
 	}
-	if (len > 0) {
-		qsizetype n = 0;
-		QByteArray data(len, '\0');
-		while (n < len) {
-			size_t r = fread(data.data() + n, 1, len - n, rx);
-			n += r;
-			if ((n != len && feof(rx)) || ferror(rx)) {
-				error(EXIT_FAILURE, 0,
-				      "failure reading from lsp server");
+	return false;
+}
+
+void receive(void) {
+	for (;;) {
+		char buf[1024];
+		ssize_t n = read(rx.fd, buf, sizeof(buf));
+		if (n == -1) {
+			if (errno == EINTR) {
+				continue;
+			} else if (errno == EAGAIN) {
+				break;
+			}
+			error(EXIT_FAILURE, errno, "read");
+		}
+		rx.buf.append(buf, n);
+	}
+	qsizetype i = 0, n;
+	while (parseheader(rx.buf, &i, &n) && i + n <= rx.buf.size()) {
+		auto doc = QJsonDocument::fromJson(rx.buf.mid(i, n));
+		i += n;
+		if (doc.isObject()) {
+			handle(doc.object());
+		} else if (doc.isArray()) {
+			for (const QJsonValue &i : doc.array()) {
+				handle(i.toObject());
 			}
 		}
-		QJsonDocument doc = QJsonDocument::fromJson(data);
-		if (doc.isArray()) {
-			v = doc.array();
-		} else if (doc.isObject()) {
-			v = doc.object();
-		}
 	}
-	return v;
+	if (i > 0) {
+		rx.buf = rx.buf.mid(i);
+	}
 }
 
 void send(const QJsonObject &msg, msghandler *h = NULL) {
@@ -228,9 +248,19 @@ void send(const QJsonObject &msg, msghandler *h = NULL) {
 		handler[msg.value("id").toInt()] = h;
 	}
 	QByteArray d = QJsonDocument(msg).toJson(QJsonDocument::Compact);
-	fprintf(tx, "Content-Length: %zu\r\n\r\n%s", (size_t)d.size(),
-	        d.data());
-	fflush(tx);
+	d.prepend(QString::asprintf("Content-Length: %zu\r\n\r\n",
+	                            (size_t)d.size()).toUtf8());
+	size_t n = d.size(), w = 0;
+	while (w < n) {
+		ssize_t r = write(tx.fd, d.data() + w, n - w);
+		if (r == -1) {
+			if (errno == EINTR) {
+				continue;
+			}
+			error(EXIT_FAILURE, errno, "write");
+		}
+		w += r;
+	}
 }
 
 void showmatches(const QJsonObject &msg) {
@@ -445,11 +475,10 @@ void spawn(char *argv[]) {
 	}
 	close(fd0[1]);
 	close(fd1[0]);
-	rx = fdopen(fd0[0], "r");
-	tx = fdopen(fd1[1], "a");
-	if (rx == NULL || tx == NULL) {
-		error(EXIT_FAILURE, errno, "fdopen");
-	}
+	rx.fd = fd0[0];
+	tx.fd = fd1[1];
+	int flags = fcntl(rx.fd, F_GETFL, 0);
+	fcntl(rx.fd, F_SETFL, flags | O_NONBLOCK);
 	send(newreq("initialize", QJsonObject{
 		{"processId", getpid()},
 		{"capabilities", capabilities()},
@@ -473,21 +502,14 @@ int main(int argc, char *argv[]) {
 			dirty = CLEAN;
 			printed = false;
 		}
-		if (block(fileno(rx)) == 0) {
+		if (block(rx.fd) == 0) {
 			input();
 			struct cmd *cmd = match(cmds.data());
 			if (cmd != NULL && handler.isEmpty()) {
 				cmd->func();
 			}
 		} else {
-			QJsonValue data = receive();
-			if (data.isObject()) {
-				handle(data.toObject());
-			} else if (data.isArray()) {
-				for (const QJsonValue &i : data.toArray()) {
-					handle(i.toObject());
-				}
-			}
+			receive();
 		}
 	}
 	return 0;
