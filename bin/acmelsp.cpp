@@ -215,7 +215,10 @@ QJsonValue receive() {
 	return v;
 }
 
-void send(const QJsonObject &msg) {
+void send(const QJsonObject &msg, msghandler *h = NULL) {
+	if (h) {
+		handler[msg.value("id").toInt()] = h;
+	}
 	QByteArray d = QJsonDocument(msg).toJson(QJsonDocument::Compact);
 	fprintf(tx, "Content-Length: %zu\r\n\r\n%s", (size_t)d.size(),
 	        d.data());
@@ -326,10 +329,8 @@ msghandler handletypes;
 void querytypes(const char *method, qsizetype p) {
 	auto params = QJsonObject{{"item", types[p].obj}};
 	auto req = newreq(QString("typeHierarchy/") + method, params);
-	unsigned int id = req.value("id").toInt();
-	handler[id] = handletypes;
-	parenttype[id] = p;
-	send(req);
+	parenttype[req.value("id").toInt()] = p;
+	send(req, handletypes);
 }
 
 void handletypes(const QJsonObject &msg) {
@@ -391,9 +392,7 @@ void txtdoc(const char *method, msghandler *cb,
 	for (auto i = extra.begin(), end = extra.end(); i != end; i++) {
 		params[i.key()] = i.value();
 	}
-	QJsonObject req = newreq(QString("textDocument/") + method, params);
-	handler[req.value("id").toInt()] = cb;
-	send(req);
+	send(newreq(QString("textDocument/") + method, params), cb);
 	txtdocclose(filepos.path);
 }
 
