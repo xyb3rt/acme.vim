@@ -45,6 +45,7 @@ const char *symkind[] = {
 };
 
 QVector<struct cmd> cmds;
+QSet<QByteArray> docs;
 struct filepos filepos;
 QHash<unsigned int, msghandler *> handler;
 bool printed;
@@ -397,7 +398,7 @@ void handletypes(const QJsonObject &msg) {
 	}
 }
 
-bool txtdocopen(const QString &path) {
+bool txtdocopen(const QByteArray &path) {
 	QFile file(path);
 	if (!file.open(QIODevice::ReadOnly)) {
 		return false;
@@ -409,10 +410,11 @@ bool txtdocopen(const QString &path) {
 			{"text", QString(file.readAll())},
 		}}
 	}));
+	docs.insert(path);
 	return true;
 }
 
-void txtdocclose(const QString &path) {
+void txtdocclose(const QByteArray &path) {
 	send(newmsg("textDocument/didClose", QJsonObject{
 		{"textDocument", QJsonObject{
 			{"uri", QString("file://") + path},
@@ -431,23 +433,29 @@ void txtdoc(const char *method, msghandler *cb,
 		params[i.key()] = i.value();
 	}
 	send(newreq(QString("textDocument/") + method, params), cb);
-	txtdocclose(filepos.path);
 }
 
-void trigger(acmevim_strv msg) {
+void openall(acmevim_strv msg) {
 	for (size_t i = 3; i + 4 < vec_len(&msg); i += 5) {
 		char *path = msg[i];
-		if (txtdocopen(path)) {
-			txtdocclose(path);
+		if (!docs.contains(path)) {
+			txtdocopen(path);
 		}
 	}
+}
+
+void closeall(void) {
+	for (const auto &path : docs) {
+		txtdocclose(path);
+	}
+	docs.clear();
 }
 
 void initialized(const QJsonObject &msg) {
 	initmenu(get(msg, {"result", "capabilities"}).toObject());
 	send(newmsg("initialized", QJsonObject()));
 	const char *cmd[] = {"bufinfo"};
-	requestv("bufinfo", cmd, ARRLEN(cmd), trigger);
+	requestv("bufinfo", cmd, ARRLEN(cmd), openall);
 }
 
 void spawn(char *argv[]) {
@@ -495,6 +503,7 @@ int main(int argc, char *argv[]) {
 	spawn(&argv[1]);
 	for (;;) {
 		if (dirty && handler.isEmpty()) {
+			closeall();
 			if (!types.isEmpty()) {
 				dumptypes();
 			}
