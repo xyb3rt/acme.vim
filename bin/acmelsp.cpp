@@ -72,7 +72,7 @@ void setpos(acmevim_strv msg) {
 		const char *path = msg[3];
 		int line = atoi(msg[4]);
 		int col = atoi(msg[5]);
-		if (indir(path, cwd) && line > 0 && col > 0) {
+		if (line > 0 && col > 0) {
 			filepos.path = path;
 			filepos.line = line - 1;
 			filepos.col = col - 1;
@@ -407,10 +407,8 @@ void txtdoc(const char *method, msghandler *cb,
 void trigger(acmevim_strv msg) {
 	for (size_t i = 3; i + 4 < vec_len(&msg); i += 5) {
 		char *path = msg[i];
-		if (indir(path, cwd)) {
-			if (txtdocopen(path)) {
-				txtdocclose(path);
-			}
+		if (txtdocopen(path)) {
+			txtdocclose(path);
 		}
 	}
 }
