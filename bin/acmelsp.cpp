@@ -407,6 +407,12 @@ void trigger(acmevim_strv msg) {
 	}
 }
 
+void initialized(const QJsonObject &msg) {
+	send(newmsg("initialized", QJsonObject()));
+	const char *cmd[] = {"bufinfo"};
+	requestv("bufinfo", cmd, ARRLEN(cmd), trigger);
+}
+
 void spawn(char *argv[]) {
 	int fd0[2], fd1[2];
 	if (pipe(fd0) == -1 || pipe(fd1) == -1) {
@@ -440,9 +446,7 @@ void spawn(char *argv[]) {
 	send(newreq("initialize", QJsonObject{
 		{"processId", getpid()},
 		{"capabilities", capabilities()},
-	}));
-	const char *cmd[] = {"bufinfo"};
-	requestv("bufinfo", cmd, ARRLEN(cmd), trigger);
+	}), initialized);
 }
 
 int main(int argc, char *argv[]) {
