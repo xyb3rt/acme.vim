@@ -946,18 +946,21 @@ endfunc
 
 function s:BufInfo()
 	let p = 0
-	let v = []
-	for w in range(1, winnr('$'))
+	let r = []
+	for i in range(1, winnr('$'))
+		let w = win_getid(i)
 		let b = winbufnr(w)
 		if getbufvar(b, '&buftype', '') == ''
-			let p += w == winnr()
-			let i = [fnamemodify(bufname(b), ':p'),
-				\ line('.'), col('.'), line("'<"), line("'>")]
-			call extend(v, i, w == winnr() ? 0 :
-				\ w == winnr('#') ? p : len(v))
+			let l = [fnamemodify(bufname(b), ':p'), line('.', w),
+				\ col('.', w), line("'<", w), line("'>", w)]
+			call extend(r, l, i == winnr() ? 0 :
+				\ i == winnr('#') ? p : len(r))
+			if i == winnr()
+				let p = len(l)
+			endif
 		endif
 	endfor
-	return v
+	return r
 endfunc
 
 let s:ctrlrx = ''
