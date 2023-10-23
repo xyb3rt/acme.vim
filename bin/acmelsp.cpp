@@ -27,15 +27,6 @@ struct typeinfo {
 
 typedef void msghandler(const QJsonObject &);
 
-cmd_func cmd_decl;
-cmd_func cmd_def;
-cmd_func cmd_impl;
-cmd_func cmd_all;
-cmd_func cmd_refs;
-cmd_func cmd_typedef;
-cmd_func cmd_typehy;
-cmd_func cmd_syms;
-
 const char *symkind[] = {
 	"", "file", "module", "namespace", "package", "class", "method",
 	"property", "field", "constructor", "enum", "interface", "function",
@@ -52,25 +43,6 @@ bool printed;
 chan rx, tx;
 QList<typeinfo> types;
 QHash<unsigned int, qsizetype> parenttype;
-
-void addcmd(const char *name, cmd_func *func, const QJsonObject &capabilities,
-            const char *capability) {
-	if (capabilities.contains(capability)) {
-		cmds.append({name, func});
-	}
-}
-
-void initmenu(const QJsonObject &cap) {
-	addcmd("decl", cmd_decl, cap, "declarationProvider");
-	addcmd("def", cmd_def, cap, "definitionProvider");
-	addcmd("impl", cmd_impl, cap, "implementationProvider");
-	addcmd("all", cmd_all, cap, "referencesProvider");
-	addcmd("refs", cmd_refs, cap, "referencesProvider");
-	addcmd("typedef", cmd_typedef, cap, "typeDefinitionProvider");
-	addcmd("typehy", cmd_typehy, cap, "typeHierarchyProvider");
-	addcmd("syms", cmd_syms, cap, "documentSymbolProvider");
-	cmds.append({NULL, NULL});
-}
 
 void setpos(acmevim_strv msg) {
 	filepos.path.clear();
@@ -450,6 +422,8 @@ void closeall(void) {
 	docs.clear();
 }
 
+void initmenu(const QJsonObject &);
+
 void initialized(const QJsonObject &msg) {
 	initmenu(get(msg, {"result", "capabilities"}).toObject());
 	send(newmsg("initialized", QJsonObject()));
@@ -555,4 +529,23 @@ void cmd_typehy(void) {
 
 void cmd_syms(void) {
 	txtdoc("documentSymbol", showsyms);
+}
+
+void addcmd(const char *name, cmd_func *func, const QJsonObject &capabilities,
+            const char *capability) {
+	if (capabilities.contains(capability)) {
+		cmds.append({name, func});
+	}
+}
+
+void initmenu(const QJsonObject &cap) {
+	addcmd("decl", cmd_decl, cap, "declarationProvider");
+	addcmd("def", cmd_def, cap, "definitionProvider");
+	addcmd("impl", cmd_impl, cap, "implementationProvider");
+	addcmd("all", cmd_all, cap, "referencesProvider");
+	addcmd("refs", cmd_refs, cap, "referencesProvider");
+	addcmd("typedef", cmd_typedef, cap, "typeDefinitionProvider");
+	addcmd("typehy", cmd_typehy, cap, "typeHierarchyProvider");
+	addcmd("syms", cmd_syms, cap, "documentSymbolProvider");
+	cmds.append({NULL, NULL});
 }
