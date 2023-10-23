@@ -189,26 +189,27 @@ void handle(const QJsonObject &msg) {
 	}
 }
 
-bool parseheader(const QByteArray &d, qsizetype *i, qsizetype *n) {
+bool nextmsg(const QByteArray &d, qsizetype *i, qsizetype *n) {
 	qsizetype len = 0;
 	qsizetype pos = *i;
 	for (;;) {
-		qsizetype sep = d.indexOf("\r\n", pos);
-		if (sep == -1) {
+		qsizetype end = d.indexOf("\r\n", pos);
+		if (end == -1) {
 			break;
-		} else if (sep == pos) {
-			*i = sep + 2;
+		} else if (end == pos) {
+			if (pos + 2 + len > d.size()) {
+				return false;
+			}
+			*i = pos + 2;
 			*n = len;
 			return true;
 		}
-		const char *h = d.constData() + pos;
+		const char *header = d.constData() + pos;
 		unsigned long long l;
-		int r = 0;
-		if (sscanf(h, "Content-Length: %llu%n", &l, &r) == 1 &&
-		    r == sep - pos) {
+		if (sscanf(header, "Content-Length: %llu", &l) == 1) {
 			len = l;
 		}
-		pos = sep + 2;
+		pos = end + 2;
 	}
 	return false;
 }
@@ -228,7 +229,7 @@ void receive(void) {
 		rx.buf.append(buf, n);
 	}
 	qsizetype i = 0, n;
-	while (parseheader(rx.buf, &i, &n) && i + n <= rx.buf.size()) {
+	while (nextmsg(rx.buf, &i, &n)) {
 		auto doc = QJsonDocument::fromJson(rx.buf.mid(i, n));
 		i += n;
 		if (doc.isObject()) {
