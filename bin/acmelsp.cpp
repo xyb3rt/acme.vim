@@ -27,6 +27,10 @@ struct typeinfo {
 
 typedef void msghandler(const QJsonObject &);
 
+const char *msgtype[] = {
+	"", "Error", "Warning", "Info", "Log", "Debug"
+};
+
 const char *symkind[] = {
 	"", "file", "module", "namespace", "package", "class", "method",
 	"property", "field", "constructor", "enum", "interface", "function",
@@ -38,6 +42,7 @@ const char *symkind[] = {
 QVector<struct cmd> cmds;
 QSet<QByteArray> docs;
 struct filepos filepos;
+QHash<QByteArray, msghandler *> handler;
 QHash<unsigned int, msghandler *> requests;
 bool printed;
 chan rx, tx;
@@ -156,10 +161,12 @@ void handle(const QJsonObject &msg) {
 				handler(msg);
 			}
 		}
-	} else if (msg.contains("id")) {
-		// request
 	} else {
-		// notification
+		// request or notification
+		QByteArray method = msg.value("method").toString().toUtf8();
+		if (handler.contains(method)) {
+			handler.value(method)(msg);
+		}
 	}
 }
 
@@ -233,6 +240,17 @@ void send(const QJsonObject &msg) {
 			error(EXIT_FAILURE, errno, "write");
 		}
 		w += r;
+	}
+}
+
+void showmessage(const QJsonObject &msg) {
+	int type = get(msg, {"params", "type"}).toInt();
+	QString message = get(msg, {"params", "message"}).toString();
+	if (type > 0 && type < 4 && !message.isEmpty()) {
+		printf("%s%s: %s", printed ? "\n" : "", msgtype[type],
+		       message.toUtf8().data());
+		printed = true;
+		nl();
 	}
 }
 
@@ -399,6 +417,7 @@ void txtdoc(const char *method, msghandler *handler,
 		return;
 	}
 	clear(REDRAW);
+	printed = false;
 	QJsonObject params = txtpos();
 	for (auto i = extra.begin(), end = extra.end(); i != end; i++) {
 		params[i.key()] = i.value();
@@ -429,6 +448,10 @@ void initialized(const QJsonObject &msg) {
 	send(newmsg("initialized", QJsonObject()));
 	const char *cmd[] = {"bufinfo"};
 	requestv("bufinfo", cmd, ARRLEN(cmd), openall);
+}
+
+void inithandlers(void) {
+	handler["window/showMessage"] = showmessage;
 }
 
 void spawn(char *argv[]) {
@@ -464,6 +487,7 @@ void spawn(char *argv[]) {
 		{"processId", getpid()},
 		{"capabilities", capabilities()},
 	}, initialized));
+	inithandlers();
 }
 
 int main(int argc, char *argv[]) {
@@ -482,7 +506,6 @@ int main(int argc, char *argv[]) {
 			}
 			menu(cmds.data(), printed ? "\n" : "");
 			dirty = CLEAN;
-			printed = false;
 		}
 		if (block(rx.fd) == 0) {
 			input();
