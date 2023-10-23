@@ -47,7 +47,7 @@ const char *symkind[] = {
 QVector<struct cmd> cmds;
 QSet<QByteArray> docs;
 struct filepos filepos;
-QHash<unsigned int, msghandler *> handler;
+QHash<unsigned int, msghandler *> requests;
 bool printed;
 chan rx, tx;
 QList<typeinfo> types;
@@ -160,10 +160,12 @@ QJsonObject newmsg(const QString &method, const QJsonValue &params) {
 	};
 }
 
-QJsonObject newreq(const QString &method, const QJsonValue &params) {
+QJsonObject newreq(const QString &method, const QJsonValue &params,
+                   msghandler *handler) {
 	static unsigned int id;
 	QJsonObject msg = newmsg(method, params);
 	msg["id"] = (qint64)++id;
+	requests[id] = handler;
 	return msg;
 }
 
@@ -176,10 +178,10 @@ void handle(const QJsonObject &msg) {
 			printed = true;
 		}
 		unsigned int id = msg.value("id").toInt();
-		if (handler.contains(id)) {
-			msghandler *h = handler.take(id);
+		if (requests.contains(id)) {
+			msghandler *handler = requests.take(id);
 			if (error.isEmpty()) {
-				h(msg);
+				handler(msg);
 			}
 		}
 	} else if (msg.contains("id")) {
@@ -245,10 +247,7 @@ void receive(void) {
 	}
 }
 
-void send(const QJsonObject &msg, msghandler *h = NULL) {
-	if (h) {
-		handler[msg.value("id").toInt()] = h;
-	}
+void send(const QJsonObject &msg) {
 	QByteArray d = QJsonDocument(msg).toJson(QJsonDocument::Compact);
 	d.prepend(QString::asprintf("Content-Length: %zu\r\n\r\n",
 	                            (size_t)d.size()).toUtf8());
@@ -364,13 +363,11 @@ qsizetype addtype(const QJsonObject &t, int level, qsizetype p) {
 	return i;
 }
 
-msghandler handletypes;
-
-void querytypes(const char *method, qsizetype p) {
+void querytypes(const char *method, qsizetype p, msghandler *handler) {
 	auto params = QJsonObject{{"item", types[p].obj}};
-	auto req = newreq(QString("typeHierarchy/") + method, params);
+	auto req = newreq(QString("typeHierarchy/") + method, params, handler);
 	parenttype[req.value("id").toInt()] = p;
-	send(req, handletypes);
+	send(req);
 }
 
 void handletypes(const QJsonObject &msg) {
@@ -390,12 +387,13 @@ void handletypes(const QJsonObject &msg) {
 		QJsonObject t = i.toObject();
 		if (!t.isEmpty()) {
 			p = addtype(t, level, p);
-			querytypes(dir < 0 ? "subtypes" : "supertypes", p);
+			querytypes(dir < 0 ? "subtypes" : "supertypes", p,
+			           handletypes);
 		}
 	}
-	if (handler.isEmpty() && !types.isEmpty() && dir < 0) {
+	if (requests.isEmpty() && !types.isEmpty() && dir < 0) {
 		dir = 1;
-		querytypes("supertypes", 0);
+		querytypes("supertypes", 0, handletypes);
 	}
 }
 
@@ -423,7 +421,7 @@ void txtdocclose(const QByteArray &path) {
 	}));
 }
 
-void txtdoc(const char *method, msghandler *cb,
+void txtdoc(const char *method, msghandler *handler,
             const QJsonObject &extra = QJsonObject()) {
 	if (!getpos() || !txtdocopen(filepos.path)) {
 		return;
@@ -433,7 +431,7 @@ void txtdoc(const char *method, msghandler *cb,
 	for (auto i = extra.begin(), end = extra.end(); i != end; i++) {
 		params[i.key()] = i.value();
 	}
-	send(newreq(QString("textDocument/") + method, params), cb);
+	send(newreq(QString("textDocument/") + method, params, handler));
 }
 
 void openall(acmevim_strv msg) {
@@ -491,7 +489,7 @@ void spawn(char *argv[]) {
 	send(newreq("initialize", QJsonObject{
 		{"processId", getpid()},
 		{"capabilities", capabilities()},
-	}), initialized);
+	}, initialized));
 }
 
 int main(int argc, char *argv[]) {
@@ -503,7 +501,7 @@ int main(int argc, char *argv[]) {
 	init();
 	spawn(&argv[1]);
 	for (;;) {
-		if (dirty && handler.isEmpty()) {
+		if (dirty && requests.isEmpty()) {
 			closeall();
 			if (!types.isEmpty()) {
 				dumptypes();
@@ -515,7 +513,7 @@ int main(int argc, char *argv[]) {
 		if (block(rx.fd) == 0) {
 			input();
 			struct cmd *cmd = match(cmds.data());
-			if (cmd != NULL && handler.isEmpty()) {
+			if (cmd != NULL && requests.isEmpty()) {
 				cmd->func();
 			}
 		} else {
