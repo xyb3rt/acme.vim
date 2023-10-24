@@ -280,7 +280,7 @@ void cmd_stash(void) {
 }
 
 void cmd_switch(void) {
-	set("git", "branch", "-a", NULL);
+	set("git", "branch", "-avv", NULL);
 	run();
 	set("git", "switch", NULL);
 	if (add("switch: --create")) {
