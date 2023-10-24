@@ -1007,6 +1007,9 @@ function s:CtrlRecv(ch, data)
 			call s:CtrlSend(cid, ['scratched'])
 		elseif msg[2] == 'bufinfo'
 			call s:CtrlSend(cid, ['bufinfo'] + s:BufInfo())
+		elseif msg[2] == 'save'
+			silent! wall
+			call s:CtrlSend(cid, ['saved'])
 		endif
 	endfor
 endfunc

@@ -67,7 +67,12 @@ void setpos(acmevim_strv msg) {
 bool getpos() {
 	const char *argv[] = {"bufinfo"};
 	requestv("bufinfo", argv, ARRLEN(argv), setpos);
-	return !filepos.path.isEmpty();
+	if (filepos.path.isEmpty()) {
+		return false;
+	}
+	argv[0] = "save";
+	requestv("saved", argv, ARRLEN(argv), NULL);
+	return true;
 }
 
 QJsonValue get(QJsonValue v, const QStringList &keys) {
