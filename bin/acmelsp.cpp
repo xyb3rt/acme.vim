@@ -7,6 +7,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QUrl>
 
 struct chan {
 	int fd;
@@ -87,11 +88,11 @@ const char *relpath(const char *path) {
 
 bool parseloc(const QJsonObject &loc, struct filepos *pos) {
 	int line = get(loc, {"range", "start", "line"}).toInt(-1);
-	QString uri = loc.value("uri").toString();
-	if (!uri.startsWith("file:///") || line < 0) {
+	auto path = QUrl(loc.value("uri").toString()).toLocalFile().toUtf8();
+	if (path.isEmpty() || line < 0) {
 		return false;
 	}
-	pos->path = uri.mid(7).toUtf8();
+	pos->path = path;
 	pos->line = line;
 	pos->col = 0;
 	return true;
@@ -120,7 +121,7 @@ QJsonObject capabilities(void) {
 QJsonObject txtpos() {
 	return QJsonObject{
 		{"textDocument", QJsonObject{
-			{"uri", QString("file://") + filepos.path},
+			{"uri", QUrl::fromLocalFile(filepos.path).toString()},
 		}},
 		{"position", QJsonObject{
 			{"line", (qint64)filepos.line},
@@ -394,7 +395,7 @@ bool txtdocopen(const QByteArray &path) {
 	}
 	send(newmsg("textDocument/didOpen", QJsonObject{
 		{"textDocument", QJsonObject{
-			{"uri", QString("file://") + path},
+			{"uri", QUrl::fromLocalFile(path).toString()},
 			{"languageId", ""},
 			{"text", QString(file.readAll())},
 		}}
