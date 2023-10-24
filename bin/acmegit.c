@@ -75,14 +75,14 @@ void checktime(void) {
 
 enum reply prompt(const char *p) {
 	if (p != NULL) {
-		printf("\n<< %s >>", p);
+		printf("<< %s >>", p);
 		nl();
 	}
 	block(-1);
 	input();
 	if (strcmp(buf.d, "<<") == 0) {
 		return CANCEL;
-	} else if (strcmp(buf.d, ">>") == 0 || buf.d[0] == '\0') {
+	} else if (strcmp(buf.d, ">>") == 0) {
 		return CONFIRM;
 	} else {
 		return SELECT;
@@ -90,9 +90,6 @@ enum reply prompt(const char *p) {
 }
 
 int run(void) {
-	if (!dirty) {
-		nl();
-	}
 	vec_push(&cmdv, NULL);
 	return call(cmdv, NULL);
 }
@@ -133,7 +130,7 @@ int main(int argc, char *argv[]) {
 			}
 			dirty = CLEAN;
 			status();
-			menu(cmds, "\n");
+			menu(cmds);
 		}
 		block(-1);
 		input();
@@ -208,13 +205,11 @@ void cmd_graph(void) {
 }
 
 void log_L(acmevim_strv msg) {
-	const char *nl = "\n";
 	for (size_t i = 3; i + 4 < vec_len(&msg); i += 5) {
 		char *path = indir(msg[i], cwd);
 		char *l1 = msg[i + 3], *l2 = msg[i + 4];
 		if (path != NULL && strcmp(l1, "0") != 0) {
-			printf("%s-L%s,%s:%s\n", nl, l1, l2, path);
-			nl = "";
+			printf("-L%s,%s:%s\n", l1, l2, path);
 		}
 	}
 }

@@ -45,7 +45,6 @@ QSet<QByteArray> docs;
 struct filepos filepos;
 QHash<QByteArray, msghandler *> handler;
 QHash<unsigned int, msghandler *> requests;
-bool printed;
 chan rx, tx;
 QList<typeinfo> types;
 QHash<unsigned int, qsizetype> parenttype;
@@ -157,8 +156,7 @@ void handle(const QJsonObject &msg) {
 		// response
 		QString error = get(msg, {"error", "message"}).toString();
 		if (!error.isEmpty()) {
-			fprintf(stderr, "Error: %s\n", error.toUtf8().data());
-			printed = true;
+			printf("Error: %s\n", error.toUtf8().data());
 		}
 		unsigned int id = msg.value("id").toInt();
 		if (requests.contains(id)) {
@@ -253,9 +251,7 @@ void showmessage(const QJsonObject &msg) {
 	int type = get(msg, {"params", "type"}).toInt();
 	QString message = get(msg, {"params", "message"}).toString();
 	if (type > 0 && type < 4 && !message.isEmpty()) {
-		printf("%s%s: %s", printed ? "\n" : "", msgtype[type],
-		       message.toUtf8().data());
-		printed = true;
+		printf("%s: %s", msgtype[type], message.toUtf8().data());
 		nl();
 	}
 }
@@ -268,9 +264,7 @@ void showmatches(const QJsonObject &msg) {
 		if (parseloc(i.toObject(), &pos)) {
 			if (path != pos.path) {
 				path = pos.path;
-				printf("%s%s\n", printed ? "\n" : "",
-				       relpath(path.data()));
-				printed = true;
+				printf("%s\n", relpath(path.data()));
 				QFile file(path);
 				lines.clear();
 				if (file.open(QIODevice::ReadOnly)) {
@@ -307,10 +301,6 @@ void showsym(const QJsonObject &sym, int level) {
 	size_t k = sym.value("kind").toInt();
 	const char *kind = k < ARRLEN(symkind) ? symkind[k] : "";
 	if (!name.isEmpty() && line >= 0) {
-		if (!printed) {
-			printf("%s\n", relpath(filepos.path.data()));
-			printed = true;
-		}
 		printf("%6u: %s%s%s%s\n", line + 1, indent(level).data(),
 		       kind, kind[0] != '\0' ? " " : "", name.data());
 	}
@@ -320,6 +310,7 @@ void showsym(const QJsonObject &sym, int level) {
 }
 
 void showsyms(const QJsonObject &msg) {
+	printf("%s\n", relpath(filepos.path.data()));
 	for (const QJsonValue &i : msg.value("result").toArray()) {
 		showsym(i.toObject(), 0);
 	}
@@ -335,12 +326,10 @@ void dumptypes(void) {
 		if (!name.isEmpty() && parseloc(t.obj, &pos)) {
 			if (path != pos.path) {
 				path = pos.path;
-				printf("%s%s\n", printed ? "\n" : "",
-				       relpath(path.data()));
+				printf("%s\n", relpath(path.data()));
 			}
 			printf("%6u: %s%s\n", pos.line + 1,
 			       indent(t.level).data(), name.data());
-			printed = true;
 		}
 		i = t.next;
 	}
@@ -423,7 +412,6 @@ void txtdoc(const char *method, msghandler *handler,
 		return;
 	}
 	clear(REDRAW);
-	printed = false;
 	QJsonObject params = txtpos();
 	for (auto i = extra.begin(), end = extra.end(); i != end; i++) {
 		params[i.key()] = i.value();
@@ -510,7 +498,7 @@ int main(int argc, char *argv[]) {
 			if (!types.isEmpty()) {
 				dumptypes();
 			}
-			menu(cmds.data(), printed ? "\n" : "");
+			menu(cmds.data());
 			dirty = CLEAN;
 		}
 		if (block(rx.fd) == 0) {
