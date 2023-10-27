@@ -3,6 +3,7 @@
  */
 #include "acmecmd.h"
 #include "indispensbl/call.h"
+#include <fcntl.h>
 
 enum reply {
 	CANCEL,
@@ -49,6 +50,7 @@ struct cmd cmds[] = {
 };
 
 acmevim_strv cmdv;
+int devnull;
 
 void set(const char *arg, ...) {
 	va_list ap;
@@ -89,9 +91,10 @@ enum reply prompt(const char *p) {
 	}
 }
 
-int run(void) {
+int run(int outfd) {
+	int fds[3] = {devnull, outfd, 2};
 	vec_push(&cmdv, NULL);
-	return call(cmdv, NULL);
+	return call(cmdv, fds);
 }
 
 int add(const char *p) {
@@ -114,7 +117,7 @@ int add(const char *p) {
 
 void status(void) {
 	set("git", "status", "-sb", NULL);
-	if (run() != 0) {
+	if (run(1) != 0) {
 		exit(EXIT_FAILURE);
 	}
 }
@@ -122,6 +125,10 @@ void status(void) {
 int main(int argc, char *argv[]) {
 	argv0 = argv[0];
 	cmdv = vec_new();
+	devnull = open("/dev/null", O_RDWR);
+	if (devnull == -1) {
+		error(EXIT_FAILURE, errno, "/dev/null");
+	}
 	init();
 	for (;;) {
 		if (dirty) {
@@ -146,7 +153,7 @@ void cmd_add(void) {
 	set("git", "add", NULL);
 	if (add("add: --edit ./")) {
 		clear(CHECKTIME);
-		run();
+		run(devnull);
 	}
 }
 
@@ -154,7 +161,7 @@ void cmd_checkout(void) {
 	set("git", "checkout", NULL);
 	if (add("checkout: ./")) {
 		clear(CHECKTIME);
-		run();
+		run(devnull);
 	}
 }
 
@@ -162,7 +169,7 @@ void cmd_clean(void) {
 	set("git", "clean", NULL);
 	if (add("clean: --dry-run --force ./")) {
 		clear(CHECKTIME);
-		run();
+		run(1);
 	}
 }
 
@@ -170,14 +177,14 @@ void cmd_commit(void) {
 	set("git", "commit", "-v", NULL);
 	if (add("commit: --all --amend --no-edit --fixup")) {
 		clear(CHECKTIME);
-		run();
+		run(1);
 	}
 }
 
 void cmd_config(void) {
 	clear(REDRAW);
 	set("git", "config", "-e", NULL);
-	run();
+	run(devnull);
 }
 
 void cmd_diff(void) {
@@ -190,11 +197,11 @@ void cmd_diff(void) {
 
 void cmd_fetch(void) {
 	set("git", "remote", NULL);
-	run();
+	run(1);
 	set("git", "fetch", NULL);
 	if (add("fetch: --all --prune")) {
 		clear(REDRAW);
-		run();
+		run(1);
 	}
 }
 
@@ -227,21 +234,21 @@ void cmd_log(void) {
 
 void cmd_merge(void) {
 	set("git", "branch", "-vv", NULL);
-	run();
+	run(1);
 	set("git", "merge", NULL);
 	if (add("merge: @{u}")) {
 		clear(CHECKTIME);
-		run();
+		run(1);
 	}
 }
 
 void cmd_push(void) {
 	set("git", "remote", NULL);
-	run();
+	run(1);
 	set("git", "push", NULL);
 	if (add("push: --all --dry-run --force --set-upstream --tags")) {
 		clear(REDRAW);
-		run();
+		run(1);
 	}
 }
 
@@ -249,15 +256,15 @@ void cmd_rebase(void) {
 	set("git", "rebase", "-i", "--autosquash", NULL);
 	if (add("rebase: @{u}")) {
 		clear(CHECKTIME);
-		run();
+		run(1);
 	}
 }
 
 void cmd_reset(void) {
-	set("git", "reset", "-q", NULL);
+	set("git", "reset", NULL);
 	if (add("reset: HEAD -- ./")) {
 		clear(CHECKTIME);
-		run();
+		run(devnull);
 	}
 }
 
@@ -265,26 +272,26 @@ void cmd_rm(void) {
 	set("git", "rm", "--", NULL);
 	if (add("rm:")) {
 		clear(CHECKTIME);
-		run();
+		run(devnull);
 	}
 }
 
 void cmd_stash(void) {
 	set("git", "stash", "list", NULL);
-	run();
+	run(1);
 	set("git", "stash", NULL);
 	if (add("stash: --include-untracked pop drop")) {
 		clear(CHECKTIME);
-		run();
+		run(devnull);
 	}
 }
 
 void cmd_switch(void) {
 	set("git", "branch", "-avv", NULL);
-	run();
+	run(1);
 	set("git", "switch", NULL);
 	if (add("switch: --create")) {
 		clear(CHECKTIME);
-		run();
+		run(devnull);
 	}
 }
