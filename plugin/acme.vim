@@ -571,7 +571,8 @@ function s:RgOpen()
 	if m != []
 		let l = search('\v^(\s*(\d+[-:]|\-\-\s*$))@!', 'bnW')
 		if l != 0
-			return s:OpenFile(getline(l), m[1])
+			let f = substitute(getline(l), '^\~\~ ', '', '')
+			return s:OpenFile(f, m[1])
 		endif
 	endif
 endfunc
