@@ -631,7 +631,10 @@ function s:ListBufs()
 	let nl = max(map(copy(bufs), 'len(v:val.bufnr)'))
 	call map(bufs, 'printf("#%-".nl."s %s", v:val.bufnr,' .
 		\ 'v:val.name != "" ? s:Normalize(v:val.name) : "")')
-	call s:ErrorOpen('+Errors', bufs)
+	let old = filter(copy(v:oldfiles), 'bufnr("^".v:val."$") == -1 &&' .
+		\ 'fnamemodify(v:val, ":t") == "guide"')
+	call map(old, 'repeat(" ", nl + 2) . s:Normalize(v:val)')
+	call s:ErrorOpen('+Errors', old + bufs)
 endfunc
 
 function AcmeMoveWin(dir)
