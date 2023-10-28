@@ -215,6 +215,24 @@ function s:Argv(cmd)
 	return type(a:cmd) == type([]) ? a:cmd : [&shell, &shellcmdflag, a:cmd]
 endfunc
 
+function s:JobStart(cmd, b, opts, inp)
+	let opts = extend({'exit_cb': 's:Exited', 'err_io': 'out',
+		\ 'out_io': 'buffer', 'out_buf': a:b, 'out_msg': 0}, a:opts)
+	let v:errmsg = ''
+	silent! let job = job_start(s:Argv(a:cmd), opts)
+	if job_status(job) == "fail"
+		if v:errmsg != ''
+			call appendbufline(a:b, '$', v:errmsg)
+		endif
+		return
+	endif
+	call s:Started(job, a:b, a:cmd)
+	if a:inp != ''
+		call ch_sendraw(job, a:inp)
+		call ch_close_in(job)
+	endif
+endfunc
+
 function s:ErrorOpen(name, ...)
 	let p = win_getid()
 	let name = s:Normalize(a:name)
@@ -239,21 +257,14 @@ endfunc
 
 function s:ErrorExec(cmd, dir, inp)
 	let name = '+Errors'
-	let opts = {'exit_cb': 's:Exited', 'err_io': 'out', 'out_io': 'buffer',
-		\ 'in_io': (a:inp != '' ? 'pipe' : 'null'), 'out_msg': 0}
+	let opts = {'in_io': (a:inp != '' ? 'pipe' : 'null')}
 	if a:dir != ''
 		let name = a:dir.'/'.name
 		let opts['cwd'] = a:dir
 	endif
 	silent! wall
 	let b = s:ErrorOpen(name)
-	let opts['out_buf'] = b
-	let job = job_start(s:Argv(a:cmd), opts)
-	call s:Started(job, b, a:cmd)
-	if a:inp != ''
-		call ch_sendraw(job, a:inp)
-		call ch_close_in(job)
-	endif
+	call s:JobStart(a:cmd, b, opts, a:inp)
 endfunc
 
 function s:System(cmd, dir, inp)
@@ -351,23 +362,16 @@ function s:ScratchExec(cmd, dir, inp, name)
 	call s:ScratchNew(a:name)
 	let b = bufnr()
 	let opts = {'callback': function('s:ScratchCb', [b]),
-		\ 'env': {'ACMEVIMBUF': b}, 'exit_cb': 's:Exited',
-		\ 'err_io': 'out', 'in_io': 'pipe', 'out_io': 'buffer',
-		\ 'out_buf': b, 'out_msg': 0}
+		\ 'env': {'ACMEVIMBUF': b}, 'in_io': 'pipe'}
 	if a:dir != ''
 		let opts['cwd'] = a:dir
 	endif
-	let job = job_start(s:Argv(a:cmd), opts)
-	call s:Started(job, b, a:cmd)
+	call s:JobStart(a:cmd, b, opts, a:inp)
 	let s:scratchdir[b] = fnamemodify(a:dir, ':p')
-	if a:inp != ''
-		call ch_sendraw(job, a:inp)
-		call ch_close_in(job)
-	endif
 endfunc
 
 function s:Exec(cmd)
-	call job_start(s:Argv(a:cmd), {
+	silent! call job_start(s:Argv(a:cmd), {
 		\ 'err_io': 'null', 'in_io': 'null', 'out_io': 'null'})
 endfunc
 
