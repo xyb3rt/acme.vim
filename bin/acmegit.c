@@ -3,6 +3,7 @@
  */
 #include "acmecmd.h"
 #include "indispensbl/call.h"
+#include "indispensbl/fmt.h"
 #include <fcntl.h>
 
 enum reply {
@@ -12,6 +13,8 @@ enum reply {
 };
 
 cmd_func cmd_add;
+cmd_func cmd_branch;
+cmd_func cmd_cd;
 cmd_func cmd_checkout;
 cmd_func cmd_clean;
 cmd_func cmd_commit;
@@ -26,7 +29,9 @@ cmd_func cmd_rebase;
 cmd_func cmd_reset;
 cmd_func cmd_rm;
 cmd_func cmd_stash;
+cmd_func cmd_submodule;
 cmd_func cmd_switch;
+cmd_func cmd_tag;
 
 struct cmd cmds[] = {
 	{"diff", cmd_diff},
@@ -35,7 +40,10 @@ struct cmd cmds[] = {
 	{"fetch", cmd_fetch},
 	{"push", cmd_push},
 	{"config", cmd_config},
+	{"cd", cmd_cd},
+	{"submodule", cmd_submodule},
 	{"stash", cmd_stash},
+	{"tag", cmd_tag},
 	{">\n<"},
 	{"add", cmd_add},
 	{"reset", cmd_reset},
@@ -43,6 +51,7 @@ struct cmd cmds[] = {
 	{"merge", cmd_merge},
 	{"rebase", cmd_rebase},
 	{"switch", cmd_switch},
+	{"branch", cmd_branch},
 	{"checkout", cmd_checkout},
 	{"clean", cmd_clean},
 	{"rm", cmd_rm},
@@ -157,6 +166,32 @@ void cmd_add(void) {
 	}
 }
 
+void cmd_branch(void) {
+	set("git", "branch", "-avv", NULL);
+	run(1);
+	set("git", "branch", NULL);
+	if (add("branch: --copy --delete --move --force")) {
+		clear(REDRAW);
+		run(1);
+	}
+}
+
+void cmd_cd(void) {
+	enum reply reply = prompt("cd:");
+	clear(REDRAW);
+	if (reply == SELECT) {
+		char *dir = buf.d[0] == '/' ? buf.d :
+		            xasprintf("%s/%s", cwd, buf.d);
+		if (access(dir, F_OK) == 0) {
+			set("scratch", dir, "", "acmegit", NULL);
+			request("scratched", NULL);
+		}
+		if (dir != buf.d) {
+			free(dir);
+		}
+	}
+}
+
 void cmd_checkout(void) {
 	set("git", "checkout", NULL);
 	if (add("checkout: ./")) {
@@ -253,8 +288,10 @@ void cmd_push(void) {
 }
 
 void cmd_rebase(void) {
+	set("git", "branch", "-vv", NULL);
+	run(1);
 	set("git", "rebase", "-i", "--autosquash", NULL);
-	if (add("rebase: @{u}")) {
+	if (add("rebase: --onto @{u}")) {
 		clear(CHECKTIME);
 		run(1);
 	}
@@ -286,6 +323,16 @@ void cmd_stash(void) {
 	}
 }
 
+void cmd_submodule(void) {
+	set("git", "submodule", "status", NULL);
+	run(1);
+	set("git", "submodule", NULL);
+	if (add("submodule: update --init --recursive")) {
+		clear(CHECKTIME);
+		run(1);
+	}
+}
+
 void cmd_switch(void) {
 	set("git", "branch", "-avv", NULL);
 	run(1);
@@ -293,5 +340,15 @@ void cmd_switch(void) {
 	if (add("switch: --create")) {
 		clear(CHECKTIME);
 		run(devnull);
+	}
+}
+
+void cmd_tag(void) {
+	set("git", "tag", NULL);
+	run(1);
+	set("git", "tag", NULL);
+	if (add("tag: --annotate --delete --force")) {
+		clear(REDRAW);
+		run(1);
 	}
 }
