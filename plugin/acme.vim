@@ -200,15 +200,18 @@ endfunc
 
 au BufUnload * call s:Unload()
 
-function s:New(cmd)
+function s:SplitHeight(minh, maxh)
 	let minh = &winminheight > 0 ? 2 * &winminheight + 1 : 2
 	if winheight(0) < minh
 		exe minh.'wincmd _'
 	endif
-	let minh = 10
 	let s = winnr('$') == 1 && &laststatus == 1
-	let h = max([minh, (winheight(0) - s) / 2])
-	exe h.a:cmd
+	let h = max([a:minh, (winheight(0) - s) / 2])
+	return a:maxh > 0 ? min([h, a:maxh]) : h
+endfunc
+
+function s:New(cmd)
+	exe (s:SplitHeight(10, 0)).a:cmd
 endfunc
 
 function s:Argv(cmd)
@@ -659,10 +662,14 @@ endfunc
 function s:SplitMoveWin(other, below)
 	let w = win_getid()
 	let p = win_getid(winnr('#'))
-	if w != a:other
-		call win_splitmove(win_id2win(w), win_id2win(a:other),
-			\ {'rightbelow': a:below})
+	if w == a:other
+		return
 	endif
+	noa exe win_id2win(a:other).'wincmd w'
+	noa exe (a:below ? 'bel' : 'abo') (s:SplitHeight(1, winheight(w))).'sp'
+	noa exe 'b' winbufnr(w)
+	noa exe win_id2win(w).'close'
+	let w = win_getid()
 	noa exe win_id2win(p).'wincmd w'
 	noa exe win_id2win(w).'wincmd w'
 endfunc
