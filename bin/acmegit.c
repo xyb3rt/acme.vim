@@ -12,6 +12,15 @@ enum reply {
 	CONFIRM,
 };
 
+typedef void list_func(void);
+
+list_func list_allbranches;
+list_func list_branches;
+list_func list_remotes;
+list_func list_stashes;
+list_func list_submodules;
+list_func list_tags;
+
 cmd_func cmd_add;
 cmd_func cmd_branch;
 cmd_func cmd_cd;
@@ -60,6 +69,7 @@ struct cmd cmds[] = {
 
 acmevim_strv cmdv;
 int devnull;
+int promptline;
 
 void set(const char *arg, ...) {
 	va_list ap;
@@ -84,11 +94,7 @@ void checktime(void) {
 	requestv("timechecked", cmd, ARRLEN(cmd), NULL);
 }
 
-enum reply prompt(const char *p) {
-	if (p != NULL) {
-		printf("<< %s >>", p);
-		nl();
-	}
+enum reply get(void) {
 	block(-1);
 	input();
 	if (strcmp(buf.d, "<<") == 0) {
@@ -106,17 +112,45 @@ int run(int outfd) {
 	return call(cmdv, fds);
 }
 
-int add(const char *p) {
+void changed(acmevim_strv msg) {
+	if (vec_len(&msg) > 3) {
+		promptline = atoi(msg[3]);
+	}
+}
+
+void show(size_t arg, const char *hints) {
+	char *p = vec_new();
+	acmevim_push(&p, "<< ");
+	for (size_t i = arg; i < vec_len(&cmdv); i++) {
+		acmevim_push(&p, cmdv[i]);
+		acmevim_push(&p, i == arg ? ": " : " ");
+	}
+	acmevim_pushn(&p, ">>", 3);
+	if (hints != NULL) {
+		promptline = 0;
+	}
+	char *l1 = xasprintf("%d", promptline ? promptline : -3);
+	const char *l2 = hints != NULL ? "-1" : l1;
+	const char *argv[] = {"change", acmevimbuf, l1, l2, p, hints};
+	requestv("changed", argv, ARRLEN(argv) - (hints == NULL), changed);
+	vec_free(&p);
+	free(l1);
+}
+
+int add(size_t arg, const char *hints, list_func *ls) {
 	enum reply reply;
 	for (;;) {
-		reply = prompt(p);
+		show(arg, hints);
+		hints = NULL;
+		if (ls != NULL) {
+			ls();
+			ls = NULL;
+		}
+		reply = get();
 		if (reply != SELECT) {
 			break;
 		}
-		printf("%s\n", buf.d);
-		fflush(stdout);
 		vec_push(&cmdv, xstrdup(buf.d));
-		p = NULL;
 	}
 	if (reply == CANCEL) {
 		clear(REDRAW);
@@ -158,14 +192,35 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-void list_branches(int all) {
-	const char *cmd[] = {"git", "branch", all ? "-avv" : "-vv", NULL};
+void list_allbranches(void) {
+	const char *cmd[] = {"git", "branch", "-avv", NULL};
+	call((char **)cmd, NULL);
+}
+
+void list_branches(void) {
+	const char *cmd[] = {"git", "branch", "-vv", NULL};
 	call((char **)cmd, NULL);
 }
 
 void list_remotes(void) {
 	const char *cmd[] = {"git", "remote", NULL};
 	call((char **)cmd, NULL);
+}
+
+void log_L(acmevim_strv msg) {
+	for (size_t i = 3; i + 4 < vec_len(&msg); i += 5) {
+		char *path = indir(msg[i], cwd);
+		char *l1 = msg[i + 3], *l2 = msg[i + 4];
+		if (path != NULL && strcmp(l1, "0") != 0) {
+			printf("< -L%s,%s:%s >\n", l1, l2, path);
+		}
+	}
+	fflush(stdout);
+}
+
+void list_selections(void) {
+	const char *cmd[] = {"bufinfo"};
+	requestv("bufinfo", cmd, ARRLEN(cmd), &log_L);
 }
 
 void list_stashes(void) {
@@ -185,30 +240,31 @@ void list_tags(void) {
 
 void cmd_add(void) {
 	set("git", "add", NULL);
-	if (add("add: --edit ./")) {
+	if (add(1, "< --edit ./ >", NULL)) {
 		clear(CHECKTIME);
 		run(devnull);
 	}
 }
 
 void cmd_branch(void) {
-	list_branches(1);
 	set("git", "branch", NULL);
-	if (add("branch: --copy --delete --move --force")) {
+	if (add(1, "< --copy --delete --move --force >", list_allbranches)) {
 		clear(REDRAW);
 		run(1);
 	}
 }
 
 void cmd_cd(void) {
-	enum reply reply = prompt("cd:");
+	set("cd", NULL);
+	show(0, "<>");
+	enum reply reply = get();
 	clear(REDRAW);
 	if (reply == SELECT) {
 		char *dir = buf.d[0] == '/' ? buf.d :
 		            xasprintf("%s/%s", cwd, buf.d);
 		if (access(dir, F_OK) == 0) {
-			set("scratch", dir, "", "acmegit", NULL);
-			request("scratched", NULL);
+			const char *cmd[] = {"scratch", dir, "", "acmegit"};
+			requestv("scratched", cmd, ARRLEN(cmd), NULL);
 		}
 		if (dir != buf.d) {
 			free(dir);
@@ -218,7 +274,7 @@ void cmd_cd(void) {
 
 void cmd_checkout(void) {
 	set("git", "checkout", NULL);
-	if (add("checkout: ./")) {
+	if (add(1, "< ./ >", NULL)) {
 		clear(CHECKTIME);
 		run(devnull);
 	}
@@ -226,7 +282,7 @@ void cmd_checkout(void) {
 
 void cmd_clean(void) {
 	set("git", "clean", NULL);
-	if (add("clean: --dry-run --force ./")) {
+	if (add(1, "< --dry-run --force ./ >", NULL)) {
 		clear(CHECKTIME);
 		run(1);
 	}
@@ -234,7 +290,7 @@ void cmd_clean(void) {
 
 void cmd_commit(void) {
 	set("git", "commit", "-v", NULL);
-	if (add("commit: --all --amend --no-edit --fixup")) {
+	if (add(1, "< --all --amend --no-edit --fixup >", NULL)) {
 		clear(CHECKTIME);
 		run(1);
 	}
@@ -248,16 +304,15 @@ void cmd_config(void) {
 
 void cmd_diff(void) {
 	set("scratch", cwd, "git:diff", "git", "diff", NULL);
-	if (add("diff: --cached HEAD @{u} --")) {
+	if (add(4, "< --cached HEAD @{u} -- >", NULL)) {
 		clear(REDRAW);
 		request("scratched", NULL);
 	}
 }
 
 void cmd_fetch(void) {
-	list_remotes();
 	set("git", "fetch", NULL);
-	if (add("fetch: --all --prune")) {
+	if (add(1, "< --all --prune >", list_remotes)) {
 		clear(REDRAW);
 		run(1);
 	}
@@ -269,49 +324,36 @@ void cmd_graph(void) {
 	request("scratched", NULL);
 }
 
-void log_L(acmevim_strv msg) {
-	for (size_t i = 3; i + 4 < vec_len(&msg); i += 5) {
-		char *path = indir(msg[i], cwd);
-		char *l1 = msg[i + 3], *l2 = msg[i + 4];
-		if (path != NULL && strcmp(l1, "0") != 0) {
-			printf("-L%s,%s:%s\n", l1, l2, path);
-		}
-	}
-}
-
 void cmd_log(void) {
-	set("bufinfo", NULL);
-	request("bufinfo", &log_L);
 	set("scratch", cwd, "git:log", "git", "log", "--decorate",
 	    "--left-right", NULL);
-	if (add("log: -S HEAD ...@{u}")) {
+	if (add(4, "< -S HEAD ...@{u} >", list_selections)) {
 		clear(REDRAW);
 		request("scratched", NULL);
 	}
 }
 
 void cmd_merge(void) {
-	list_branches(0);
 	set("git", "merge", NULL);
-	if (add("merge: @{u}")) {
+	if (add(1, "< @{u} >", list_branches)) {
 		clear(CHECKTIME);
 		run(1);
 	}
 }
 
 void cmd_push(void) {
-	list_remotes();
 	set("git", "push", NULL);
-	if (add("push: --all --dry-run --force --set-upstream --tags")) {
+	if (add(1, "< --all --dry-run --force --set-upstream --tags >",
+	        list_remotes))
+	{
 		clear(REDRAW);
 		run(1);
 	}
 }
 
 void cmd_rebase(void) {
-	list_branches(0);
 	set("git", "rebase", "-i", "--autosquash", NULL);
-	if (add("rebase: --onto @{u}")) {
+	if (add(1, "< --onto @{u} >", list_branches)) {
 		clear(CHECKTIME);
 		run(1);
 	}
@@ -319,7 +361,7 @@ void cmd_rebase(void) {
 
 void cmd_reset(void) {
 	set("git", "reset", NULL);
-	if (add("reset: HEAD -- ./")) {
+	if (add(1, "< HEAD -- ./ >", NULL)) {
 		clear(CHECKTIME);
 		run(devnull);
 	}
@@ -327,43 +369,39 @@ void cmd_reset(void) {
 
 void cmd_rm(void) {
 	set("git", "rm", "--", NULL);
-	if (add("rm:")) {
+	if (add(1, "<>", NULL)) {
 		clear(CHECKTIME);
 		run(devnull);
 	}
 }
 
 void cmd_stash(void) {
-	list_stashes();
 	set("git", "stash", NULL);
-	if (add("stash: --include-untracked pop drop")) {
+	if (add(1, "< --include-untracked pop drop >", list_stashes)) {
 		clear(CHECKTIME);
 		run(devnull);
 	}
 }
 
 void cmd_submodule(void) {
-	list_submodules();
 	set("git", "submodule", NULL);
-	if (add("submodule: update --init --recursive")) {
+	if (add(1, "< update --init --recursive >", list_submodules)) {
 		clear(CHECKTIME);
 		run(1);
 	}
 }
 
 void cmd_switch(void) {
-	list_branches(1);
 	set("git", "switch", NULL);
-	if (add("switch: --create")) {
+	if (add(1, "< --create >", list_allbranches)) {
 		clear(CHECKTIME);
 		run(devnull);
 	}
 }
 
 void cmd_tag(void) {
-	list_tags();
 	set("git", "tag", NULL);
-	if (add("tag: --annotate --delete --force")) {
+	if (add(1, "< --annotate --delete --force >", list_tags)) {
 		clear(REDRAW);
 		run(1);
 	}

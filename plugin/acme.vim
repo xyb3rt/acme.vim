@@ -5,6 +5,10 @@ let loaded_acme_vim = 1
 
 au TextChanged,TextChangedI guide setl nomodified
 
+function s:Bound(min, n, max)
+	return max([a:min, min([a:n, a:max])])
+endfunc
+
 function s:Win(buf)
 	let b = bufnr(type(a:buf) == type('')
 		\ ? '^\V'.escape(a:buf, '\').'\v$'
@@ -978,6 +982,27 @@ function s:BufInfo()
 	return r
 endfunc
 
+function s:Change(b, l1, l2, lines)
+	let w = win_getid(s:Win(a:b))
+	if w == 0
+		return
+	endif
+	let last = line('$', w)
+	let l = s:Bound(1, a:l1 < 0 ? a:l1 + last + 2 : a:l1, last + 1)
+	let n = s:Bound(0, (a:l2 < 0 ? a:l2 + last + 2 : a:l2) - l + 1,
+		\ last - l + 1)
+	let i = min([n, len(a:lines)])
+	if i > 0
+		call setbufline(a:b, l, a:lines[:i-1])
+	endif
+	if n < len(a:lines)
+		call appendbufline(a:b, l + i - 1, a:lines[i:])
+	elseif n > len(a:lines)
+		call deletebufline(a:b, l + i, l + n - 1)
+	endif
+	return l
+endfunc
+
 let s:ctrlrx = ''
 
 function s:CtrlRecv(ch, data)
@@ -1025,6 +1050,10 @@ function s:CtrlRecv(ch, data)
 		elseif msg[2] == 'save'
 			silent! wall
 			call s:CtrlSend(cid, ['saved'])
+		elseif msg[2] == 'change'
+			let l = len(msg) < 7 ? 0 : s:Change(str2nr(msg[3]),
+				\ str2nr(msg[4]), str2nr(msg[5]), msg[6:])
+			call s:CtrlSend(cid, ['changed', l])
 		endif
 	endfor
 endfunc
