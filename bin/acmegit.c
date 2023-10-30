@@ -158,6 +158,31 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
+void list_branches(int all) {
+	const char *cmd[] = {"git", "branch", all ? "-avv" : "-vv", NULL};
+	call((char **)cmd, NULL);
+}
+
+void list_remotes(void) {
+	const char *cmd[] = {"git", "remote", NULL};
+	call((char **)cmd, NULL);
+}
+
+void list_stashes(void) {
+	const char *cmd[] = {"git", "stash", "list", NULL};
+	call((char **)cmd, NULL);
+}
+
+void list_submodules(void) {
+	const char *cmd[] = {"git", "submodule", "status", NULL};
+	call((char **)cmd, NULL);
+}
+
+void list_tags(void) {
+	const char *cmd[] = {"git", "tag", NULL};
+	call((char **)cmd, NULL);
+}
+
 void cmd_add(void) {
 	set("git", "add", NULL);
 	if (add("add: --edit ./")) {
@@ -167,8 +192,7 @@ void cmd_add(void) {
 }
 
 void cmd_branch(void) {
-	set("git", "branch", "-avv", NULL);
-	run(1);
+	list_branches(1);
 	set("git", "branch", NULL);
 	if (add("branch: --copy --delete --move --force")) {
 		clear(REDRAW);
@@ -231,8 +255,7 @@ void cmd_diff(void) {
 }
 
 void cmd_fetch(void) {
-	set("git", "remote", NULL);
-	run(1);
+	list_remotes();
 	set("git", "fetch", NULL);
 	if (add("fetch: --all --prune")) {
 		clear(REDRAW);
@@ -268,8 +291,7 @@ void cmd_log(void) {
 }
 
 void cmd_merge(void) {
-	set("git", "branch", "-vv", NULL);
-	run(1);
+	list_branches(0);
 	set("git", "merge", NULL);
 	if (add("merge: @{u}")) {
 		clear(CHECKTIME);
@@ -278,8 +300,7 @@ void cmd_merge(void) {
 }
 
 void cmd_push(void) {
-	set("git", "remote", NULL);
-	run(1);
+	list_remotes();
 	set("git", "push", NULL);
 	if (add("push: --all --dry-run --force --set-upstream --tags")) {
 		clear(REDRAW);
@@ -288,8 +309,7 @@ void cmd_push(void) {
 }
 
 void cmd_rebase(void) {
-	set("git", "branch", "-vv", NULL);
-	run(1);
+	list_branches(0);
 	set("git", "rebase", "-i", "--autosquash", NULL);
 	if (add("rebase: --onto @{u}")) {
 		clear(CHECKTIME);
@@ -314,8 +334,7 @@ void cmd_rm(void) {
 }
 
 void cmd_stash(void) {
-	set("git", "stash", "list", NULL);
-	run(1);
+	list_stashes();
 	set("git", "stash", NULL);
 	if (add("stash: --include-untracked pop drop")) {
 		clear(CHECKTIME);
@@ -324,8 +343,7 @@ void cmd_stash(void) {
 }
 
 void cmd_submodule(void) {
-	set("git", "submodule", "status", NULL);
-	run(1);
+	list_submodules();
 	set("git", "submodule", NULL);
 	if (add("submodule: update --init --recursive")) {
 		clear(CHECKTIME);
@@ -334,8 +352,7 @@ void cmd_submodule(void) {
 }
 
 void cmd_switch(void) {
-	set("git", "branch", "-avv", NULL);
-	run(1);
+	list_branches(1);
 	set("git", "switch", NULL);
 	if (add("switch: --create")) {
 		clear(CHECKTIME);
@@ -344,8 +361,7 @@ void cmd_switch(void) {
 }
 
 void cmd_tag(void) {
-	set("git", "tag", NULL);
-	run(1);
+	list_tags();
 	set("git", "tag", NULL);
 	if (add("tag: --annotate --delete --force")) {
 		clear(REDRAW);
