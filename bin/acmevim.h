@@ -10,8 +10,8 @@ typedef char *acmevim_buf;
 typedef char **acmevim_strv;
 
 struct acmevim_conn {
-	int fd;
 	int err;
+	int rxfd, txfd;
 	acmevim_buf rx, tx;
 };
 
@@ -67,11 +67,12 @@ void acmevim_send(struct acmevim_conn *conn, const char *dst, const char *src,
 	acmevim_push(&conn->tx, "\x1e");
 }
 
-struct acmevim_conn *acmevim_create(int sockfd) {
+struct acmevim_conn *acmevim_create(int rxfd, int txfd) {
 	struct acmevim_conn *conn;
 	conn = (struct acmevim_conn *)xrealloc(NULL, sizeof(*conn));
-	conn->fd = sockfd;
 	conn->err = 0;
+	conn->rxfd = rxfd;
+	conn->txfd = txfd;
 	conn->rx = (acmevim_buf)vec_new();
 	conn->tx = (acmevim_buf)vec_new();
 	return conn;
@@ -99,7 +100,7 @@ struct acmevim_conn *acmevim_connect(void) {
 	if (connect(sockfd, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
 		error(EXIT_FAILURE, errno, "connect");
 	}
-	return acmevim_create(sockfd);
+	return acmevim_create(sockfd, sockfd);
 }
 
 void acmevim_destroy(struct acmevim_conn *conn) {
@@ -108,32 +109,38 @@ void acmevim_destroy(struct acmevim_conn *conn) {
 	free(conn);
 }
 
+void acmevim_close(struct acmevim_conn *conn, int errnum) {
+	if (conn->rxfd != conn->txfd) {
+		close(conn->rxfd);
+	}
+	close(conn->txfd);
+	conn->rxfd = -1;
+	conn->txfd = -1;
+	conn->err = errnum;
+}
+
 void acmevim_rx(struct acmevim_conn *conn) {
 	static char buf[1024];
-loop:	ssize_t n = recv(conn->fd, buf, ARRLEN(buf), 0);
+loop:	ssize_t n = read(conn->rxfd, buf, ARRLEN(buf));
 	if (n == -1 && errno == EINTR) {
 		goto loop;
 	}
 	if (n > 0) {
 		acmevim_pushn(&conn->rx, buf, n);
 	} else if (n == 0 || errno != EAGAIN) {
-		close(conn->fd);
-		conn->fd = -1;
-		conn->err = n == -1 ? errno : 0;
+		acmevim_close(conn, n == -1 ? errno : 0);
 	}
 }
 
 void acmevim_tx(struct acmevim_conn *conn) {
-loop:	ssize_t n = send(conn->fd, conn->tx, vec_len(&conn->tx), 0);
+loop:	ssize_t n = write(conn->txfd, conn->tx, vec_len(&conn->tx));
 	if (n == -1 && errno == EINTR) {
 		goto loop;
 	}
 	if (n != -1) {
 		acmevim_pop(&conn->tx, n);
 	} else if (errno != EAGAIN) {
-		close(conn->fd);
-		conn->fd = -1;
-		conn->err = errno;
+		acmevim_close(conn, errno);
 	}
 }
 
@@ -147,12 +154,15 @@ int acmevim_sync(struct acmevim_conn **conns, size_t count, int listenfd) {
 		nfds = listenfd + 1;
 	}
 	for (size_t i = 0; i < count; i++) {
-		FD_SET(conns[i]->fd, &readfds);
-		if (vec_len(&conns[i]->tx) > 0) {
-			FD_SET(conns[i]->fd, &writefds);
+		FD_SET(conns[i]->rxfd, &readfds);
+		if (nfds <= conns[i]->rxfd) {
+			nfds = conns[i]->rxfd + 1;
 		}
-		if (nfds <= conns[i]->fd) {
-			nfds = conns[i]->fd + 1;
+		if (vec_len(&conns[i]->tx) > 0) {
+			FD_SET(conns[i]->txfd, &writefds);
+			if (nfds <= conns[i]->txfd) {
+				nfds = conns[i]->txfd + 1;
+			}
 		}
 	}
 	while (select(nfds, &readfds, &writefds, NULL, NULL) == -1) {
@@ -161,10 +171,10 @@ int acmevim_sync(struct acmevim_conn **conns, size_t count, int listenfd) {
 		}
 	}
 	for (size_t i = 0; i < count; i++) {
-		if (FD_ISSET(conns[i]->fd, &writefds)) {
+		if (FD_ISSET(conns[i]->txfd, &writefds)) {
 			acmevim_tx(conns[i]);
 		}
-		if (FD_ISSET(conns[i]->fd, &readfds)) {
+		if (FD_ISSET(conns[i]->rxfd, &readfds)) {
 			acmevim_rx(conns[i]);
 		}
 	}

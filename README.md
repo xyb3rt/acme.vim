@@ -112,14 +112,6 @@ running in, then compile the *acmevim* helper:
 make -C ~/.vim/pack/xyb3rt/start/acme.vim/bin acmevim
 ```
 
-And start it at boot by adding the following lines to your `~/.profile`:
-
-```
-if [ -z "$ACMEVIMPORT" ]; then
-	eval "$("$HOME/.vim/pack/xyb3rt/start/acme.vim/bin/acmevim" -d)"
-fi
-```
-
 *acme.vim* supports rudimentary plumbing via the global `g:acme_plumbing`
 variable. Here is an example to get right-clickable URLs, man pages and git
 refs, that you can add to your `~/.vimrc`:

@@ -24,7 +24,7 @@ enum dirty dirty;
 char id[16];
 
 int process(const char *resp, msg_cb *cb) {
-	if (conn->fd == -1) {
+	if (conn->rxfd == -1) {
 		error(EXIT_FAILURE, conn->err, "connection closed");
 	}
 	size_t pos = 0;
@@ -84,12 +84,12 @@ struct cmd *match(struct cmd cmds[]) {
 }
 
 int block(int fd) {
-	int nfds = (fd > conn->fd ? fd : conn->fd) + 1;
+	int nfds = (fd > conn->rxfd ? fd : conn->rxfd) + 1;
 	fd_set readfds;
 	for (;;) {
 		FD_ZERO(&readfds);
 		FD_SET(0, &readfds);
-		FD_SET(conn->fd, &readfds);
+		FD_SET(conn->rxfd, &readfds);
 		if (fd >= 0) {
 			FD_SET(fd, &readfds);
 		}
@@ -98,7 +98,7 @@ int block(int fd) {
 				error(EXIT_FAILURE, errno, "select");
 			}
 		}
-		if (FD_ISSET(conn->fd, &readfds)) {
+		if (FD_ISSET(conn->rxfd, &readfds)) {
 			acmevim_rx(conn);
 			process(NULL, NULL);
 		}

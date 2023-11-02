@@ -4,7 +4,6 @@
 
 enum mode {
 	CLEAR = 'c',
-	DETACH = 'd',
 	SCRATCH = 's'
 };
 
@@ -18,10 +17,9 @@ enum mode parse(int argc, char *argv[]) {
 	int opt;
 	opterr = 0;
 	setenv("POSIXLY_CORRECT", "1", 1);
-	while ((opt = getopt(argc, argv, "cds")) != -1) {
+	while ((opt = getopt(argc, argv, "cs")) != -1) {
 		switch (opt) {
 		case 'c':
-		case 'd':
 		case 's':
 			if (mode != 0 && mode != opt) {
 				error(EXIT_FAILURE, EINVAL, "-%c -%c", mode, opt);
@@ -55,6 +53,22 @@ const char *resp(enum mode mode) {
 	}
 }
 
+void sendport(struct acmevim_conn *conn, uint16_t port) {
+	char buf[16];
+	snprintf(buf, sizeof(buf), "%u", port);
+	const char *msg[] = {"port", buf};
+	acmevim_send(conn, "", "", msg, ARRLEN(msg));
+}
+
+uint16_t sockport(int sockfd) {
+	struct sockaddr_in addr;
+	socklen_t len = sizeof(addr);
+	if (getsockname(sockfd, (struct sockaddr *)&addr, &len) == -1) {
+		error(EXIT_FAILURE, errno, "getsockname");
+	}
+	return htons(addr.sin_port);
+}
+
 int startlisten(void) {
 	int sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (sockfd == -1) {
@@ -70,21 +84,20 @@ int startlisten(void) {
 	if (listen(sockfd, 10) == -1) {
 		error(EXIT_FAILURE, errno, "listen");
 	}
-	socklen_t len = sizeof(addr);
-	if (getsockname(sockfd, (struct sockaddr *)&addr, &len) == -1) {
-		error(EXIT_FAILURE, errno, "getsockname");
-	}
-	printf("ACMEVIMPORT=%d; export ACMEVIMPORT;\n", htons(addr.sin_port));
 	return sockfd;
+}
+
+struct acmevim_conn *newconn(int rxfd, int txfd) {
+	struct acmevim_conn *conn = acmevim_create(rxfd, txfd);
+	vec_push(&conns, conn);
+	vec_push(&ids, NULL);
+	return conn;
 }
 
 void acceptconn(int listenfd) {
 	int sockfd = accept(listenfd, NULL, NULL);
 	if (sockfd != -1) {
-		struct acmevim_conn *conn = acmevim_create(sockfd);
-		vec_push(&conns, conn);
-		vec_push(&ids, NULL);
-		acmevim_push(&conn->tx, "\x1e");
+		newconn(sockfd, sockfd);
 	}
 }
 
@@ -94,25 +107,6 @@ void closeconn(size_t c) {
 	vec_erase(&conns, c, 1);
 	free(ids[c]);
 	vec_erase(&ids, c, 1);
-}
-
-void detach(void) {
-	pid_t pid = fork();
-	if (pid == -1) {
-		error(EXIT_FAILURE, errno, "fork");
-	} else if (pid != 0) {
-		exit(0);
-	}
-	setsid();
-	int fd = open("/dev/null", O_RDWR);
-	if (fd != -1) {
-		dup2(fd, 0);
-		dup2(fd, 1);
-		dup2(fd, 2);
-		if (fd > 2) {
-			close(fd);
-		}
-	}
 }
 
 acmevim_strv msg(const char *cmd, char *argv[], size_t argc) {
@@ -147,6 +141,9 @@ void request(char *argv[], size_t argc) {
 }
 
 void server(acmevim_strv msg, size_t c) {
+	if (msg == NULL && c == 0) {
+		error(EXIT_FAILURE, conns[c]->err, "vim connection lost");
+	}
 	if (msg == NULL || vec_len(&msg) < 2 || msg[1][0] == '\0') {
 		return;
 	}
@@ -192,16 +189,15 @@ int main(int argc, char *argv[]) {
 	argv0 = argv[0];
 	conns = vec_new();
 	ids = vec_new();
-	mode = parse(argc, argv);
 	int listenfd = -1;
-	if (optind == argc) {
+	if (argc == 1) {
 		handle = server;
 		listenfd = startlisten();
-		if (mode == DETACH) {
-			detach();
-		}
+		struct acmevim_conn *vim = newconn(0, 1);
+		sendport(vim, sockport(listenfd));
 	} else {
 		handle = client;
+		mode = parse(argc, argv);
 		request(&argv[optind], argc - optind);
 	}
 	for (;;) {
@@ -210,7 +206,7 @@ int main(int argc, char *argv[]) {
 		}
 		size_t c = 0;
 		while (c < vec_len(&conns)) {
-			if (conns[c]->fd == -1) {
+			if (conns[c]->rxfd == -1) {
 				closeconn(c);
 			} else {
 				process(c);

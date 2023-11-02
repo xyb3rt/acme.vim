@@ -1013,16 +1013,17 @@ function s:CtrlRecv(ch, data)
 	endif
 	let msgs = strpart(s:ctrlrx, 0, end)
 	let s:ctrlrx = strpart(s:ctrlrx, end + 1)
-	let msgs = map(split(msgs, "\x1e", 1), 'split(v:val, "\x1f")')
+	let msgs = map(split(msgs, "\x1e", 1), 'split(v:val, "\x1f", 1)')
 	for msg in msgs
-		if len(msg) == 0
-			call s:CtrlSend('', [])
-			continue
-		elseif len(msg) < 3
+		if len(msg) < 3
 			continue
 		endif
 		let cid = msg[1]
-		if msg[2] == 'edit'
+		if msg[2] == 'port'
+			if len(msg) > 3
+				let $ACMEVIMPORT = msg[3]
+			endif
+		elseif msg[2] == 'edit'
 			for file in msg[3:]
 				call s:Edit(file, cid)
 			endfor
@@ -1060,7 +1061,7 @@ endfunc
 
 function s:CtrlSend(dst, msg)
 	let msg = join([a:dst, getpid()] + a:msg, "\x1f") . "\x1e"
-	call ch_sendraw(s:ctrlch, msg)
+	call ch_sendraw(s:ctrl, msg)
 endfunc
 
 function s:BufWinLeave()
@@ -1079,9 +1080,12 @@ endfunc
 
 au BufWinLeave * call s:BufWinLeave()
 
-if $ACMEVIMPORT != ""
-	let s:ctrlch = ch_open('localhost:'.$ACMEVIMPORT, {
-		\ 'mode': 'raw', 'callback': 's:CtrlRecv'})
+let g:ctrlexe = exepath(expand('<sfile>:p:h:h').'/bin/acmevim')
+
+if g:ctrlexe != ''
+	let s:ctrl = job_start([g:ctrlexe], {
+		\ 'mode': 'raw', 'callback': 's:CtrlRecv', 'err_io': 'null'})
 	let $ACMEVIMID = getpid()
-	let $EDITOR = expand('<sfile>:p:h:h').'/bin/acmevim'
+	let $EDITOR = g:ctrlexe
+	call s:CtrlSend('', [])
 endif
