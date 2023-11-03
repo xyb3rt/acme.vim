@@ -16,12 +16,10 @@ struct cmd {
 };
 
 const char *acmevimbuf;
-const char *acmevimid;
 struct { char *d; size_t len, size; } buf;
 struct acmevim_conn *conn;
 char *cwd;
 enum dirty dirty;
-char id[16];
 
 int process(const char *resp, msg_cb *cb) {
 	if (conn->rxfd == -1) {
@@ -33,7 +31,7 @@ int process(const char *resp, msg_cb *cb) {
 		if (msg == NULL) {
 			break;
 		}
-		if (vec_len(&msg) > 2 && resp && strcmp(msg[2], resp) == 0) {
+		if (vec_len(&msg) > 0 && resp && strcmp(msg[0], resp) == 0) {
 			if (cb != NULL) {
 				cb(msg);
 			}
@@ -48,7 +46,7 @@ int process(const char *resp, msg_cb *cb) {
 }
 
 void requestv(const char *resp, const char **argv, size_t argc, msg_cb *cb) {
-	acmevim_send(conn, acmevimid, id, argv, argc);
+	acmevim_send(conn, argv, argc);
 	do {
 		acmevim_sync(&conn, 1, -1);
 	} while (!process(resp, cb));
@@ -126,13 +124,7 @@ void init(void) {
 	if (acmevimbuf == NULL || acmevimbuf[0] == '\0') {
 		error(EXIT_FAILURE, EINVAL, "ACMEVIMBUF");
 	}
-	acmevimid = getenv("ACMEVIMID");
-	if (acmevimid == NULL || acmevimid[0] == '\0') {
-		error(EXIT_FAILURE, EINVAL, "ACMEVIMID");
-	}
 	conn = acmevim_connect();
 	cwd = xgetcwd();
-	snprintf(id, sizeof(id), "%d", getpid());
-	acmevim_send(conn, "", id, NULL, 0);
 	clear(REDRAW);
 }

@@ -113,8 +113,8 @@ int run(int outfd) {
 }
 
 void changed(acmevim_strv msg) {
-	if (vec_len(&msg) > 3) {
-		promptline = atoi(msg[3]);
+	if (vec_len(&msg) > 1) {
+		promptline = atoi(msg[1]);
 	}
 }
 
@@ -208,7 +208,7 @@ void list_remotes(void) {
 }
 
 void log_L(acmevim_strv msg) {
-	for (size_t i = 3; i + 4 < vec_len(&msg); i += 5) {
+	for (size_t i = 1; i + 4 < vec_len(&msg); i += 5) {
 		char *path = indir(msg[i], cwd);
 		char *l1 = msg[i + 3], *l2 = msg[i + 4];
 		if (path != NULL && strcmp(l1, "0") != 0) {

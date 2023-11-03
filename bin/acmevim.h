@@ -1,6 +1,7 @@
+#include "indispensbl/fmt.h"
 #include "indispensbl/vec.h"
 #include <arpa/inet.h>
-#include <limits.h>
+#include <stdint.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -10,6 +11,7 @@ typedef char *acmevim_buf;
 typedef char **acmevim_strv;
 
 struct acmevim_conn {
+	char *id;
 	int err;
 	int rxfd, txfd;
 	acmevim_buf rx, tx;
@@ -55,13 +57,11 @@ void acmevim_push(acmevim_buf *buf, const char *s) {
 	acmevim_pushn(buf, s, strlen(s));
 }
 
-void acmevim_send(struct acmevim_conn *conn, const char *dst, const char *src,
-                  const char **argv, size_t argc) {
-	acmevim_push(&conn->tx, dst);
-	acmevim_push(&conn->tx, "\x1f");
-	acmevim_push(&conn->tx, src);
+void acmevim_send(struct acmevim_conn *conn, const char **argv, size_t argc) {
 	for (size_t i = 0; i < argc; i++) {
-		acmevim_push(&conn->tx, "\x1f");
+		if (i > 0) {
+			acmevim_push(&conn->tx, "\x1f");
+		}
 		acmevim_push(&conn->tx, argv[i]);
 	}
 	acmevim_push(&conn->tx, "\x1e");
@@ -70,6 +70,7 @@ void acmevim_send(struct acmevim_conn *conn, const char *dst, const char *src,
 struct acmevim_conn *acmevim_create(int rxfd, int txfd) {
 	struct acmevim_conn *conn;
 	conn = (struct acmevim_conn *)xrealloc(NULL, sizeof(*conn));
+	conn->id = xasprintf("%zu", (uintptr_t)conn);
 	conn->err = 0;
 	conn->rxfd = rxfd;
 	conn->txfd = txfd;
@@ -104,6 +105,7 @@ struct acmevim_conn *acmevim_connect(void) {
 }
 
 void acmevim_destroy(struct acmevim_conn *conn) {
+	free(conn->id);
 	vec_free(&conn->rx);
 	vec_free(&conn->tx);
 	free(conn);

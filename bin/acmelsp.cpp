@@ -51,10 +51,10 @@ QHash<unsigned int, qsizetype> parenttype;
 
 void setpos(acmevim_strv msg) {
 	filepos.path.clear();
-	if (vec_len(&msg) > 5) {
-		const char *path = msg[3];
-		int line = atoi(msg[4]);
-		int col = atoi(msg[5]);
+	if (vec_len(&msg) > 3) {
+		const char *path = msg[1];
+		int line = atoi(msg[2]);
+		int col = atoi(msg[3]);
 		if (line > 0 && col > 0) {
 			filepos.path = path;
 			filepos.line = line - 1;
@@ -420,7 +420,7 @@ void txtdoc(const char *method, msghandler *handler,
 }
 
 void openall(acmevim_strv msg) {
-	for (size_t i = 3; i + 4 < vec_len(&msg); i += 5) {
+	for (size_t i = 1; i + 4 < vec_len(&msg); i += 5) {
 		char *path = msg[i];
 		if (!docs.contains(path)) {
 			txtdocopen(path);

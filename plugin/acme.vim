@@ -1015,53 +1015,52 @@ function s:CtrlRecv(ch, data)
 	let s:ctrlrx = strpart(s:ctrlrx, end + 1)
 	let msgs = map(split(msgs, "\x1e", 1), 'split(v:val, "\x1f", 1)')
 	for msg in msgs
-		if len(msg) < 3
+		if len(msg) < 2
 			continue
 		endif
-		let cid = msg[1]
-		if msg[2] == 'port'
-			if len(msg) > 3
-				let $ACMEVIMPORT = msg[3]
+		let cid = msg[0]
+		if msg[1] == 'port'
+			if len(msg) > 2
+				let $ACMEVIMPORT = msg[2]
 			endif
-		elseif msg[2] == 'edit'
-			for file in msg[3:]
+		elseif msg[1] == 'edit'
+			for file in msg[2:]
 				call s:Edit(file, cid)
 			endfor
-		elseif msg[2] == 'open'
-			if len(msg) == 5
-				call s:FileOpen(msg[3], msg[4])
+		elseif msg[1] == 'open'
+			if len(msg) == 4
+				call s:FileOpen(msg[2], msg[3])
 			endif
-			call s:CtrlSend(cid, ['opened'])
-		elseif msg[2] =~ '\v^clear\^?'
-			for b in msg[3:]
-				call s:Clear(str2nr(b), msg[2] == 'clear^')
+			call s:CtrlSend([cid, 'opened'])
+		elseif msg[1] =~ '\v^clear\^?'
+			for b in msg[2:]
+				call s:Clear(str2nr(b), msg[1] == 'clear^')
 			endfor
-			call s:CtrlSend(cid, ['cleared'])
-		elseif msg[2] == 'checktime'
+			call s:CtrlSend([cid, 'cleared'])
+		elseif msg[1] == 'checktime'
 			checktime
 			call s:ReloadDirs()
-			call s:CtrlSend(cid, ['timechecked'])
-		elseif msg[2] == 'scratch'
-			if len(msg) > 5
-				call s:ScratchExec(msg[5:], msg[3], '', msg[4])
+			call s:CtrlSend([cid, 'timechecked'])
+		elseif msg[1] == 'scratch'
+			if len(msg) > 4
+				call s:ScratchExec(msg[4:], msg[2], '', msg[3])
 			endif
-			call s:CtrlSend(cid, ['scratched'])
-		elseif msg[2] == 'bufinfo'
-			call s:CtrlSend(cid, ['bufinfo'] + s:BufInfo())
-		elseif msg[2] == 'save'
+			call s:CtrlSend([cid, 'scratched'])
+		elseif msg[1] == 'bufinfo'
+			call s:CtrlSend([cid, 'bufinfo'] + s:BufInfo())
+		elseif msg[1] == 'save'
 			silent! wall
-			call s:CtrlSend(cid, ['saved'])
-		elseif msg[2] == 'change'
-			let l = len(msg) < 7 ? 0 : s:Change(str2nr(msg[3]),
-				\ str2nr(msg[4]), str2nr(msg[5]), msg[6:])
-			call s:CtrlSend(cid, ['changed', l])
+			call s:CtrlSend([cid, 'saved'])
+		elseif msg[1] == 'change'
+			let l = len(msg) < 6 ? 0 : s:Change(str2nr(msg[2]),
+				\ str2nr(msg[3]), str2nr(msg[4]), msg[5:])
+			call s:CtrlSend([cid, 'changed', l])
 		endif
 	endfor
 endfunc
 
-function s:CtrlSend(dst, msg)
-	let msg = join([a:dst, getpid()] + a:msg, "\x1f") . "\x1e"
-	call ch_sendraw(s:ctrl, msg)
+function s:CtrlSend(msg)
+	call ch_sendraw(s:ctrl, join(a:msg, "\x1f") . "\x1e")
 endfunc
 
 function s:BufWinLeave()
@@ -1072,7 +1071,7 @@ function s:BufWinLeave()
 			let s:editbufs[cid] -= 1
 			if s:editbufs[cid] <= 0
 				call remove(s:editbufs, cid)
-				call s:CtrlSend(cid, ['done'])
+				call s:CtrlSend([cid, 'done'])
 			endif
 		endfor
 	endif
@@ -1085,7 +1084,5 @@ let g:ctrlexe = exepath(expand('<sfile>:p:h:h').'/bin/acmevim')
 if g:ctrlexe != ''
 	let s:ctrl = job_start([g:ctrlexe], {
 		\ 'mode': 'raw', 'callback': 's:CtrlRecv', 'err_io': 'null'})
-	let $ACMEVIMID = getpid()
 	let $EDITOR = g:ctrlexe
-	call s:CtrlSend('', [])
 endif
