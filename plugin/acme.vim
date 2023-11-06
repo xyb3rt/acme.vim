@@ -560,7 +560,10 @@ function AcmePlumb(title, cmd, ...)
 	for arg in a:000
 		let cmd .= ' '.shellescape(arg)
 	endfor
+	let cwd = getcwd()
+	call chdir(s:Dir())
 	let outp = systemlist(cmd)
+	call chdir(cwd)
 	if v:shell_error == 0 && (a:title == '' || outp != [])
 		if a:title != ''
 			call s:ScratchNew(a:title)
