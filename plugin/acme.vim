@@ -34,15 +34,9 @@ endfunc
 
 function s:Dir()
 	let name = expand('%')
-	if has_key(s:scratchdir, bufnr())
-		return s:scratchdir[bufnr()]
-	elseif name == ''
-		return getcwd()
-	elseif isdirectory(name)
-		return name
-	else
-		return fnamemodify(name, ':h')
-	endif
+	let dir = has_key(s:scratchdir, bufnr()) ? s:scratchdir[bufnr()] :
+		\ isdirectory(name) ? name : fnamemodify(name, ':h')
+	return isdirectory(dir) ? dir : '.'
 endfunc
 
 function s:Normalize(path)
@@ -560,10 +554,11 @@ function AcmePlumb(title, cmd, ...)
 	for arg in a:000
 		let cmd .= ' '.shellescape(arg)
 	endfor
-	let cwd = getcwd()
-	call chdir(s:Dir())
+	let owd = chdir(s:Dir())
 	let outp = systemlist(cmd)
-	call chdir(cwd)
+	if owd != ''
+		call chdir(owd)
+	endif
 	if v:shell_error == 0 && (a:title == '' || outp != [])
 		if a:title != ''
 			call s:ScratchNew(a:title)
