@@ -546,6 +546,14 @@ function s:OpenBuf(b)
 	return 1
 endfunc
 
+function s:RgOpen(pos)
+	let l = search('\v^(\s*(\d+[-:]|\-\-\s*$))@!', 'bnW')
+	if l != 0
+		let f = substitute(getline(l), '^\~\~ ', '', '')
+		return s:OpenFile(f, a:pos)
+	endif
+endfunc
+
 function AcmePlumb(title, cmd, ...)
 	let cmd = a:cmd
 	for arg in a:000
@@ -570,23 +578,10 @@ let s:plumbing = [
 	\ ['(\f+)%(%([:](%([0-9]+)|%([/?].+)))|%(\(([0-9]+)\)))',
 		\ {m -> s:OpenFile(m[1], m[2] != '' ? m[2] : m[3])}],
 	\ ['\f+', {m -> s:OpenFile(m[0], '')}],
+	\ ['^\s*(\d+)[-:]', {m -> s:RgOpen(m[0])}],
 	\ ['\#(\d+)', {m -> s:OpenBuf(str2nr(m[1]))}]]
 
-function s:RgOpen()
-	let m = matchlist(getline('.'), '\v^\s*(\d+)%>'.col('.').'c[-:]')
-	if m != []
-		let l = search('\v^(\s*(\d+[-:]|\-\-\s*$))@!', 'bnW')
-		if l != 0
-			let f = substitute(getline(l), '^\~\~ ', '', '')
-			return s:OpenFile(f, m[1])
-		endif
-	endif
-endfunc
-
 function s:Open(text, click)
-	if a:click > 0 && s:RgOpen()
-		return 1
-	endif
 	for [pat, Handler] in s:plumbing + get(g:, 'acme_plumbing', [])
 		let m = s:Match(a:text, a:click, pat)
 		if m != [] && call(Handler, [m])
