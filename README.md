@@ -73,8 +73,8 @@ Bringing the spirit of Plan 9 acme to vim.
 	run by the command will exit once all of its given files are no longer
 	visible in any windows.
 
-	This needs further configuration. Please see below on how to enable
-	this.
+	This needs an optional helper program to be compiled. Please see the
+	installation instructions below on how to do this.
 
 * Arrange windows with the mouse:
 
@@ -100,16 +100,16 @@ git clone --recurse-submodules https://github.com/xyb3rt/acme.vim.git \
 	~/.vim/pack/xyb3rt/start/acme.vim
 ```
 
-
-Configuration
--------------
-
 If you want external commands to open files in the vim instance they are
-running in, then compile the *acmevim* helper:
+running in, then compile the *acmevim* helper program written in C:
 
 ```
 make -C ~/.vim/pack/xyb3rt/start/acme.vim/bin acmevim
 ```
+
+
+Configuration
+-------------
 
 *acme.vim* supports rudimentary plumbing via the global `g:acme_plumbing`
 variable. Here is an example to get right-clickable URLs, man pages and git
