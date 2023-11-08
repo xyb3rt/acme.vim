@@ -307,8 +307,7 @@ function s:Run(cmd, dir, vis)
 	endif
 endfunc
 
-command -bang -nargs=1 -complete=file -range R
-	\ call s:Run(<q-args>, <bang>0 ? s:Dir() : '', 0)
+command -nargs=1 -complete=file -range R call s:Run(<q-args>, s:Dir(), 0)
 
 command -range V exe 'normal! '.<line1>.'GV'.<line2>.'G'
 
