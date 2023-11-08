@@ -33,10 +33,7 @@ function s:Sel()
 endfunc
 
 function s:Dir()
-	let name = expand('%')
-	let dir = has_key(s:scratchdir, bufnr()) ? s:scratchdir[bufnr()] :
-		\ isdirectory(name) ? name : fnamemodify(name, ':h')
-	return isdirectory(dir) ? dir : '.'
+	return s:Cwds()[0]
 endfunc
 
 function s:Normalize(path)
@@ -489,19 +486,20 @@ function s:Match(text, click, pat)
 endfunc
 
 function s:Cwds()
-	let dirs = [expand('%:p:h'), getcwd()]
+	" Expanding '%:p:h' in a dir buf gives the dir not its parent!
+	let dirs = [expand('%:p:h')]
 	if has_key(s:scratchdir, bufnr())
 		call insert(dirs, s:scratchdir[bufnr()])
 	endif
-	if expand('%:t') == '+Errors'
+	if expand('%:t') == '+Errors' || term_getstatus(bufnr()) != ''
 		let [d, q] = ['directory:? ', "[`'\"]"]
 		let l = searchpair('\vEntering '.d.q, '', 'Leaving '.d.q, 'bnW')
 		let m = matchlist(getline(l), '\vEntering '.d.q.'(.+)'.q)
-		if m != [] && isdirectory(m[1])
+		if m != []
 			call insert(dirs, m[1])
 		endif
 	endif
-	return dirs
+	return filter(dirs, 'isdirectory(v:val)') + [getcwd()]
 endfunc
 
 function s:FindFile(name)
