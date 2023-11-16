@@ -9,12 +9,19 @@ function s:Bound(min, n, max)
 	return max([a:min, min([a:n, a:max])])
 endfunc
 
-function s:Win(buf)
-	let b = bufnr(type(a:buf) == type('')
-		\ ? '^\V'.escape(a:buf, '\').'\v$'
-		\ : a:buf)
+function s:BufWin(b)
 	for w in range(1, winnr('$'))
-		if winbufnr(w) == b
+		if winbufnr(w) == a:b
+			return w
+		endif
+	endfor
+	return 0
+endfunc
+
+function s:FileWin(name)
+	let path = s:Path(a:name)
+	for w in range(1, winnr('$'))
+		if s:Path(bufname(winbufnr(w))) == path
 			return w
 		endif
 	endfor
@@ -36,10 +43,16 @@ function s:Dir()
 	return s:Cwds()[0]
 endfunc
 
-function s:Normalize(path)
-	let path = fnamemodify(simplify(fnamemodify(a:path, ':p')), ':~:.')
-	if path == ''
-		let path = '.'
+function s:Path(path, ...)
+	if a:path == ''
+		return ''
+	endif
+	let path = simplify(fnamemodify(a:path, ':p'))
+	if a:0 > 0
+		let path = fnamemodify(path, a:1)
+		if path == ''
+			let path = '.'
+		endif
 	endif
 	if isdirectory(path) && path !~ '/$'
 		let path .= '/'
@@ -90,7 +103,7 @@ function s:RemoveJob(i)
 	if fnamemodify(bufname(job.buf), ':t') == '+Errors'
 		checktime
 		call s:ReloadDirs()
-		let w = s:Win(job.buf)
+		let w = s:BufWin(job.buf)
 		if s:Jobs(job.buf) == [] && line('$', win_getid(w)) == 1 &&
 			\ getbufline(job.buf, '$')[0] == ''
 			exe w.'close'
@@ -102,7 +115,8 @@ function s:RemoveJob(i)
 		endif
 	endfor
 	if has_key(s:scratchbufs, job.buf)
-		call win_execute(win_getid(s:Win(job.buf)), 'filetype detect')
+		let w = s:BufWin(job.buf)
+		call win_execute(win_getid(w), 'filetype detect')
 	endif
 endfunc
 
@@ -170,7 +184,7 @@ endfunc
 
 function s:Ctrl_S(inp)
 	let b = bufnr()
-	let w = s:Win(get(s:sendbuf, b, -1))
+	let w = s:BufWin(get(s:sendbuf, b, -1))
 	let r = filter(range(1, winnr('$')), 's:Receiver(winbufnr(v:val))')
 	if s:Receiver(b)
 		call s:Send(win_getid(), a:inp)
@@ -233,12 +247,11 @@ endfunc
 
 function s:ErrorOpen(name, ...)
 	let p = win_getid()
-	let name = s:Normalize(a:name)
-	let w = s:Win(name)
+	let w = s:FileWin(a:name)
 	if w != 0
 		exe w.'wincmd w'
 	else
-		call s:New('sp +0 '.name)
+		call s:New('sp +0 '.s:Path(a:name, ':~:.'))
 		setl bufhidden=unload buftype=nowrite nobuflisted noswapfile
 	endif
 	if a:0 > 0
@@ -304,7 +317,7 @@ function s:Run(cmd, dir, vis)
 	endif
 endfunc
 
-command -nargs=1 -complete=file -range R call s:Run(<q-args>, s:Dir(), 0)
+command -nargs=1 -complete=shellcmd -range R call s:Run(<q-args>, s:Dir(), 0)
 
 command -range V exe 'normal! '.<line1>.'GV'.<line2>.'G'
 
@@ -345,7 +358,7 @@ function s:ScratchNew(name)
 endfunc
 
 function s:ScratchCb(b, ch, msg)
-	let w = s:Win(a:b)
+	let w = s:BufWin(a:b)
 	if w != 0
 		let w = win_getid(w)
 		if line('$', w) > 1
@@ -451,16 +464,15 @@ function s:Readable(path)
 	return filereadable(path) && join(readfile(path, '', 4096), '') !~ '\n'
 endfunc
 
-function s:FileOpen(path, pos)
-	let path = simplify(fnamemodify(a:path, ':p'))
-	let path = len(path) > 1 && path[-1:] == '/' ? path[:-2] : path
-	let w = s:Win(path)
+function s:FileOpen(name, pos)
+	let path = s:Path(a:name)
+	let w = s:FileWin(path)
 	if w != 0
 		exe w.'wincmd w'
 	elseif isdirectory(expand('%')) && isdirectory(path)
-		exe 'edit' s:Normalize(path)
+		exe 'edit' s:Path(path, ':~:.')
 	else
-		call s:New('new '.s:Normalize(path))
+		call s:New('new '.s:Path(path, ':~:.'))
 	endif
 	if a:pos != ''
 		normal! m'
@@ -522,8 +534,8 @@ function s:OpenFile(name, pos)
 	if f == []
 		return 0
 	elseif len(f) > 1
-		call map(f, 's:Normalize(v:val).(a:pos != "" ? ":".a:pos : "")')
-		call s:ErrorOpen('+Errors', f)
+		let pos = a:pos != '' ? ':'.a:pos : ''
+		call s:ErrorOpen('+Errors', map(f, 's:Path(v:val, ":~").pos'))
 	elseif isdirectory(f[0]) || s:Readable(f[0])
 		call s:FileOpen(f[0], a:pos)
 	else
@@ -537,7 +549,7 @@ function s:OpenBuf(b)
 	if b <= 0
 		return 0
 	endif
-	let w = s:Win(b)
+	let w = s:BufWin(b)
 	if w != 0
 		exe w.'wincmd w'
 	else
@@ -613,7 +625,7 @@ function s:Tag(pat, ...)
 	let kl = max(map(copy(tags), 'len(v:val.kind)'))
 	let tl = []
 	for t in tags
-		let fn = fnamemodify(t.filename, ':~:.')
+		let fn = s:Path(t.filename, ':~')
 		call add(tl, printf('%-'.nl.'s %-'.kl.'s %s:%s',
 			\ t.name, t.kind, fn, t.cmd))
 	endfor
@@ -631,10 +643,10 @@ function s:ListBufs()
 	call sort(bufs, 's:CmpBuf')
 	let nl = max(map(copy(bufs), 'len(v:val.bufnr)'))
 	call map(bufs, 'printf("#%-".nl."s %s", v:val.bufnr,' .
-		\ 'v:val.name != "" ? s:Normalize(v:val.name) : "")')
+		\ 'v:val.name != "" ? s:Path(v:val.name, ":~") : "")')
 	let old = filter(copy(v:oldfiles), 'bufnr("^".v:val."$") == -1 &&' .
 		\ 'fnamemodify(v:val, ":t") == "guide"')
-	call map(old, 'repeat(" ", nl + 2) . s:Normalize(v:val)')
+	call map(old, 'repeat(" ", nl + 2) . s:Path(v:val, ":~")')
 	call s:ErrorOpen('+Errors', old + bufs)
 endfunc
 
@@ -973,7 +985,7 @@ function s:BufInfo()
 endfunc
 
 function s:Change(b, l1, l2, lines)
-	let w = win_getid(s:Win(a:b))
+	let w = win_getid(s:BufWin(a:b))
 	if w == 0
 		return
 	endif
