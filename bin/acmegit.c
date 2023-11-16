@@ -36,6 +36,7 @@ cmd_func cmd_merge;
 cmd_func cmd_push;
 cmd_func cmd_rebase;
 cmd_func cmd_reset;
+cmd_func cmd_revert;
 cmd_func cmd_rm;
 cmd_func cmd_stash;
 cmd_func cmd_submodule;
@@ -59,6 +60,7 @@ struct cmd cmds[] = {
 	{"commit", cmd_commit},
 	{"merge", cmd_merge},
 	{"rebase", cmd_rebase},
+	{"revert", cmd_revert},
 	{"switch", cmd_switch},
 	{"branch", cmd_branch},
 	{"checkout", cmd_checkout},
@@ -365,6 +367,14 @@ void cmd_reset(void) {
 	if (add(1, "< HEAD -- ./ >", NULL)) {
 		clear(CHECKTIME);
 		run(devnull);
+	}
+}
+
+void cmd_revert(void) {
+	set("git", "revert", NULL);
+	if (add(1, "< --abort --continue >", NULL)) {
+		clear(CHECKTIME);
+		run(1);
 	}
 }
 
