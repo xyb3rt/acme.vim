@@ -69,7 +69,7 @@ function s:Jobs(p)
 endfunc
 
 function AcmeStatusTitle()
-	return get(get(s:scratchbufs, bufnr(), {}), 'title', '')
+	return get(get(s:scratch, bufnr(), {}), 'title', '')
 endfunc
 
 function AcmeStatusName()
@@ -114,7 +114,7 @@ function s:RemoveJob(i)
 			call remove(s:sendbuf, s)
 		endif
 	endfor
-	if has_key(s:scratchbufs, job.buf)
+	if has_key(s:scratch, job.buf)
 		let w = s:BufWin(job.buf)
 		call win_execute(win_getid(w), 'filetype detect')
 	endif
@@ -154,8 +154,8 @@ function s:Send(w, inp)
 		return
 	endif
 	let inp = split(a:inp, '\n')
-	if has_key(s:scratchbufs, b)
-		if !get(s:scratchbufs[b], 'top')
+	if has_key(s:scratch, b)
+		if !get(s:scratch[b], 'top')
 			call win_execute(a:w, 'normal! G')
 		endif
 		let job = s:Jobs(b)[0].h
@@ -179,7 +179,7 @@ endfunc
 
 function s:Receiver(b)
 	return term_getstatus(a:b) =~ 'running' ||
-		\ (has_key(s:scratchbufs, a:b) && s:Jobs(a:b) != [])
+		\ (has_key(s:scratch, a:b) && s:Jobs(a:b) != [])
 endfunc
 
 function s:Ctrl_S(inp)
@@ -337,12 +337,11 @@ function s:Exe(cmd)
 	endif
 endfunc
 
-let s:scratchbufs = {}
-let s:scratchdir = {}
+let s:scratch = {}
 
-function s:ScratchNew(name)
+function s:ScratchNew(title, dir)
 	let buf = ''
-	for b in keys(s:scratchbufs)
+	for b in keys(s:scratch)
 		if !bufloaded(str2nr(b))
 			let buf = b
 			break
@@ -354,7 +353,8 @@ function s:ScratchNew(name)
 		call s:New('new')
 	endif
 	setl bufhidden=unload buftype=nofile nobuflisted noswapfile
-	let s:scratchbufs[bufnr()] = {'title': a:name}
+	let s:scratch[bufnr()] = {'title': a:title,
+		\ 'dir': s:Path(a:dir != '' ? a:dir : getcwd())}
 endfunc
 
 function s:ScratchCb(b, ch, msg)
@@ -368,8 +368,8 @@ function s:ScratchCb(b, ch, msg)
 	endif
 endfunc
 
-function s:ScratchExec(cmd, dir, inp, name)
-	call s:ScratchNew(a:name)
+function s:ScratchExec(cmd, dir, inp, title)
+	call s:ScratchNew(a:title, a:dir)
 	let b = bufnr()
 	let opts = {'callback': function('s:ScratchCb', [b]),
 		\ 'env': {'ACMEVIMBUF': b}, 'in_io': 'pipe'}
@@ -377,7 +377,6 @@ function s:ScratchExec(cmd, dir, inp, name)
 		let opts['cwd'] = a:dir
 	endif
 	call s:JobStart(a:cmd, b, opts, a:inp)
-	let s:scratchdir[b] = fnamemodify(a:dir, ':p')
 endfunc
 
 function s:Exec(cmd)
@@ -500,8 +499,8 @@ endfunc
 function s:Cwds()
 	" Expanding '%:p:h' in a dir buf gives the dir not its parent!
 	let dirs = [expand('%:p:h')]
-	if has_key(s:scratchdir, bufnr())
-		call insert(dirs, s:scratchdir[bufnr()])
+	if has_key(s:scratch, bufnr())
+		call insert(dirs, s:scratch[bufnr()].dir)
 	endif
 	if expand('%:t') == '+Errors' || term_getstatus(bufnr()) != ''
 		let [d, q] = ['directory:? ', "[`'\"]"]
@@ -571,14 +570,15 @@ function AcmePlumb(title, cmd, ...)
 	for arg in a:000
 		let cmd .= ' '.shellescape(arg)
 	endfor
-	let owd = chdir(s:Dir())
+	let dir = s:Dir()
+	let owd = chdir(dir)
 	let outp = systemlist(cmd)
 	if owd != ''
 		call chdir(owd)
 	endif
 	if v:shell_error == 0 && (a:title == '' || outp != [])
 		if a:title != ''
-			call s:ScratchNew(a:title)
+			call s:ScratchNew(a:title, dir)
 			call setline('$', outp)
 			filetype detect
 		endif
@@ -946,8 +946,8 @@ tnoremap <expr> <silent> <ScrollWheelUp> <SID>TermScrollWheelUp()
 
 function s:Clear(b, top)
 	call deletebufline(a:b, 1, "$")
-	if a:top && has_key(s:scratchbufs, a:b)
-		let s:scratchbufs[a:b].top = 1
+	if a:top && has_key(s:scratch, a:b)
+		let s:scratch[a:b].top = 1
 		for job in s:Jobs(a:b)
 			call ch_setoptions(job.h,
 				\ {'callback': function('s:ScratchCb', [a:b])})
