@@ -257,6 +257,7 @@ void cmd_branch(void) {
 void cmd_cd(void) {
 	set("cd", NULL);
 	show(0, "<>");
+	list_submodules();
 	enum reply reply = get();
 	clear(REDRAW);
 	if (reply == SELECT) {
