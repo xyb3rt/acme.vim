@@ -338,7 +338,7 @@ void cmd_log(void) {
 
 void cmd_merge(void) {
 	set("git", "merge", NULL);
-	if (add(1, "< @{u} >", list_branches)) {
+	if (add(1, "< --abort --continue @{u} >", list_branches)) {
 		clear(CHECKTIME);
 		run(1);
 	}
@@ -356,7 +356,7 @@ void cmd_push(void) {
 
 void cmd_rebase(void) {
 	set("git", "rebase", "-i", "--autosquash", NULL);
-	if (add(1, "< --onto @{u} >", list_branches)) {
+	if (add(1, "< --abort --continue --onto @{u} >", list_branches)) {
 		clear(CHECKTIME);
 		run(1);
 	}
