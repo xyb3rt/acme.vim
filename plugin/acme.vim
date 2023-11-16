@@ -69,11 +69,14 @@ function s:Jobs(p)
 endfunc
 
 function AcmeStatusTitle()
-	return get(get(s:scratch, bufnr(), {}), 'title', '')
+	let b = bufnr()
+	let s = get(s:scratch, b, {})
+	let t = s.title != '' ? s.title : s:Jobs(b) == [] ? 'Scratch' : ''
+	return s:Path(s.dir . '/+' . t, ':~').(t != '' ? ' ' : '')
 endfunc
 
 function AcmeStatusName()
-	return AcmeStatusTitle() != '' ? '[%{AcmeStatusTitle()}]' : '%f'
+	return has_key(s:scratch, bufnr()) ? '%{AcmeStatusTitle()}' : '%F '
 endfunc
 
 function AcmeStatusFlags()
@@ -88,7 +91,7 @@ function AcmeStatusRuler()
 	return &ruler ? &ruf != '' ? &ruf : '%-14.(%l,%c%V%) %P' : ''
 endfunc
 
-let &statusline = '%<%{%AcmeStatusName()%} %{%AcmeStatusFlags()%}' .
+let &statusline = '%<%{%AcmeStatusName()%}%{%AcmeStatusFlags()%}' .
 	\ '%{AcmeStatusJobs()}%=%{%AcmeStatusRuler()%}'
 
 function s:Started(job, buf, cmd)
