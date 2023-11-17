@@ -610,33 +610,6 @@ command -nargs=1 -complete=file O call s:Open(expand(<q-args>), 0)
 nnoremap <silent> <C-m> :call <SID>Open(getline('.'), col('.'))<CR>
 vnoremap <silent> <C-m> :<C-u>call <SID>Open(<SID>Sel()[0], -1)<CR>
 
-function s:Tag(pat, ...)
-	let tf = tagfiles()
-	let dir = len(tf) == 1 ? fnamemodify(tf[0], ':p:h') : ''
-	let cwd = dir != '' ? chdir(dir) : ''
-	let tags = taglist(a:pat)
-	if cwd != ''
-		call chdir(cwd)
-	endif
-	if len(tags) == 0
-		return
-	elseif a:0 == 0 && len(tags) == 1
-		call s:FileOpen(tags[0].filename, tags[0].cmd)
-		return
-	endif
-	let nl = max(map(copy(tags), 'len(v:val.name)'))
-	let kl = max(map(copy(tags), 'len(v:val.kind)'))
-	let tl = []
-	for t in tags
-		let fn = s:Path(t.filename, ':~')
-		call add(tl, printf('%-'.nl.'s %-'.kl.'s %s:%s',
-			\ t.name, t.kind, fn, t.cmd))
-	endfor
-	call s:ErrorOpen((dir != '' ? dir.'/' : '').'+Errors', tl)
-endfunc
-
-command -nargs=1 -complete=tag T call s:Tag(<q-args>)
-
 function AcmeMoveWin(dir)
 	let w = win_getid()
 	let p = win_getid(winnr('#'))
@@ -802,7 +775,6 @@ function s:RightRelease(click)
 	if s:Open(text, a:click)
 		return
 	endif
-	call s:Tag('^'.word.'$', 1)
 	let @/ = pat
 	call feedkeys(&hlsearch ? ":let v:hlsearch=1\<CR>" : 'n', 'n')
 endfunc

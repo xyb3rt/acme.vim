@@ -16,12 +16,8 @@ Bringing the spirit of Plan 9 acme to vim.
 
 	Additionally, like in Plan 9 acme, if the item cannot be opend, all its
 	occurences are highlighted and right-clicking a match goes to the next.
-	Such items are also searched in the `tags` file and all matches are
-	listed in a `+Errors` window. The file positions in this list are
-	right-clickable.
 
-	Items can also be opened with the `O` command. Tags matching a given
-	pattern can be listed with the `T` command.
+	Items can also be opened with the `O` command.
 
 * Execute external commands with the middle mouse button:
 
