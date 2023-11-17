@@ -1,10 +1,3 @@
-if exists('loaded_acme_vim')
-	finish
-endif
-let loaded_acme_vim = 1
-
-au TextChanged,TextChangedI guide setl nomodified
-
 function s:Bound(min, n, max)
 	return max([a:min, min([a:n, a:max])])
 endfunc
@@ -60,8 +53,6 @@ function s:Path(path, ...)
 	return path
 endfunc
 
-let s:jobs = []
-
 function s:Jobs(p)
 	return filter(copy(s:jobs), type(a:p) == type(0)
 		\ ? 'v:val.buf == a:p'
@@ -90,9 +81,6 @@ endfunc
 function AcmeStatusRuler()
 	return &ruler ? &ruf != '' ? &ruf : '%-14.(%l,%c%V%) %P' : ''
 endfunc
-
-let &statusline = '%<%{%AcmeStatusName()%}%{%AcmeStatusFlags()%}' .
-	\ '%{AcmeStatusJobs()}%=%{%AcmeStatusRuler()%}'
 
 function s:Started(job, buf, cmd)
 	let cmd = type(a:cmd) == type([]) ? join(a:cmd) : a:cmd
@@ -148,8 +136,6 @@ function s:Expand(s)
 	return substitute(a:s, '\v^\t+',
 		\ '\=repeat(" ", len(submatch(0)) * 8)', '')
 endfunc
-
-let s:sendbuf = {}
 
 function s:Send(w, inp)
 	let b = winbufnr(a:w)
@@ -209,8 +195,6 @@ function s:Unload()
 		endif
 	endfor
 endfunc
-
-au BufUnload * call s:Unload()
 
 function s:SplitHeight(minh, maxh)
 	let minh = &winminheight > 0 ? 2 * &winminheight + 1 : 2
@@ -340,8 +324,6 @@ function s:Exe(cmd)
 	endif
 endfunc
 
-let s:scratch = {}
-
 function s:ScratchNew(title, dir)
 	let buf = ''
 	for b in keys(s:scratch)
@@ -423,8 +405,6 @@ function s:Columnate(words, width)
 	return a:words
 endfunc
 
-let s:dirwidth = {}
-
 function s:ListDir()
 	let dir = expand('%')
 	if !isdirectory(dir) || !&modifiable
@@ -442,8 +422,6 @@ function s:ListDir()
 	let s:dirwidth[bufnr()] = width
 endfunc
 
-au BufEnter * call s:ListDir()
-
 function s:ReloadDirs(...)
 	let done = {}
 	for w in range(1, winnr('$'))
@@ -455,9 +433,6 @@ function s:ReloadDirs(...)
 		endif
 	endfor
 endfunc
-
-au VimEnter * call s:ReloadDirs(winnr())
-au WinResized * call s:ReloadDirs(0)
 
 function s:Readable(path)
 	" Reject binary files, i.e. files containing null characters (which
@@ -900,8 +875,6 @@ vnoremap <silent> <RightRelease> :<C-u>call <SID>RightRelease(-1)<CR>
 nnoremap <silent> <ScrollWheelDown> :call <SID>ScrollWheelDown()<CR>
 nnoremap <silent> <ScrollWheelUp> :call <SID>ScrollWheelUp()<CR>
 tnoremap <expr> <silent> <LeftMouse> <SID>TermLeftMouse()
-au TerminalOpen * nnoremap <buffer> <silent> <LeftRelease>
-	\ :call <SID>TermLeftRelease()<CR>
 tnoremap <expr> <silent> <ScrollWheelDown> <SID>TermScrollWheelDown()
 tnoremap <expr> <silent> <ScrollWheelUp> <SID>TermScrollWheelUp()
 
@@ -915,9 +888,6 @@ function s:Clear(b, top)
 		endfor
 	endif
 endfunc
-
-let s:editbufs = {}
-let s:editcids = {}
 
 function s:Edit(file, cid)
 	call s:FileOpen(a:file, '')
@@ -965,8 +935,6 @@ function s:Change(b, l1, l2, lines)
 	endif
 	return l
 endfunc
-
-let s:ctrlrx = ''
 
 function s:CtrlRecv(ch, data)
 	let s:ctrlrx .= a:data
@@ -1040,12 +1008,36 @@ function s:BufWinLeave()
 	endif
 endfunc
 
+augroup acme_vim
+au!
+au BufEnter * call s:ListDir()
+au BufUnload * call s:Unload()
 au BufWinLeave * call s:BufWinLeave()
+au TerminalOpen * nnoremap <buffer> <silent> <LeftRelease>
+	\ :call <SID>TermLeftRelease()<CR>
+au TextChanged,TextChangedI guide setl nomodified
+au VimEnter * call s:ReloadDirs(winnr())
+au WinResized * call s:ReloadDirs(0)
+augroup END
 
-let g:ctrlexe = exepath(expand('<sfile>:p:h:h').'/bin/acmevim')
+if exists("s:ctrlexe")
+	finish
+endif
 
-if g:ctrlexe != ''
-	let s:ctrl = job_start([g:ctrlexe], {
+let &statusline = '%<%{%AcmeStatusName()%}%{%AcmeStatusFlags()%}' .
+	\ '%{AcmeStatusJobs()}%=%{%AcmeStatusRuler()%}'
+
+let s:ctrlexe = exepath(expand('<sfile>:p:h:h').'/bin/acmevim')
+let s:ctrlrx = ''
+let s:dirwidth = {}
+let s:editbufs = {}
+let s:editcids = {}
+let s:jobs = []
+let s:scratch = {}
+let s:sendbuf = {}
+
+if s:ctrlexe != ''
+	let s:ctrl = job_start([s:ctrlexe], {
 		\ 'mode': 'raw', 'callback': 's:CtrlRecv', 'err_io': 'null'})
-	let $EDITOR = g:ctrlexe
+	let $EDITOR = s:ctrlexe
 endif
