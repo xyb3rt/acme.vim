@@ -241,7 +241,7 @@ void list_tags(void) {
 
 void cmd_add(void) {
 	set("git", "add", NULL);
-	if (add(1, "< --edit ./ >", NULL)) {
+	if (add(1, "< --all --edit --update ./ >", NULL)) {
 		clear(CHECKTIME);
 		run(devnull);
 	}
