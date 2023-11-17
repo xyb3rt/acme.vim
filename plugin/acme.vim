@@ -100,11 +100,6 @@ function s:RemoveJob(i)
 			exe w.'close'
 		endif
 	endif
-	for [s, r] in items(s:sendbuf)
-		if r == job.buf
-			call remove(s:sendbuf, s)
-		endif
-	endfor
 	if has_key(s:scratch, job.buf)
 		let w = s:BufWin(job.buf)
 		call win_execute(win_getid(w), 'filetype detect')
@@ -161,39 +156,11 @@ function s:Send(w, inp)
 		let inp = map(inp, 's:Expand(v:val)')
 		call ch_sendraw(term_getjob(b), "\<C-u>".join(inp, "\r")."\r")
 	endif
-	if bufnr() != b
-		let s:sendbuf[bufnr()] = b
-	endif
 endfunc
 
 function s:Receiver(b)
 	return term_getstatus(a:b) =~ 'running' ||
 		\ (has_key(s:scratch, a:b) && s:Jobs(a:b) != [])
-endfunc
-
-function s:Ctrl_S(inp)
-	let b = bufnr()
-	let w = s:BufWin(get(s:sendbuf, b, -1))
-	let r = filter(range(1, winnr('$')), 's:Receiver(winbufnr(v:val))')
-	if s:Receiver(b)
-		call s:Send(win_getid(), a:inp)
-	elseif w != 0
-		call s:Send(win_getid(w), a:inp)
-	elseif len(r) == 1
-		call s:Send(win_getid(r[0]), a:inp)
-	endif
-endfunc
-
-nnoremap <silent> <C-s> :call <SID>Ctrl_S(getline('.'))<CR>
-vnoremap <silent> <C-s> :<C-u>call <SID>Ctrl_S(<SID>Sel()[0])<CR>
-
-function s:Unload()
-	let buf = expand('<abuf>')
-	for [s, r] in items(s:sendbuf)
-		if r == buf
-			call remove(s:sendbuf, s)
-		endif
-	endfor
 endfunc
 
 function s:SplitHeight(minh, maxh)
@@ -1008,7 +975,6 @@ endfunc
 augroup acme_vim
 au!
 au BufEnter * call s:ListDir()
-au BufUnload * call s:Unload()
 au BufWinLeave * call s:BufWinLeave()
 au TerminalOpen * nnoremap <buffer> <silent> <LeftRelease>
 	\ :call <SID>TermLeftRelease()<CR>
@@ -1031,7 +997,6 @@ let s:editbufs = {}
 let s:editcids = {}
 let s:jobs = []
 let s:scratch = {}
-let s:sendbuf = {}
 
 if s:ctrlexe != ''
 	let s:ctrl = job_start([s:ctrlexe], {
