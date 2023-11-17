@@ -725,7 +725,10 @@ function s:MiddleRelease(click)
 		if s:clickmode == 't'
 			normal! i
 		endif
-		exe s:clickstatus.'close!'
+		let pos = getmousepos()
+		if pos.line == 0 && pos.winid == s:click.winid
+			exe s:clickstatus.'close!'
+		endif
 		return
 	endif
 	exe "normal! \<LeftRelease>"
