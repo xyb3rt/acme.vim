@@ -3,7 +3,6 @@
  */
 #include "acmecmd.h"
 #include "indispensbl/call.h"
-#include "indispensbl/fmt.h"
 #include <fcntl.h>
 
 enum reply {
