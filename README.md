@@ -23,9 +23,6 @@ Bringing the spirit of Plan 9 acme to vim.
 	Items can also be opened with the `O` command. Tags matching a given
 	pattern can be listed with the `T` command.
 
-	Right-clicking the line below the last window prints the listed buffers
-	in a `+Errors` window. The items in this list are right-clickable.
-
 * Execute external commands with the middle mouse button:
 
 	A simple middle-click executes `cWORD`. The command can be selected
