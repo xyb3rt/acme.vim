@@ -582,9 +582,6 @@ endfunc
 
 command -nargs=1 -complete=file O call s:Open(expand(<q-args>), 0)
 
-nnoremap <silent> <C-m> :call <SID>Open(getline('.'), col('.'))<CR>
-vnoremap <silent> <C-m> :<C-u>call <SID>Open(<SID>Sel()[0], -1)<CR>
-
 function AcmeMoveWin(dir)
 	let w = win_getid()
 	let p = win_getid(winnr('#'))
