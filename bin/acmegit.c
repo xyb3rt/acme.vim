@@ -122,11 +122,19 @@ void changed(acmevim_strv msg) {
 void show(size_t arg, const char *hints) {
 	char *p = vec_new();
 	acmevim_push(&p, "<< ");
-	for (size_t i = arg; i < vec_len(&cmdv); i++) {
-		acmevim_push(&p, cmdv[i]);
-		acmevim_push(&p, i == arg ? ": " : " ");
+	if (arg > 0 && strcmp(cmdv[arg - 1], "git") == 0) {
+		acmevim_push(&p, "git-");
+		acmevim_push(&p, cmdv[arg++]);
+		acmevim_push(&p, "(1)");
+	} else {
+		acmevim_push(&p, cmdv[arg++]);
 	}
-	acmevim_pushn(&p, ">>", 3);
+	acmevim_push(&p, ":");
+	for (size_t i = arg; i < vec_len(&cmdv); i++) {
+		acmevim_push(&p, " ");
+		acmevim_push(&p, cmdv[i]);
+	}
+	acmevim_pushn(&p, " >>", 4);
 	if (hints != NULL) {
 		promptline = 0;
 	}
