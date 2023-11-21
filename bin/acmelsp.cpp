@@ -384,7 +384,7 @@ void handletypes(const QJsonObject &msg) {
 
 bool txtdocopen(const QByteArray &path) {
 	QFile file(path);
-	if (!file.open(QIODevice::ReadOnly)) {
+	if (!indir(path.data(), cwd) || !file.open(QIODevice::ReadOnly)) {
 		return false;
 	}
 	send(newmsg("textDocument/didOpen", QJsonObject{
