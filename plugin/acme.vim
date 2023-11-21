@@ -96,11 +96,6 @@ function s:RemoveJob(i)
 	if fnamemodify(bufname(job.buf), ':t') == '+Errors'
 		checktime
 		call s:ReloadDirs()
-		let w = s:BufWin(job.buf)
-		if s:Jobs(job.buf) == [] && line('$', win_getid(w)) == 1 &&
-			\ getbufline(job.buf, '$')[0] == ''
-			exe w.'close'
-		endif
 	endif
 	if has_key(s:scratch, job.buf)
 		let w = s:BufWin(job.buf)
@@ -186,12 +181,8 @@ endfunc
 function s:JobStart(cmd, b, opts, inp)
 	let opts = extend({'exit_cb': 's:Exited', 'err_io': 'out',
 		\ 'out_io': 'buffer', 'out_buf': a:b, 'out_msg': 0}, a:opts)
-	let v:errmsg = ''
-	silent! let job = job_start(s:Argv(a:cmd), opts)
+	let job = job_start(s:Argv(a:cmd), opts)
 	if job_status(job) == "fail"
-		if v:errmsg != ''
-			call appendbufline(a:b, '$', v:errmsg)
-		endif
 		return
 	endif
 	call s:Started(job, a:b, a:cmd)
@@ -201,25 +192,38 @@ function s:JobStart(cmd, b, opts, inp)
 	endif
 endfunc
 
+function s:ErrorLoad(name)
+	let b = bufnr(s:Path(a:name, ':~:.'), 1)
+	if !bufloaded(b)
+		call bufload(b)
+		call setbufvar(b, '&bufhidden', 'unload')
+		call setbufvar(b, '&buftype', 'nowrite')
+		call setbufvar(b, '&swapfile', 0)
+	endif
+	return b
+endfunc
+
 function s:ErrorOpen(name, ...)
 	let p = win_getid()
 	let w = s:FileWin(a:name)
 	if w != 0
 		exe w.'wincmd w'
 	else
-		call s:New('sp +0 '.s:Path(a:name, ':~:.'))
-		setl bufhidden=unload buftype=nowrite nobuflisted noswapfile
+		exe 'sb' s:ErrorLoad(a:name)
 	endif
-	if a:0 > 0
-		call append(line('$'), a:1)
-		if w == 0
-			1d _
-		endif
+	if a:0 == 0
+	elseif line('$') == 1 && getline(1) == ''
+		call setline(1, a:1)
+	else
+		call append('$', a:1)
 	endif
 	normal! G0
-	let b = bufnr()
 	exe win_id2win(p).'wincmd w'
-	return b
+endfunc
+
+function s:ErrorCb(b, ch, msg)
+	call s:ErrorOpen(bufname(a:b))
+	call ch_setoptions(a:ch, {'callback': ''})
 endfunc
 
 function s:ErrorExec(cmd, dir, inp)
@@ -230,7 +234,8 @@ function s:ErrorExec(cmd, dir, inp)
 		let opts['cwd'] = a:dir
 	endif
 	silent! wall
-	let b = s:ErrorOpen(name)
+	let b = s:ErrorLoad(name)
+	let opts['callback'] = function('s:ErrorCb', [b])
 	call s:JobStart(a:cmd, b, opts, a:inp)
 endfunc
 
