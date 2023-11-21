@@ -67,7 +67,9 @@ function AcmeStatusTitle()
 endfunc
 
 function AcmeStatusName()
-	return has_key(s:scratch, bufnr()) ? '%{AcmeStatusTitle()}' : '%F '
+	return has_key(s:scratch, bufnr())
+		\ ? '%{AcmeStatusTitle()}'
+		\ : isdirectory(expand('%')) ? '%F/ ' : '%F '
 endfunc
 
 function AcmeStatusFlags()
