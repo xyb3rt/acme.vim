@@ -48,6 +48,7 @@ QHash<unsigned int, msghandler *> requests;
 chan rx, tx;
 QList<typeinfo> types;
 QHash<unsigned int, qsizetype> parenttype;
+const char *server;
 
 void setpos(acmevim_strv msg) {
 	filepos.path.clear();
@@ -482,22 +483,53 @@ void spawn(char *argv[]) {
 		{"capabilities", capabilities()},
 	}, initialized));
 	inithandlers();
+	server = strbsnm(argv[0]);
+}
+
+QByteArray ext(const char *path) {
+	const char *p = strrchr(path, '.');
+	return QString(p ? &p[1] : "").toLower().toUtf8();
+}
+
+void detectserver(acmevim_strv msg) {
+	QHash<QByteArray, const char *> srv{
+		{"cpp", "clangd"}, {"hpp", "clangd"}, {"h", "clangd"},
+		{"go", "gopls"},
+	};
+	for (size_t i = 1; i + 4 < vec_len(&msg); i += 5) {
+		const char *path = msg[i], *s = srv.value(ext(path));
+		if (indir(path, cwd) && s != NULL) {
+			server = s;
+			return;
+		}
+	}
+}
+
+void guessinvocation(void) {
+	const char *cmd[] = {"bufinfo"};
+	requestv("bufinfo", cmd, ARRLEN(cmd), detectserver);
+	if (server == NULL) {
+		error(EXIT_FAILURE, 0, "Which server?");
+	}
+	char *argv[] = {(char *)server, NULL};
+	spawn(argv);
 }
 
 int main(int argc, char *argv[]) {
 	argv0 = argv[0];
-	if (argc < 2) {
-		fprintf(stderr, "usage: %s LSP_SERVER...\n", strbsnm(argv0));
-		exit(EXIT_FAILURE);
-	}
 	init();
-	spawn(&argv[1]);
+	if (argc > 1) {
+		spawn(&argv[1]);
+	} else {
+		guessinvocation();
+	}
 	for (;;) {
 		if (dirty && requests.isEmpty()) {
 			closeall();
 			if (!types.isEmpty()) {
 				dumptypes();
 			}
+			printf("%s ", server);
 			menu(cmds.data());
 			dirty = CLEAN;
 		}
