@@ -348,8 +348,10 @@ void cmd_push(void) {
 }
 
 void cmd_rebase(void) {
-	set("git", "rebase", "-i", "--autosquash", NULL);
-	if (add(1, "< --abort --continue --onto @{u} >", list_branches)) {
+	set("git", "rebase", NULL);
+	if (add(1, "< --abort --continue --autosquash --interactive --onto "
+	        "@{u} >", list_branches))
+	{
 		run(1);
 	}
 }
