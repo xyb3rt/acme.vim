@@ -1,12 +1,6 @@
 #include "acmevim.h"
 #include "indispensbl/cwd.h"
 
-enum dirty {
-	CLEAN,
-	REDRAW,
-	CHECKTIME,
-};
-
 typedef void msg_cb(acmevim_strv);
 typedef void cmd_func(void);
 
@@ -19,7 +13,6 @@ const char *acmevimbuf;
 struct { char *d; size_t len, size; } buf;
 struct acmevim_conn *conn;
 char *cwd;
-enum dirty dirty;
 
 int process(const char *resp, msg_cb *cb) {
 	if (conn->rxfd == -1) {
@@ -52,10 +45,9 @@ void requestv(const char *resp, const char **argv, size_t argc, msg_cb *cb) {
 	} while (!process(resp, cb));
 }
 
-void clear(enum dirty d) {
+void clear(void) {
 	const char *cmd[] = {"clear^", acmevimbuf};
 	requestv("cleared", cmd, ARRLEN(cmd), NULL);
-	dirty = d;
 }
 
 void nl(void) {
@@ -126,5 +118,4 @@ void init(void) {
 	}
 	conn = acmevim_connect();
 	cwd = xgetcwd();
-	clear(REDRAW);
 }

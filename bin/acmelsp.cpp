@@ -412,7 +412,6 @@ void txtdoc(const char *method, msghandler *handler,
 	if (!getpos() || !txtdocopen(filepos.path)) {
 		return;
 	}
-	clear(REDRAW);
 	QJsonObject params = txtpos();
 	for (auto i = extra.begin(), end = extra.end(); i != end; i++) {
 		params[i.key()] = i.value();
@@ -523,6 +522,7 @@ int main(int argc, char *argv[]) {
 	} else {
 		guessinvocation();
 	}
+	bool dirty = true;
 	for (;;) {
 		if (dirty && requests.isEmpty()) {
 			closeall();
@@ -531,13 +531,15 @@ int main(int argc, char *argv[]) {
 			}
 			printf("%s ", server);
 			menu(cmds.data());
-			dirty = CLEAN;
+			dirty = false;
 		}
 		if (block(rx.fd) == 0) {
 			input();
 			struct cmd *cmd = match(cmds.data());
 			if (cmd != NULL && requests.isEmpty()) {
+				clear();
 				cmd->func();
+				dirty = true;
 			}
 		} else {
 			receive();

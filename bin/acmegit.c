@@ -161,9 +161,7 @@ int add(size_t arg, const char *hints, list_func *ls) {
 		}
 		vec_push(&cmdv, xstrdup(buf.d));
 	}
-	if (reply == CANCEL) {
-		clear(REDRAW);
-	}
+	clear();
 	return reply == CONFIRM;
 }
 
@@ -183,19 +181,16 @@ int main(int argc, char *argv[]) {
 	}
 	init();
 	for (;;) {
-		if (dirty) {
-			if (dirty == CHECKTIME) {
-				checktime();
-			}
-			dirty = CLEAN;
-			status();
-			menu(cmds);
-		}
+		checktime();
+		status();
+		menu(cmds);
 		block(-1);
 		input();
 		struct cmd *cmd = match(cmds);
 		if (cmd != NULL) {
 			cmd->func();
+		} else {
+			clear();
 		}
 	}
 	return 0;
@@ -250,7 +245,6 @@ void list_tags(void) {
 void cmd_add(void) {
 	set("git", "add", NULL);
 	if (add(1, "< --all --edit --update ./ >", NULL)) {
-		clear(CHECKTIME);
 		run(devnull);
 	}
 }
@@ -258,7 +252,6 @@ void cmd_add(void) {
 void cmd_branch(void) {
 	set("git", "branch", NULL);
 	if (add(1, "< --copy --delete --move --force >", list_allbranches)) {
-		clear(REDRAW);
 		run(1);
 	}
 }
@@ -268,7 +261,7 @@ void cmd_cd(void) {
 	show(0, "<>");
 	list_submodules();
 	enum reply reply = get();
-	clear(REDRAW);
+	clear();
 	if (reply == SELECT) {
 		char *dir = buf.d[0] == '/' ? buf.d :
 		            xasprintf("%s/%s", cwd, buf.d);
@@ -285,7 +278,6 @@ void cmd_cd(void) {
 void cmd_checkout(void) {
 	set("git", "checkout", NULL);
 	if (add(1, "< ./ >", NULL)) {
-		clear(CHECKTIME);
 		run(devnull);
 	}
 }
@@ -293,7 +285,6 @@ void cmd_checkout(void) {
 void cmd_clean(void) {
 	set("git", "clean", NULL);
 	if (add(1, "< --dry-run --force ./ >", NULL)) {
-		clear(CHECKTIME);
 		run(1);
 	}
 }
@@ -301,13 +292,12 @@ void cmd_clean(void) {
 void cmd_commit(void) {
 	set("git", "commit", "-v", NULL);
 	if (add(1, "< --all --amend --no-edit --fixup >", NULL)) {
-		clear(CHECKTIME);
 		run(1);
 	}
 }
 
 void cmd_config(void) {
-	clear(REDRAW);
+	clear();
 	set("git", "config", "-e", NULL);
 	run(devnull);
 }
@@ -315,7 +305,6 @@ void cmd_config(void) {
 void cmd_diff(void) {
 	set("scratch", cwd, "git:diff", "git", "diff", NULL);
 	if (add(4, "< --cached HEAD @{u} -- >", NULL)) {
-		clear(REDRAW);
 		request("scratched", NULL);
 	}
 }
@@ -323,12 +312,12 @@ void cmd_diff(void) {
 void cmd_fetch(void) {
 	set("git", "fetch", NULL);
 	if (add(1, "< --all --prune >", list_remotes)) {
-		clear(REDRAW);
 		run(1);
 	}
 }
 
 void cmd_graph(void) {
+	clear();
 	set("scratch", cwd, "git:graph", "git", "log", "--graph", "--oneline",
 	    "--decorate", "--all", "--date-order", NULL);
 	request("scratched", NULL);
@@ -338,7 +327,6 @@ void cmd_log(void) {
 	set("scratch", cwd, "git:log", "git", "log", "--decorate",
 	    "--left-right", NULL);
 	if (add(4, "< -S HEAD ...@{u} >", list_selections)) {
-		clear(REDRAW);
 		request("scratched", NULL);
 	}
 }
@@ -346,7 +334,6 @@ void cmd_log(void) {
 void cmd_merge(void) {
 	set("git", "merge", NULL);
 	if (add(1, "< --abort --continue @{u} >", list_branches)) {
-		clear(CHECKTIME);
 		run(1);
 	}
 }
@@ -356,7 +343,6 @@ void cmd_push(void) {
 	if (add(1, "< --all --dry-run --force --set-upstream --tags >",
 	        list_remotes))
 	{
-		clear(REDRAW);
 		run(1);
 	}
 }
@@ -364,7 +350,6 @@ void cmd_push(void) {
 void cmd_rebase(void) {
 	set("git", "rebase", "-i", "--autosquash", NULL);
 	if (add(1, "< --abort --continue --onto @{u} >", list_branches)) {
-		clear(CHECKTIME);
 		run(1);
 	}
 }
@@ -372,7 +357,6 @@ void cmd_rebase(void) {
 void cmd_reset(void) {
 	set("git", "reset", NULL);
 	if (add(1, "< HEAD -- ./ >", NULL)) {
-		clear(CHECKTIME);
 		run(devnull);
 	}
 }
@@ -380,7 +364,6 @@ void cmd_reset(void) {
 void cmd_revert(void) {
 	set("git", "revert", NULL);
 	if (add(1, "< --abort --continue >", NULL)) {
-		clear(CHECKTIME);
 		run(1);
 	}
 }
@@ -388,7 +371,6 @@ void cmd_revert(void) {
 void cmd_rm(void) {
 	set("git", "rm", "--", NULL);
 	if (add(1, "<>", NULL)) {
-		clear(CHECKTIME);
 		run(devnull);
 	}
 }
@@ -396,7 +378,6 @@ void cmd_rm(void) {
 void cmd_stash(void) {
 	set("git", "stash", NULL);
 	if (add(1, "< --include-untracked pop drop >", list_stashes)) {
-		clear(CHECKTIME);
 		run(devnull);
 	}
 }
@@ -404,7 +385,6 @@ void cmd_stash(void) {
 void cmd_submodule(void) {
 	set("git", "submodule", NULL);
 	if (add(1, "< update --init --recursive >", list_submodules)) {
-		clear(CHECKTIME);
 		run(1);
 	}
 }
@@ -412,7 +392,6 @@ void cmd_submodule(void) {
 void cmd_switch(void) {
 	set("git", "switch", NULL);
 	if (add(1, "< --create >", list_allbranches)) {
-		clear(CHECKTIME);
 		run(devnull);
 	}
 }
@@ -420,7 +399,6 @@ void cmd_switch(void) {
 void cmd_tag(void) {
 	set("git", "tag", NULL);
 	if (add(1, "< --annotate --delete --force >", list_tags)) {
-		clear(REDRAW);
 		run(1);
 	}
 }
