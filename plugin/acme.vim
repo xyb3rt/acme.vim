@@ -160,18 +160,23 @@ function s:Receiver(b)
 		\ (has_key(s:scratch, a:b) && s:Jobs(a:b) != [])
 endfunc
 
-function s:SplitHeight(minh, maxh)
-	let minh = &winminheight > 0 ? 2 * &winminheight + 1 : 2
-	if winheight(0) < minh
-		exe minh.'wincmd _'
+function s:WinSize(w, vertical)
+	return call('win'.(a:vertical ? 'width' : 'height'), [win_id2win(a:w)])
+endfunc
+
+function s:SplitSize(min, max, vertical)
+	let min = getwinvar(0, '&wm'.(a:vertical ? 'w' : 'h'))
+	let min = min > 0 ? 2 * min + 1 : 2
+	if s:WinSize(0, a:vertical) < min
+		exe min.'wincmd' (a:vertical ? '|' : '_')
 	endif
-	let s = winnr('$') == 1 && &laststatus == 1
-	let h = max([a:minh, (winheight(0) - s) / 2])
-	return a:maxh > 0 ? min([h, a:maxh]) : h
+	let stat = !a:vertical && winnr('$') == 1 && &laststatus == 1
+	let size = max([a:min, (s:WinSize(0, a:vertical) - stat) / 2])
+	return a:max > 0 ? min([size, a:max]) : size
 endfunc
 
 function s:New(cmd)
-	exe (s:SplitHeight(10, 0)).a:cmd
+	exe (s:SplitSize(10, 0, 0)).a:cmd
 endfunc
 
 function s:Argv(cmd)
@@ -571,14 +576,16 @@ function AcmeMoveWin(dir)
 	noa exe win_id2win(w).'wincmd w'
 endfunc
 
-function s:SplitMoveWin(other, below)
+function s:SplitMoveWin(other, vertical, rightbelow)
 	let w = win_getid()
 	let p = win_getid(winnr('#'))
 	if w == a:other
 		return
 	endif
 	noa exe win_id2win(a:other).'wincmd w'
-	noa exe (a:below ? 'bel' : 'abo') (s:SplitHeight(1, winheight(w))).'sp'
+	noa exe (a:rightbelow ? 'bel' : 'abo')
+		\ (s:SplitSize(1, s:WinSize(w, a:vertical), a:vertical))
+		\ (a:vertical ? 'vs' : 'sp')
 	noa exe 'b' winbufnr(w)
 	noa exe win_id2win(w).'close'
 	let w = win_getid()
@@ -686,8 +693,14 @@ function s:RightRelease(click)
 		exe s:clickstatus.'wincmd w'
 		let pos = getmousepos()
 		if pos.winid != 0 && pos.winid != s:click.winid
-			let below = pos.winrow > (winheight(pos.winid) + 1) / 2
-			call s:SplitMoveWin(pos.winid, below)
+			let [x, ww] = [pos.wincol, winwidth(pos.winid) + 1]
+			let [y, wh] = [pos.winrow, winheight(pos.winid) + 1]
+			if min([x, ww - x]) * 2 * wh < min([y, wh - y]) * ww
+				let [v, rb] = [1, x > ww / 2]
+			else
+				let [v, rb] = [0, y > wh / 2]
+			endif
+			call s:SplitMoveWin(pos.winid, v, rb)
 		elseif pos.line == 0 && pos.winid == s:click.winid
 			wincmd _
 		endif
