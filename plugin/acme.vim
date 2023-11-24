@@ -160,23 +160,19 @@ function s:Receiver(b)
 		\ (has_key(s:scratch, a:b) && s:Jobs(a:b) != [])
 endfunc
 
-function s:WinSize(w, vertical)
-	return call('win'.(a:vertical ? 'width' : 'height'), [win_id2win(a:w)])
-endfunc
-
-function s:SplitSize(min, max, vertical)
-	let min = getwinvar(0, '&wm'.(a:vertical ? 'w' : 'h'))
+function s:SplitSize(min, vertical)
+	let dim = a:vertical ? 'width' : 'height'
+	let min = getwinvar(0, '&winmin'.dim)
 	let min = min > 0 ? 2 * min + 1 : 2
-	if s:WinSize(0, a:vertical) < min
+	if call('win'.dim, [0]) < min
 		exe min.'wincmd' (a:vertical ? '|' : '_')
 	endif
 	let stat = !a:vertical && winnr('$') == 1 && &laststatus == 1
-	let size = max([a:min, (s:WinSize(0, a:vertical) - stat) / 2])
-	return a:max > 0 ? min([size, a:max]) : size
+	return max([a:min, (call('win'.dim, [0]) - stat) / 2])
 endfunc
 
 function s:New(cmd)
-	exe (s:SplitSize(10, 0, 0)).a:cmd
+	exe (s:SplitSize(10, 0)).a:cmd
 endfunc
 
 function s:Argv(cmd)
@@ -576,15 +572,14 @@ function AcmeMoveWin(dir)
 	noa exe win_id2win(w).'wincmd w'
 endfunc
 
-function s:SplitMoveWin(other, vertical, rightbelow)
+function s:SplitMove(other, vertical, rightbelow)
 	let w = win_getid()
 	let p = win_getid(winnr('#'))
 	if w == a:other
 		return
 	endif
 	noa exe win_id2win(a:other).'wincmd w'
-	noa exe (a:rightbelow ? 'bel' : 'abo')
-		\ (s:SplitSize(1, s:WinSize(w, a:vertical), a:vertical))
+	noa exe (a:rightbelow ? 'bel' : 'abo') s:SplitSize(1, a:vertical)
 		\ (a:vertical ? 'vs' : 'sp')
 	noa exe 'b' winbufnr(w)
 	noa exe win_id2win(w).'close'
@@ -696,11 +691,10 @@ function s:RightRelease(click)
 			let [x, ww] = [pos.wincol, winwidth(pos.winid) + 1]
 			let [y, wh] = [pos.winrow, winheight(pos.winid) + 1]
 			if min([x, ww - x]) * 2 * wh < min([y, wh - y]) * ww
-				let [v, rb] = [1, x > ww / 2]
+				call s:SplitMove(pos.winid, 1, x > ww / 2)
 			else
-				let [v, rb] = [0, y > wh / 2]
+				call s:SplitMove(pos.winid, 0, y > wh / 2)
 			endif
-			call s:SplitMoveWin(pos.winid, v, rb)
 		elseif pos.line == 0 && pos.winid == s:click.winid
 			wincmd _
 		endif
