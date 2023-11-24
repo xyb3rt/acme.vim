@@ -688,12 +688,12 @@ function s:RightRelease(click)
 		exe s:clickstatus.'wincmd w'
 		let p = getmousepos()
 		if p.winid != 0 && p.winid != s:click.winid
-			let [x, ww] = [p.wincol, winwidth(p.winid) + 1]
-			let [y, wh] = [p.winrow, winheight(p.winid) + 1]
-			if min([x, ww - x]) * 2 * wh < min([y, wh - y]) * ww
-				call s:SplitMove(p.winid, 1, x > ww / 2)
+			let mx = (winwidth(p.winid) + 1) / 2
+			let my = (winheight(p.winid) + 1) / 2
+			if abs(p.wincol - mx) > 2 * (abs(p.winrow - my) + 5)
+				call s:SplitMove(p.winid, 1, p.wincol > mx)
 			else
-				call s:SplitMove(p.winid, 0, y > wh / 2)
+				call s:SplitMove(p.winid, 0, p.winrow > my)
 			endif
 		elseif p.line == 0 && p.winid == s:click.winid
 			wincmd _
