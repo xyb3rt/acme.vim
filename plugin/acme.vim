@@ -646,8 +646,8 @@ function s:MiddleRelease(click)
 		if s:clickmode == 't'
 			normal! i
 		endif
-		let pos = getmousepos()
-		if pos.line == 0 && pos.winid == s:click.winid
+		let p = getmousepos()
+		if p.line == 0 && p.winid == s:click.winid
 			exe s:clickstatus.'close!'
 		endif
 		return
@@ -686,16 +686,16 @@ function s:RightRelease(click)
 			normal! i
 		endif
 		exe s:clickstatus.'wincmd w'
-		let pos = getmousepos()
-		if pos.winid != 0 && pos.winid != s:click.winid
-			let [x, ww] = [pos.wincol, winwidth(pos.winid) + 1]
-			let [y, wh] = [pos.winrow, winheight(pos.winid) + 1]
+		let p = getmousepos()
+		if p.winid != 0 && p.winid != s:click.winid
+			let [x, ww] = [p.wincol, winwidth(p.winid) + 1]
+			let [y, wh] = [p.winrow, winheight(p.winid) + 1]
 			if min([x, ww - x]) * 2 * wh < min([y, wh - y]) * ww
-				call s:SplitMove(pos.winid, 1, x > ww / 2)
+				call s:SplitMove(p.winid, 1, x > ww / 2)
 			else
-				call s:SplitMove(pos.winid, 0, y > wh / 2)
+				call s:SplitMove(p.winid, 0, y > wh / 2)
 			endif
-		elseif pos.line == 0 && pos.winid == s:click.winid
+		elseif p.line == 0 && p.winid == s:click.winid
 			wincmd _
 		endif
 		return
@@ -708,11 +708,11 @@ function s:RightRelease(click)
 		call s:RestVisual(s:visual)
 	else
 		if v:hlsearch != 0 && @/ != ''
-			let pos = getpos('.')
-			let b = searchpos(@/, 'bc', pos[1])[1]
-			let e = searchpos(@/, 'ce', pos[1])[1]
-			call setpos('.', pos)
-			if b > 0 && b <= pos[2] && e > 0 && e >= pos[2]
+			let p = getpos('.')
+			let b = searchpos(@/, 'bc', p[1])[1]
+			let e = searchpos(@/, 'ce', p[1])[1]
+			call setpos('.', p)
+			if b > 0 && b <= p[2] && e > 0 && e >= p[2]
 				exe "normal! /\<CR>"
 				return
 			endif
