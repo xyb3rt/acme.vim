@@ -214,7 +214,7 @@ function s:ErrorOpen(name, ...)
 	if w != 0
 		exe w.'wincmd w'
 	else
-		exe 'sb' s:ErrorLoad(a:name)
+		call s:New('sp | b '.s:ErrorLoad(a:name))
 	endif
 	if a:0 == 0
 	elseif line('$') == 1 && getline(1) == ''
