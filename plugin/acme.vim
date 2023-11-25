@@ -241,11 +241,11 @@ function s:ErrorExec(cmd, dir, inp)
 	let opts = {'in_io': (a:inp != '' ? 'pipe' : 'null')}
 	if a:dir != ''
 		let name = a:dir.'/'.name
-		let opts['cwd'] = a:dir
+		let opts.cwd = a:dir
 	endif
 	silent! wall
 	let b = s:ErrorLoad(name)
-	let opts['callback'] = function('s:ErrorCb', [b])
+	let opts.callback = function('s:ErrorCb', [b])
 	call s:JobStart(a:cmd, b, opts, a:inp)
 endfunc
 
@@ -348,7 +348,7 @@ function s:ScratchExec(cmd, dir, inp, title)
 		\ 'in_io': 'pipe',
 	\ }
 	if a:dir != ''
-		let opts['cwd'] = a:dir
+		let opts.cwd = a:dir
 	endif
 	call s:JobStart(a:cmd, b, opts, a:inp)
 endfunc
