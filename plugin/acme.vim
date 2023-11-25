@@ -85,8 +85,11 @@ function AcmeStatusRuler()
 endfunc
 
 function s:Started(job, buf, cmd)
-	let cmd = type(a:cmd) == type([]) ? join(a:cmd) : a:cmd
-	call add(s:jobs, {'h': a:job, 'buf': a:buf, 'cmd': cmd})
+	call add(s:jobs, {
+		\ 'buf': a:buf,
+		\ 'h': a:job,
+		\ 'cmd': type(a:cmd) == type([]) ? join(a:cmd) : a:cmd,
+	\ })
 	redrawstatus!
 endfunc
 
@@ -180,8 +183,14 @@ function s:Argv(cmd)
 endfunc
 
 function s:JobStart(cmd, b, opts, inp)
-	let opts = extend({'exit_cb': 's:Exited', 'err_io': 'out',
-		\ 'out_io': 'buffer', 'out_buf': a:b, 'out_msg': 0}, a:opts)
+	let opts = {
+		\ 'exit_cb': 's:Exited',
+		\ 'err_io': 'out',
+		\ 'out_io': 'buffer',
+		\ 'out_buf': a:b,
+		\ 'out_msg': 0,
+	\ }
+	call extend(opts, a:opts)
 	let job = job_start(s:Argv(a:cmd), opts)
 	if job_status(job) == "fail"
 		return
@@ -313,8 +322,10 @@ function s:ScratchNew(title, dir)
 		call s:New('new')
 	endif
 	setl bufhidden=unload buftype=nofile nobuflisted noswapfile
-	let s:scratch[bufnr()] = {'title': a:title,
-		\ 'dir': s:Path(a:dir != '' ? a:dir : getcwd())}
+	let s:scratch[bufnr()] = {
+		\ 'dir': s:Path(a:dir != '' ? a:dir : getcwd()),
+		\ 'title': a:title,
+	\ }
 endfunc
 
 function s:ScratchCb(b, ch, msg)
@@ -331,8 +342,11 @@ endfunc
 function s:ScratchExec(cmd, dir, inp, title)
 	call s:ScratchNew(a:title, a:dir)
 	let b = bufnr()
-	let opts = {'callback': function('s:ScratchCb', [b]),
-		\ 'env': {'ACMEVIMBUF': b}, 'in_io': 'pipe'}
+	let opts = {
+		\ 'callback': function('s:ScratchCb', [b]),
+		\ 'env': {'ACMEVIMBUF': b},
+		\ 'in_io': 'pipe',
+	\ }
 	if a:dir != ''
 		let opts['cwd'] = a:dir
 	endif
@@ -341,7 +355,10 @@ endfunc
 
 function s:Exec(cmd)
 	silent! call job_start(s:Argv(a:cmd), {
-		\ 'err_io': 'null', 'in_io': 'null', 'out_io': 'null'})
+		\ 'err_io': 'null',
+		\ 'in_io': 'null',
+		\ 'out_io': 'null',
+	\ })
 endfunc
 
 function s:BufWidth(b)
@@ -861,8 +878,9 @@ function s:Clear(b, top)
 	if a:top && has_key(s:scratch, a:b)
 		let s:scratch[a:b].top = 1
 		for job in s:Jobs(a:b)
-			call ch_setoptions(job.h,
-				\ {'callback': function('s:ScratchCb', [a:b])})
+			call ch_setoptions(job.h, {
+				\ 'callback': function('s:ScratchCb', [a:b]),
+			\ })
 		endfor
 	endif
 endfunc
@@ -1014,6 +1032,9 @@ let s:scratch = {}
 
 if s:ctrlexe != ''
 	let s:ctrl = job_start([s:ctrlexe], {
-		\ 'mode': 'raw', 'callback': 's:CtrlRecv', 'err_io': 'null'})
+		\ 'callback': 's:CtrlRecv',
+		\ 'err_io': 'null',
+		\ 'mode': 'raw',
+	\ })
 	let $EDITOR = s:ctrlexe
 endif
