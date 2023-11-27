@@ -572,7 +572,15 @@ function s:Open(text, click)
 	endfor
 endfunc
 
-command -nargs=1 -complete=file O call s:Open(expand(<q-args>), 0)
+function s:Complete(arg, line, pos)
+	let p = a:arg =~ '^[~/]' ? a:arg : s:Dir().'/'.a:arg
+	let p = fnamemodify(p, ':p')
+	return map(glob(p.'*', 1, 1), {_, f ->
+		\ a:arg.(f[len(p):]).(isdirectory(f) ? '/' : '')})
+endfunc
+
+command -nargs=1 -complete=customlist,s:Complete O
+	\ call s:Open(expand(<q-args>), 0)
 
 function AcmeMoveWin(dir)
 	let w = win_getid()
