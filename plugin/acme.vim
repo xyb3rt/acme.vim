@@ -528,11 +528,18 @@ function s:OpenBuf(b)
 endfunc
 
 function s:RgOpen(pos)
-	let l = search('\v^(\s*(\d+[-:]|\-\-\s*$))@!', 'bnW')
-	if l != 0
-		let f = substitute(getline(l), '^\~\~ ', '', '')
-		return s:OpenFile(f, a:pos)
-	endif
+	let dir = s:Dir()
+	let i = line('.')
+	while i > 0
+		let l = getline(i)
+		let f = l =~ '^[/]' ? l : dir.'/'.l
+		if filereadable(f)
+			return s:OpenFile(f, a:pos)
+		elseif l !~ '\v^\s*(\d+[-:]|\-\-\s*$)'
+			return 0
+		endif
+		let i -= 1
+	endwhile
 endfunc
 
 function AcmePlumb(title, cmd, ...)
@@ -560,7 +567,7 @@ let s:plumbing = [
 	\ ['(\f+)%(%([:](%([0-9]+)|%([/?].+)))|%(\(([0-9]+)\)))',
 		\ {m -> s:OpenFile(m[1], m[2] != '' ? m[2] : m[3])}],
 	\ ['\f+', {m -> s:OpenFile(m[0], '')}],
-	\ ['^\s*(\d+)[-:]', {m -> s:RgOpen(m[0])}],
+	\ ['^\s*(\d+)[-:]', {m -> s:RgOpen(m[1])}],
 	\ ['\#(\d+)', {m -> s:OpenBuf(str2nr(m[1]))}]]
 
 function s:Open(text, click)
