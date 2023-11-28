@@ -32,10 +32,6 @@ function s:Sel()
 	return sel
 endfunc
 
-function s:Dir()
-	return s:Cwds()[0]
-endfunc
-
 function s:Path(path, ...)
 	if a:path == ''
 		return ''
@@ -426,13 +422,6 @@ function s:ReloadDirs(...)
 	endfor
 endfunc
 
-function s:Readable(path)
-	" Reject binary files, i.e. files containing null characters (which
-	" readfile() turns into newlines!)
-	let path = fnamemodify(a:path, ':p')
-	return filereadable(path) && join(readfile(path, '', 4096), '') !~ '\n'
-endfunc
-
 function s:FileOpen(name, pos)
 	let path = s:Path(a:name)
 	let w = s:FileWin(path)
@@ -466,49 +455,23 @@ function s:Match(text, click, pat)
 	return m
 endfunc
 
-function s:Cwds()
+function s:Dir()
 	" Expanding '%:p:h' in a dir buf gives the dir not its parent!
-	let dirs = [expand('%:p:h')]
-	if has_key(s:scratch, bufnr())
-		call insert(dirs, s:scratch[bufnr()].dir)
-	endif
-	if expand('%:t') == '+Errors' || term_getstatus(bufnr()) != ''
-		let [d, q] = ['directory:? ', "[`'\"]"]
-		let l = searchpair('\vEntering '.d.q, '', 'Leaving '.d.q, 'bnW')
-		let m = matchlist(getline(l), '\vEntering '.d.q.'(.+)'.q)
-		if m != []
-			call insert(dirs, m[1])
-		endif
-	endif
-	return filter(dirs, 'isdirectory(v:val)') + [getcwd()]
-endfunc
-
-function s:FindFile(name)
-	let name = a:name
-	if name =~ '\v^\~\/'
-		let name = fnamemodify(name, ':p')
-	endif
-	" This is necessary, because findfile() does not support
-	" ../foo.h relative to the directory of the current file
-	for f in name[0] == '/' ? [name] : map(s:Cwds(), 'v:val."/".name')
-		if isdirectory(f) || filereadable(f)
-			return [f]
-		endif
-	endfor
-	return findfile(a:name, '', -1)
+	return get(get(s:scratch, bufnr(), {}), 'dir', expand('%:p:h'))
 endfunc
 
 function s:OpenFile(name, pos)
-	let f = s:FindFile(a:name)
-	if f == []
+	let f = a:name =~ '^[~/]' ? a:name : s:Dir().'/'.a:name
+	let f = fnamemodify(f, ':p')
+	if isdirectory(f)
+		call s:FileOpen(f, '')
+	elseif !filereadable(f)
 		return 0
-	elseif len(f) > 1
-		let pos = a:pos != '' ? ':'.a:pos : ''
-		call s:ErrorOpen('+Errors', map(f, 's:Path(v:val, ":~").pos'))
-	elseif isdirectory(f[0]) || s:Readable(f[0])
-		call s:FileOpen(f[0], a:pos)
+	elseif join(readfile(f, '', 4096), '') !~ '\n'
+		" No null bytes found, not considered a binary file.
+		call s:FileOpen(f, a:pos)
 	else
-		call s:Exec('xdg-open '.shellescape(f[0]))
+		call s:Exec('xdg-open '.shellescape(f))
 	endif
 	return 1
 endfunc
