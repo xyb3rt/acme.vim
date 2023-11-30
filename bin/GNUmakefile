@@ -1,6 +1,6 @@
 all: acmegit acmelsp acmevim
 
-acmelsp: CXXFLAGS += $(shell pkg-config --cflags Qt6Core)
+acmelsp: CXXFLAGS += -fpic $(shell pkg-config --cflags Qt6Core)
 acmelsp: LDLIBS += $(shell pkg-config --libs Qt6Core)
 
 acmegit acmelsp acmevim: acmecmd.h acmevim.h indispensbl/call.h \
