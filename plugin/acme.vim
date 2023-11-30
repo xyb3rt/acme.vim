@@ -457,7 +457,8 @@ endfunc
 
 function s:Dir()
 	" Expanding '%:p:h' in a dir buf gives the dir not its parent!
-	return get(get(s:scratch, bufnr(), {}), 'dir', expand('%:p:h'))
+	let dir = get(get(s:scratch, bufnr(), {}), 'dir', expand('%:p:h'))
+	return isdirectory(dir) ? dir : getcwd()
 endfunc
 
 function s:OpenFile(name, pos)
