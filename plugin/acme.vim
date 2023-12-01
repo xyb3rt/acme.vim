@@ -77,7 +77,7 @@ function AcmeStatusJobs()
 endfunc
 
 function AcmeStatusRuler()
-	return &ruler ? &ruf != '' ? &ruf : '%-14.(%l,%c%V%) %P' : ''
+	return &ruler ? &ruf != '' ? ' '.&ruf : ' %-14.(%l,%c%V%) %P' : ''
 endfunc
 
 function s:Started(job, buf, cmd)
