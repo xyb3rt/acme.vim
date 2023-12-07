@@ -110,10 +110,10 @@ refs, that you can add to your `~/.vimrc`:
 
 ```
 let g:acme_plumbing = [
-	\ ['https?\:\/\/(\a(\w|\-)*\.)+(\w{2,}\.?)+(:\d{1,5})?\S*', {m ->
+	\ ['<https?\:\/\/(\f|[-.~!*();:@&=+$,/?#%]|\[|\])+', {m ->
 		\ AcmePlumb('', 'xdg-open', m[0])}],
 	\ ['([[:graph:]]+)\s*\((\d\a*)\)', {m ->
-		\ AcmePlumb(m[0], 'man', m[2], m[1])}],
+		\ AcmePlumb(m[1].'('.m[2].')', 'man', m[2], m[1])}],
 	\ ['<stash\@\{\d+\}', {m ->
 		\ AcmePlumb('git:'.m[0], 'git stash show -p', m[0])}],
 	\ ['(\f|[@{}])*\.\.\.?(\f|[@{}])*', {m ->
