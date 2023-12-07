@@ -390,7 +390,7 @@ void cmd_rebase(void) {
 
 void cmd_reset(void) {
 	set("git", "reset", NULL);
-	hint("< HEAD -- ./ >", NULL);
+	hint("< --hard HEAD -- ./ >", NULL);
 	if (add(NULL)) {
 		run(devnull);
 	}
