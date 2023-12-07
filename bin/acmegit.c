@@ -174,7 +174,6 @@ void show(list_func *ls) {
 
 int add(list_func *ls) {
 	enum reply reply;
-	promptline = 0;
 	for (;;) {
 		show(ls);
 		reply = get();
@@ -204,6 +203,7 @@ int main(int argc, char *argv[]) {
 	}
 	init();
 	for (;;) {
+		promptline = 0;
 		checktime();
 		status();
 		menu(cmds);
@@ -284,8 +284,7 @@ void cmd_branch(void) {
 void cmd_cd(void) {
 	set("cd", NULL);
 	hint("<>", NULL);
-	show(NULL);
-	list_submodules();
+	show(list_submodules);
 	enum reply reply = get();
 	clear();
 	if (reply == SELECT) {
