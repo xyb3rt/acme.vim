@@ -2,7 +2,6 @@
  * acmegit: Simple git UI in acme.vim scratch buffer
  */
 #include "acmecmd.h"
-#include "indispensbl/call.h"
 #include <fcntl.h>
 
 enum reply {

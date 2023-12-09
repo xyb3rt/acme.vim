@@ -1,5 +1,4 @@
 #include "acmevim.h"
-#include "indispensbl/cwd.h"
 #include <fcntl.h>
 
 enum mode {

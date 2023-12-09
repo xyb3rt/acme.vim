@@ -89,7 +89,7 @@ You can install *acme.vim* with your favorite package manager or with vim's
 builtin package support:
 
 ```
-git clone --recurse-submodules https://github.com/xyb3rt/acme.vim.git \
+git clone https://github.com/xyb3rt/acme.vim.git \
 	~/.vim/pack/xyb3rt/start/acme.vim
 ```
 

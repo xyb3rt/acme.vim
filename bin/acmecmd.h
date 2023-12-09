@@ -1,5 +1,4 @@
 #include "acmevim.h"
-#include "indispensbl/cwd.h"
 
 typedef void msg_cb(acmevim_strv);
 typedef void cmd_func(void);
