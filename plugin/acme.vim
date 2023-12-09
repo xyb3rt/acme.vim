@@ -478,18 +478,10 @@ function s:OpenFile(name, pos)
 endfunc
 
 function s:RgOpen(pos)
-	let dir = s:Dir()
-	let i = line('.')
-	while i > 0
-		let l = getline(i)
-		let f = l =~ '^[/]' ? l : dir.'/'.l
-		if filereadable(f)
-			return s:OpenFile(f, a:pos)
-		elseif l !~ '\v^\s*(\d+[-:]|\-\-\s*$)'
-			return 0
-		endif
-		let i -= 1
-	endwhile
+	let f = getline(search('\v^(\s*(\d+[-:]|\-\-$))@!', 'bnW'))
+	if f != ''
+		return s:OpenFile(f, a:pos)
+	endif
 endfunc
 
 function AcmePlumb(title, cmd, ...)
