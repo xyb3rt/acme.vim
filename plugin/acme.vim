@@ -477,20 +477,6 @@ function s:OpenFile(name, pos)
 	return 1
 endfunc
 
-function s:OpenBuf(b)
-	let b = bufnr(a:b)
-	if b <= 0
-		return 0
-	endif
-	let w = s:BufWin(b)
-	if w != 0
-		exe w.'wincmd w'
-	else
-		call s:New('sp | b '.b)
-	endif
-	return 1
-endfunc
-
 function s:RgOpen(pos)
 	let dir = s:Dir()
 	let i = line('.')
@@ -531,8 +517,7 @@ let s:plumbing = [
 	\ ['(\f+)%(%([:](%([0-9]+)|%([/?].+)))|%(\(([0-9]+)\)))',
 		\ {m -> s:OpenFile(m[1], m[2] != '' ? m[2] : m[3])}],
 	\ ['\f+', {m -> s:OpenFile(m[0], '')}],
-	\ ['^\s*(\d+)[-:]', {m -> s:RgOpen(m[1])}],
-	\ ['\#(\d+)', {m -> s:OpenBuf(str2nr(m[1]))}]]
+	\ ['^\s*(\d+)[-:]', {m -> s:RgOpen(m[1])}]]
 
 function s:Open(text, click)
 	for [pat, Handler] in s:plumbing + get(g:, 'acme_plumbing', [])
