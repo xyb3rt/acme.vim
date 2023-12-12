@@ -283,7 +283,7 @@ void cmd_branch(void) {
 void cmd_cd(void) {
 	set("cd", NULL);
 	hint("<>", NULL);
-	show(list_submodules);
+	show(NULL);
 	enum reply reply = get();
 	clear();
 	if (reply == SELECT) {
@@ -301,7 +301,7 @@ void cmd_cd(void) {
 
 void cmd_checkout(void) {
 	set("git", "checkout", NULL);
-	hint("< HEAD >", NULL);
+	hint("< --recurse-submodules HEAD -- ./ >", NULL);
 	if (add(NULL)) {
 		run(devnull);
 	}
@@ -389,7 +389,7 @@ void cmd_rebase(void) {
 
 void cmd_reset(void) {
 	set("git", "reset", NULL);
-	hint("< --hard HEAD -- ./ >", NULL);
+	hint("< --hard HEAD @{u} -- ./ >", NULL);
 	if (add(NULL)) {
 		run(devnull);
 	}
