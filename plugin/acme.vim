@@ -291,7 +291,13 @@ function s:Run(cmd, dir, vis)
 	endif
 endfunc
 
-command -nargs=1 -complete=shellcmd -range R call s:Run(<q-args>, s:Dir(), 0)
+function s:ShComplete(arg, line, pos)
+	return uniq(sort(getcompletion(a:arg, 'shellcmd') +
+		\ s:FileComplete(a:arg, a:line, a:pos)))
+endfunc
+
+command -nargs=1 -complete=customlist,s:ShComplete -range R
+	\ call s:Run(<q-args>, s:Dir(), 0)
 
 command -range V exe 'normal! '.<line1>.'GV'.<line2>.'G'
 
@@ -527,7 +533,7 @@ function s:Open(text, click)
 	endfor
 endfunc
 
-function s:Complete(arg, line, pos)
+function s:FileComplete(arg, line, pos)
 	let p = a:arg =~ '^[~/]' ? a:arg : s:Dir().'/'.a:arg
 	let p = fnamemodify(p, ':p')
 	if a:arg !~ '/$'
@@ -537,7 +543,7 @@ function s:Complete(arg, line, pos)
 		\ a:arg.(f[len(p):]).(isdirectory(f) ? '/' : '')})
 endfunc
 
-command -nargs=1 -complete=customlist,s:Complete O
+command -nargs=1 -complete=customlist,s:FileComplete O
 	\ call s:Open(expand(<q-args>), 0)
 
 function AcmeMoveWin(dir)
