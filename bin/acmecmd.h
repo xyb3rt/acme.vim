@@ -117,4 +117,5 @@ void init(void) {
 	}
 	conn = acmevim_connect();
 	cwd = xgetcwd();
+	clear();
 }
