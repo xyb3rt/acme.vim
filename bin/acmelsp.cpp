@@ -86,9 +86,10 @@ QByteArray indent(int level) {
 	return QByteArray(level > 0 ? "> " : "< ").repeated(abs(level));
 }
 
-const char *relpath(const char *path) {
-	const char *relpath = indir(path, cwd);
-	return relpath ? relpath : path;
+void printpath(const char *path) {
+	const char *p = indir(path, cwd);
+	p = p ? p : path;
+	printf("%s%s\n", p[0] == '/' ? "" : "./", p);
 }
 
 bool parseloc(const QJsonObject &loc, struct filepos *pos) {
@@ -265,7 +266,7 @@ void showmatches(const QJsonObject &msg) {
 		if (parseloc(i.toObject(), &pos)) {
 			if (path != pos.path) {
 				path = pos.path;
-				printf("%s\n", relpath(path.data()));
+				printpath(path.data());
 				QFile file(path);
 				lines.clear();
 				if (file.open(QIODevice::ReadOnly)) {
@@ -311,7 +312,7 @@ void showsym(const QJsonObject &sym, int level) {
 }
 
 void showsyms(const QJsonObject &msg) {
-	printf("%s\n", relpath(filepos.path.data()));
+	printpath(filepos.path.data());
 	for (const QJsonValue &i : msg.value("result").toArray()) {
 		showsym(i.toObject(), 0);
 	}
@@ -327,7 +328,7 @@ void dumptypes(void) {
 		if (!name.isEmpty() && parseloc(t.obj, &pos)) {
 			if (path != pos.path) {
 				path = pos.path;
-				printf("%s\n", relpath(path.data()));
+				printpath(path.data());
 			}
 			printf("%6u: %s%s\n", pos.line + 1,
 			       indent(t.level).data(), name.data());
