@@ -530,6 +530,9 @@ endfunc
 function s:Complete(arg, line, pos)
 	let p = a:arg =~ '^[~/]' ? a:arg : s:Dir().'/'.a:arg
 	let p = fnamemodify(p, ':p')
+	if a:arg !~ '/$'
+		let p = substitute(p, '/*$', '', '')
+	endif
 	return map(glob(p.'*', 1, 1), {_, f ->
 		\ a:arg.(f[len(p):]).(isdirectory(f) ? '/' : '')})
 endfunc
