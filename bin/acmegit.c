@@ -380,7 +380,7 @@ void cmd_push(void) {
 
 void cmd_rebase(void) {
 	set("git", "rebase", NULL);
-	hint("< --autosquash --interactive --onto @{u} >",
+	hint("< --autosquash --interactive --onto --root @{u} >",
 	     "< --abort --continue --quit --skip >", NULL);
 	if (add(list_branches)) {
 		run(1);
