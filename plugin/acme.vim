@@ -223,6 +223,7 @@ function s:ErrorOpen(name, ...)
 		exe w.'wincmd w'
 	else
 		call s:New('sp | b '.s:ErrorLoad(a:name))
+		let p = win_getid()
 	endif
 	if a:0 == 0
 	elseif line('$') == 1 && getline(1) == ''
