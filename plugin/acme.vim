@@ -25,7 +25,7 @@ function s:Sel()
 	let text = getreg('"')
 	let type = getregtype('"')
 	let view = winsaveview()
-	silent normal! gvy
+	silent normal! gv""y
 	let sel = [getreg('"'), getregtype('"')]
 	call winrestview(view)
 	call setreg('"', text, type)
@@ -265,7 +265,7 @@ endfunc
 function s:Filter(cmd, dir, inp, vis)
 	let out = s:System(a:cmd, a:dir, a:inp)
 	call setreg('"', out, a:vis ? s:Sel()[1] : 'c')
-	exe 'normal!' (a:vis ? 'gvp' : 'P')
+	exe 'normal!' (a:vis ? 'gv""p' : '""P')
 endfunc
 
 function s:ParseCmd(cmd)
