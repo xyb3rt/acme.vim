@@ -981,6 +981,7 @@ function s:BufWinLeave()
 				call s:CtrlSend([cid, 'done'])
 			endif
 		endfor
+		call timer_start(0, {_ -> execute('silent! bdelete '.b)})
 	endif
 endfunc
 
