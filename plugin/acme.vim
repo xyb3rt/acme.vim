@@ -513,10 +513,7 @@ function AcmePlumb(title, cmd, ...)
 	let dir = s:Dir()
 	let owd = chdir(dir)
 	let outp = systemlist(cmd)
-	if owd != ''
-		call chdir(owd)
-	endif
-	if v:shell_error == 0 && (a:title == '' || outp != [])
+	if v:shell_error == 0
 		if a:title != ''
 			call s:ScratchNew(a:title, dir)
 			call setline('$', outp)
