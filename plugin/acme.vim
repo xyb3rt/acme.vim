@@ -85,6 +85,7 @@ function s:Started(job, buf, cmd)
 		\ 'buf': a:buf,
 		\ 'h': a:job,
 		\ 'cmd': type(a:cmd) == type([]) ? join(a:cmd) : a:cmd,
+		\ 'killed': 0,
 	\ })
 	redrawstatus!
 endfunc
@@ -97,7 +98,7 @@ function s:RemoveJob(i, status)
 		call s:ReloadDirs()
 		if a:status == 0
 			echo 'Done:' job.cmd
-		else
+		elseif !job.killed
 			let s = job_info(job.h).termsig
 			let s = s == '' ? 'Failed ('.a:status : 'Killed ('.s
 			call s:ErrorOpen(bufname(job.buf), [s.'): '.job.cmd])
@@ -125,6 +126,7 @@ function s:Kill(p)
 			call ch_close(ch)
 		endif
 		call job_stop(job.h)
+		let job.killed = 1
 	endfor
 endfunc
 
@@ -513,6 +515,9 @@ function AcmePlumb(title, cmd, ...)
 	let dir = s:Dir()
 	let owd = chdir(dir)
 	let outp = systemlist(cmd)
+	if owd != ''
+		call chdir(owd)
+	endif
 	if v:shell_error == 0
 		if a:title != ''
 			call s:ScratchNew(a:title, dir)
