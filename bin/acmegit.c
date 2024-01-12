@@ -173,11 +173,19 @@ void show(list_func *ls) {
 
 int add(list_func *ls) {
 	enum reply reply;
+	size_t fixed = vec_len(&cmdv);
 	for (;;) {
 		show(ls);
 		reply = get();
 		if (reply != SELECT) {
 			break;
+		} else if (strcmp(buf.d, "<") == 0) {
+			size_t n = vec_len(&cmdv);
+			if (n > fixed) {
+				free(cmdv[n - 1]);
+				vec_erase(&cmdv, n - 1, 1);
+			}
+			continue;
 		}
 		vec_push(&cmdv, xstrdup(buf.d));
 	}
@@ -282,7 +290,7 @@ void cmd_branch(void) {
 
 void cmd_cd(void) {
 	set("cd", NULL);
-	hint("<>", NULL);
+	hint("< >", NULL);
 	show(NULL);
 	enum reply reply = get();
 	clear();
@@ -405,7 +413,7 @@ void cmd_revert(void) {
 
 void cmd_rm(void) {
 	set("git", "rm", "--", NULL);
-	hint("<>", NULL);
+	hint("< >", NULL);
 	if (add(NULL)) {
 		run(devnull);
 	}
