@@ -236,6 +236,12 @@ void list_branches(void) {
 	call((char **)cmd, NULL);
 }
 
+void list_dirs(void) {
+	system("find . -type f -name .git"
+		"| sed -e 's,^./,,' -e 's,/.git$,,'"
+		"| sort");
+}
+
 void list_remotes(void) {
 	const char *cmd[] = {"git", "remote", NULL};
 	call((char **)cmd, NULL);
@@ -291,7 +297,7 @@ void cmd_branch(void) {
 void cmd_cd(void) {
 	set("cd", NULL);
 	hint("< >", NULL);
-	show(NULL);
+	show(list_dirs);
 	enum reply reply = get();
 	clear();
 	if (reply == SELECT) {
