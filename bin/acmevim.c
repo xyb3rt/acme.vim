@@ -118,10 +118,12 @@ void request(char *argv[], size_t argc) {
 	vec_push(&conns, acmevim_connect());
 	acmevim_strv req = msg(cmd(mode), argv, argc);
 	char *cwd = NULL;
-	if (mode == 's') {
+	if (mode == 0 || mode == 's') {
 		cwd = xgetcwd();
 		vec_insert(&req, 1, cwd);
-		vec_insert(&req, 2, "");
+		if (mode == 's') {
+			vec_insert(&req, 2, "");
+		}
 	}
 	acmevim_send(conns[0], (const char **)req, vec_len(&req));
 	free(cwd);

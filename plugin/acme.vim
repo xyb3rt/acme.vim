@@ -867,11 +867,16 @@ function s:Clear(b, top)
 	endif
 endfunc
 
-function s:Edit(file, cid)
-	call s:FileOpen(a:file, '')
-	let b = bufnr()
-	let s:editbufs[a:cid] = get(s:editbufs, a:cid) + 1
-	let s:editcids[b] = add(get(s:editcids, b, []), a:cid)
+function s:Edit(files, dir, cid)
+	for file in a:files
+		if file !~ '^\/'
+			let file = a:dir.'/'.file
+		endif
+		call s:FileOpen(file, '')
+		let b = bufnr()
+		let s:editbufs[a:cid] = get(s:editbufs, a:cid) + 1
+		let s:editcids[b] = add(get(s:editcids, b, []), a:cid)
+	endfor
 endfunc
 
 function s:BufInfo()
@@ -933,9 +938,9 @@ function s:CtrlRecv(ch, data)
 				let $ACMEVIMPORT = msg[2]
 			endif
 		elseif msg[1] == 'edit'
-			for file in msg[2:]
-				call s:Edit(file, cid)
-			endfor
+			if len(msg) > 3
+				call s:Edit(msg[3:], msg[2], cid)
+			endif
 		elseif msg[1] == 'open'
 			if len(msg) == 4
 				call s:FileOpen(msg[2], msg[3])
