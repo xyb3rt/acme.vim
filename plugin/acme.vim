@@ -320,6 +320,17 @@ command -nargs=1 -complete=customlist,s:ShComplete -range R
 
 command -range V exe 'normal! '.<line1>.'GV'.<line2>.'G'
 
+function s:Term(cmd)
+	let opts = {'cwd': s:Dir()}
+	if a:cmd == ''
+		let opts.term_finish = 'close'
+	endif
+	call term_start(a:cmd != '' ? a:cmd : $SHELL, opts)
+	exe 'lcd' opts.cwd
+endfunc
+
+command -nargs=? -complete=customlist,s:ShComplete T call s:Term(<q-args>)
+
 function s:Exe(cmd)
 	let v:errmsg = ''
 	let pat = @/
