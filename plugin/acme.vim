@@ -991,6 +991,9 @@ function s:BufWinLeave()
 		endfor
 		call timer_start(0, {_ -> execute('silent! bdelete '.b)})
 	endif
+	if term_getstatus(b) != ''
+		call timer_start(0, {_ -> execute('silent! bdelete! '.b)})
+	endif
 endfunc
 
 augroup acme_vim
