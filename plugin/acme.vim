@@ -464,6 +464,10 @@ function s:FileOpen(name, pos)
 	endif
 endfunc
 
+function s:PatPos(pat, click)
+	return '\v%<'.(a:click+1).'c'.a:pat.'%>'.a:click.'c'
+endfunc
+
 function s:Match(text, click, pat)
 	let isf = &isfname
 	if a:click <= 0
@@ -471,7 +475,7 @@ function s:Match(text, click, pat)
 		let p = '\v^'.a:pat.'$'
 	else
 		set isfname+=^:,^=
-		let p = '\v%<'.(a:click+1).'c'.a:pat.'%>'.a:click.'c'
+		let p = s:PatPos(a:pat, a:click)
 	endif
 	let m = matchlist(a:text, p)
 	let &isfname = isf
@@ -702,26 +706,23 @@ function s:RightRelease(click)
 	exe "normal! \<LeftRelease>"
 	if a:click <= 0 || s:clicksel
 		let text = trim(s:Sel()[0], "\r\n", 2)
-		let word = text
-		let pat = '\V'.escape(word, '/\')
+		let pat = '\V'.escape(text, '/\')
 		call s:RestVisual(s:visual)
 	else
 		if v:hlsearch != 0 && @/ != ''
-			let p = getpos('.')
-			let b = searchpos(@/, 'bc', p[1])[1]
-			let e = searchpos(@/, 'ce', p[1])[1]
-			call setpos('.', p)
-			if b > 0 && b <= p[2] && e > 0 && e >= p[2]
+			let b = searchpos(@/, 'bcn', line('.'))[1]
+			let e = searchpos(@/, 'cen', line('.'))[1]
+			if b > 0 && b <= a:click && e > 0 && e >= a:click
 				exe "normal! /\<CR>"
 				return
 			endif
 		endif
 		let text = getline('.')
-		if match(text, '\%'.a:click.'c[()\[\]{}]') != -1
+		if match(text, '\v%'.a:click.'c([(){}]|\[|\])') != -1
 			normal! %
 			return
 		endif
-		let word = expand('<cword>')
+		let word = matchstr(text, s:PatPos('\k*', a:click))
 		let pat = '\V\<'.escape(word, '/\').'\>'
 	endif
 	if s:Open(text, a:click)
