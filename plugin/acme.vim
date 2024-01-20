@@ -550,7 +550,7 @@ endfunc
 function s:FileComplete(arg, line, pos)
 	let p = a:arg =~ '^[~/]' ? a:arg : s:Dir().'/'.a:arg
 	let p = fnamemodify(p, ':p')
-	if a:arg !~ '/$'
+	if a:arg =~ '[^/]$'
 		let p = substitute(p, '/*$', '', '')
 	endif
 	return map(glob(p.'*', 1, 1), {_, f ->
