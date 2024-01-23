@@ -329,7 +329,11 @@ function s:Term(cmd)
 	if a:cmd == ''
 		let opts.term_finish = 'close'
 	endif
+	let h = s:SplitSize(10, 0)
 	call term_start(a:cmd != '' ? a:cmd : $SHELL, opts)
+	if winheight(0) < h
+		exe h.'wincmd _'
+	endif
 	let s:cwd[bufnr()] = opts.cwd
 endfunc
 
