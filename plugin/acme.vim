@@ -224,7 +224,7 @@ function s:JobStart(cmd, b, opts, inp)
 endfunc
 
 function s:ErrorLoad(name)
-	let b = bufnr(s:Path(a:name, ':~:.'), 1)
+	let b = bufadd(s:Path(a:name, ':~:.'))
 	if !bufloaded(b)
 		call bufload(b)
 		call setbufvar(b, '&bufhidden', 'unload')
