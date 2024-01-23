@@ -56,14 +56,14 @@ function s:Jobs(p)
 endfunc
 
 function AcmeStatusDir()
-	return s:Path(getcwd(0), ':~')
+	return s:Path(get(s:cwd, bufnr(), getcwd(0)), ':~')
 endfunc
 
 function AcmeStatusTitle()
 	let b = bufnr()
 	let s = get(s:scratch, b, {})
 	let t = s.title != '' ? s.title : s:Jobs(b) == [] ? 'Scratch' : ''
-	return s:Path(s.dir . '/+' . t, ':~').(t != '' ? ' ' : '')
+	return s:Path(s:cwd[b] . '/+' . t, ':~').(t != '' ? ' ' : '')
 endfunc
 
 function AcmeStatusName()
@@ -320,13 +320,17 @@ command -nargs=1 -complete=customlist,s:ShComplete -range R
 
 command -range V exe 'normal! '.<line1>.'GV'.<line2>.'G'
 
+function g:Tapi_lcd(_, path)
+	let s:cwd[bufnr()] = a:path
+endfunc
+
 function s:Term(cmd)
 	let opts = {'cwd': s:Dir()}
 	if a:cmd == ''
 		let opts.term_finish = 'close'
 	endif
 	call term_start(a:cmd != '' ? a:cmd : $SHELL, opts)
-	exe 'lcd' opts.cwd
+	let s:cwd[bufnr()] = opts.cwd
 endfunc
 
 command -nargs=? -complete=customlist,s:ShComplete T call s:Term(<q-args>)
@@ -361,10 +365,8 @@ function s:ScratchNew(title, dir)
 		call s:New('new')
 	endif
 	setl bufhidden=unload buftype=nofile nobuflisted noswapfile
-	let s:scratch[bufnr()] = {
-		\ 'dir': s:Path(a:dir != '' ? a:dir : getcwd()),
-		\ 'title': a:title,
-	\ }
+	let s:cwd[bufnr()] = s:Path(a:dir != '' ? a:dir : getcwd())
+	let s:scratch[bufnr()] = {'title': a:title}
 endfunc
 
 function s:ScratchCb(b, ch, msg)
@@ -504,7 +506,7 @@ endfunc
 
 function s:Dir()
 	" Expanding '%:p:h' in a dir buf gives the dir not its parent!
-	let dir = get(get(s:scratch, bufnr(), {}), 'dir', expand('%:p:h'))
+	let dir = get(s:cwd, bufnr(), expand('%:p:h'))
 	return isdirectory(dir) ? dir : getcwd()
 endfunc
 
@@ -1036,6 +1038,7 @@ let &statusline = '%<%{%AcmeStatusName()%}%{%AcmeStatusFlags()%}' .
 
 let s:ctrlexe = exepath(expand('<sfile>:p:h:h').'/bin/acmevim')
 let s:ctrlrx = ''
+let s:cwd = {}
 let s:dirwidth = {}
 let s:editbufs = {}
 let s:editcids = {}
