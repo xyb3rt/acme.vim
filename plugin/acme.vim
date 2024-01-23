@@ -736,9 +736,7 @@ function s:RightRelease(click)
 		call s:RestVisual(s:visual)
 	else
 		if v:hlsearch != 0 && @/ != ''
-			let b = searchpos(@/, 'bcn', line('.'))[1]
-			let e = searchpos(@/, 'cen', line('.'))[1]
-			if b > 0 && b <= a:click && e > 0 && e >= a:click
+			if searchpos(@/.'\v%>.c', 'bcn', line('.'))[1] != 0
 				exe "normal! /\<CR>"
 				return
 			endif
