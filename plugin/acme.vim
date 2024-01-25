@@ -324,8 +324,10 @@ function g:Tapi_lcd(_, path)
 	let s:cwd[bufnr()] = a:path
 endfunc
 
+let s:exedir = ''
+
 function s:Term(cmd)
-	let opts = {'cwd': s:Dir()}
+	let opts = {'cwd': s:exedir != '' ? s:exedir : s:Dir()}
 	if a:cmd == ''
 		let opts.term_finish = 'close'
 	endif
@@ -339,10 +341,12 @@ endfunc
 
 command -nargs=? -complete=customlist,s:ShComplete T call s:Term(<q-args>)
 
-function s:Exe(cmd)
+function s:Exe(cmd, dir)
 	let v:errmsg = ''
+	let s:exedir = a:dir
 	let pat = @/
 	let out = split(execute(a:cmd, 'silent!'), '\n')
+	let s:exedir = ''
 	if len(out) == 1 && v:errmsg == ''
 		echo out[0]
 	elseif out != [] || v:errmsg != ''
@@ -696,7 +700,7 @@ function s:MiddleRelease(click)
 		call s:Send(w, cmd)
 	elseif cmd =~ '^\s*:'
 		let cmd = substitute(cmd, '^\s*:', vis ? "'<,'>" : '', '')
-		call s:Exe(cmd)
+		call s:Exe(cmd, dir)
 	else
 		call s:Run(cmd, dir, vis)
 	endif
