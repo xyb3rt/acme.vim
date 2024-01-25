@@ -345,7 +345,7 @@ void cmd_config(void) {
 
 void cmd_diff(void) {
 	set("scratch", cwd, "git:diff", "git", "diff", NULL);
-	hint("< --cached --submodule=diff HEAD @{u} -- >", NULL);
+	hint("< --cached -p --stat --submodule=diff HEAD @{u} -- >", NULL);
 	if (add(NULL)) {
 		request("scratched", NULL);
 	}
