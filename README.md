@@ -114,12 +114,10 @@ let g:acme_plumbing = [
 		\ AcmePlumb('', 'xdg-open', m[0])}],
 	\ ['([[:graph:]]+)\s*\((\d\a*)\)', {m ->
 		\ AcmePlumb(m[1].'('.m[2].')', 'man', m[2], m[1])}],
-	\ ['<stash\@\{\d+\}', {m ->
-		\ AcmePlumb('git:'.m[0], 'git stash show -p', m[0])}],
 	\ ['(\f|[@{}])*\.\.\.?(\f|[@{}])*', {m ->
 		\ AcmePlumb('git:'.m[0], 'git log -s --left-right', m[0])}],
 	\ ['(\f|[@{}])+', {m ->
-		\ AcmePlumb('git:'.m[0], 'git show', m[0])}]]
+		\ AcmePlumb('git:'.m[0], 'git show -p --stat', m[0])}]]
 ```
 
 To get simple right-clickable directory listings you have to disable vim's
