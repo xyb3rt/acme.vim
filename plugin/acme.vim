@@ -734,7 +734,8 @@ function s:RightRelease(click)
 		return
 	endif
 	exe "normal! \<LeftRelease>"
-	if a:click <= 0 || s:clicksel
+	let click = s:clicksel ? -1 : a:click
+	if click <= 0
 		let text = trim(s:Sel()[0], "\r\n", 2)
 		let pat = '\V'.escape(text, '/\')
 		call s:RestVisual(s:visual)
@@ -746,14 +747,14 @@ function s:RightRelease(click)
 			endif
 		endif
 		let text = getline('.')
-		if match(text, '\v%'.a:click.'c([(){}]|\[|\])') != -1
+		if match(text, '\v%'.click.'c([(){}]|\[|\])') != -1
 			normal! %
 			return
 		endif
-		let word = matchstr(text, s:PatPos('\k*', a:click))
+		let word = matchstr(text, s:PatPos('\k*', click))
 		let pat = '\V\<'.escape(word, '/\').'\>'
 	endif
-	if s:Open(text, a:click)
+	if s:Open(text, click)
 		return
 	endif
 	let @/ = pat
