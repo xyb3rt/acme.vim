@@ -737,7 +737,7 @@ function s:RightRelease(click)
 	let click = s:clicksel ? -1 : a:click
 	if click <= 0
 		let text = trim(s:Sel()[0], "\r\n", 2)
-		let pat = '\V'.escape(text, '/\')
+		let pat = substitute(escape(text, '/\'), '\n', '\\n', 'g')
 		call s:RestVisual(s:visual)
 	else
 		if v:hlsearch != 0 && @/ != ''
@@ -752,12 +752,12 @@ function s:RightRelease(click)
 			return
 		endif
 		let word = matchstr(text, s:PatPos('\k*', click))
-		let pat = '\V\<'.escape(word, '/\').'\>'
+		let pat = '\<'.escape(word, '/\').'\>'
 	endif
 	if s:Open(text, click)
 		return
 	endif
-	let @/ = pat
+	let @/ = '\V'.pat
 	call feedkeys(&hlsearch ? ":let v:hlsearch=1\<CR>" : 'n', 'n')
 endfunc
 
