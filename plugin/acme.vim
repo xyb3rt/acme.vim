@@ -184,15 +184,8 @@ function s:SplitSize(min, vertical)
 	if call('win'.dim, [0]) < min
 		exe min.'wincmd' (a:vertical ? '|' : '_')
 	endif
-	let s = call('win'.dim, [0])
-	let unused = 0
-	if !a:vertical
-		let s -= winnr('$') == 1 && &laststatus == 1
-		if s:Jobs(bufnr()) == []
-			let unused = s - line('$') - 1
-		endif
-	endif
-	return max([a:min, s / 2, unused])
+	let stat = !a:vertical && winnr('$') == 1 && &laststatus == 1
+	return max([a:min, (call('win'.dim, [0]) - stat) / 2])
 endfunc
 
 function s:New(cmd)
