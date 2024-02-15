@@ -102,15 +102,15 @@ endfunc
 function s:RemoveJob(i, status)
 	let job = remove(s:jobs, a:i)
 	redrawstatus!
-	if fnamemodify(bufname(job.buf), ':t') == '+Errors'
+	let name = bufname(job.buf)
+	if fnamemodify(name, ':t') == '+Errors'
 		checktime
 		call s:ReloadDirs()
+		let sig = job_info(job.h).termsig
 		if a:status == 0
 			echo 'Done:' job.cmd
-		elseif !job.killed
-			let s = job_info(job.h).termsig
-			let s = s == '' ? 'Failed ('.a:status : 'Killed ('.s
-			call s:ErrorOpen(bufname(job.buf), [s.'): '.job.cmd])
+		elseif sig != '' && !job.killed
+			call s:ErrorOpen(name, [toupper(sig).': '.job.cmd])
 		endif
 	endif
 	if has_key(s:scratch, job.buf)
