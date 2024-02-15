@@ -177,15 +177,16 @@ int add(list_func *ls) {
 	for (;;) {
 		show(ls);
 		reply = get();
-		if (reply != SELECT) {
-			break;
-		} else if (strcmp(buf.d, "<") == 0) {
+		if (reply == CANCEL) {
 			size_t n = vec_len(&cmdv);
 			if (n > fixed) {
 				free(cmdv[n - 1]);
 				vec_erase(&cmdv, n - 1, 1);
+				continue;
 			}
-			continue;
+		}
+		if (reply != SELECT) {
+			break;
 		}
 		vec_push(&cmdv, xstrdup(buf.d));
 	}
