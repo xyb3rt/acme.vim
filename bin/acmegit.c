@@ -239,7 +239,7 @@ void list_branches(void) {
 
 void list_dirs(void) {
 	system("find . -type f -name .git"
-		"| sed -e 's,^./,,' -e 's,/.git$,,'"
+		"| sed -n -e 's,^\\./,,' -e 's,/\\.git$,,p'"
 		"| sort");
 }
 
