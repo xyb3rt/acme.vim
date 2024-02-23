@@ -222,14 +222,13 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-void list_allbranches(void) {
-	const char *cmd[] = {"git", "branch", "-avv", NULL};
-	call((char **)cmd, NULL);
-}
-
 void list_branches(void) {
-	const char *cmd[] = {"git", "branch", "-vv", NULL};
-	call((char **)cmd, NULL);
+	system("git branch --all --format='%(objectname) %(refname)' "
+		"--sort=-committerdate | awk '$1 != l && $0 !~ /(^|\\/)HEAD/ {"
+			"sub(/^[^ ]* /, \"\");"
+			"sub(/^refs\\/(heads|remotes)\\//, \"\");"
+			"print;"
+			"l = $1;}'");
 }
 
 void list_dirs(void) {
@@ -285,7 +284,7 @@ void cmd_add(void) {
 void cmd_branch(void) {
 	set("git", "branch", NULL);
 	hint("< --copy --delete --move --force >", NULL);
-	if (add(list_allbranches)) {
+	if (add(list_branches)) {
 		run(1);
 	}
 }
@@ -450,7 +449,7 @@ void cmd_submodule(void) {
 void cmd_switch(void) {
 	set("git", "switch", NULL);
 	hint("< --create >", NULL);
-	if (add(list_allbranches)) {
+	if (add(list_branches)) {
 		run(devnull);
 	}
 }
