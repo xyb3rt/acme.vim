@@ -36,6 +36,7 @@ cmd_func cmd_rebase;
 cmd_func cmd_reset;
 cmd_func cmd_revert;
 cmd_func cmd_rm;
+cmd_func cmd_snarf;
 cmd_func cmd_stash;
 cmd_func cmd_submodule;
 cmd_func cmd_switch;
@@ -49,6 +50,7 @@ struct cmd cmds[] = {
 	{"tag", cmd_tag},
 	{"cd", cmd_cd},
 	{"submodule", cmd_submodule},
+	{"snarf", cmd_snarf},
 	{"fetch", cmd_fetch},
 	{"push", cmd_push},
 	{"config", cmd_config},
@@ -424,6 +426,16 @@ void cmd_rm(void) {
 	if (add(NULL)) {
 		run(devnull);
 	}
+}
+
+void cmd_snarf(void) {
+	clear();
+	set("git", "submodule", "foreach", "--recursive",
+	    "git", "fetch", "--all", "--prune", NULL);
+	run(1);
+	set("git", "fetch", "--all", "--prune", "--no-recurse-submodules",
+	    NULL);
+	run(1);
 }
 
 void cmd_stash(void) {
