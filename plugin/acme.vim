@@ -291,7 +291,7 @@ function s:Run(cmd, dir, vis)
 		return
 	endif
 	if a:vis && io !~ '[<>|]'
-		let cmd .= ' '.shellescape(s:Sel()[0])
+		let cmd .= ' '.shellescape(trim(s:Sel()[0], "\r\n", 2))
 	endif
 	let inp = io =~ '[>|]' ? s:Sel()[0] : ''
 	if io =~ '[<|]'
