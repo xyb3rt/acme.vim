@@ -237,25 +237,31 @@ void list_dirs(void) {
 		"| sort");
 }
 
-void list_remotes(void) {
-	const char *cmd[] = {"git", "remote", NULL};
-	call((char **)cmd, NULL);
-}
-
-void log_L(acmevim_strv msg) {
+void show_open_files(acmevim_strv msg) {
 	for (size_t i = 1; i + 4 < vec_len(&msg); i += 5) {
 		char *path = indir(msg[i], cwd);
 		char *l1 = msg[i + 3], *l2 = msg[i + 4];
-		if (path != NULL && strcmp(l1, "0") != 0) {
-			printf("< -L%s,%s:%s >\n", l1, l2, path);
+		const char *cmd[] = {"git", "ls-files", "--error-unmatch",
+			path, NULL};
+		int fds[3] = {devnull, devnull, devnull};
+		if (path == NULL || call((char **)cmd, fds) != 0) {
+		} else if (strcmp(l1, "0") != 0) {
+			printf("-L%s,%s:%s\n", l1, l2, path);
+		} else {
+			printf("%s\n", path);
 		}
 	}
 	fflush(stdout);
 }
 
-void list_selections(void) {
+void list_open_files(void) {
 	const char *cmd[] = {"bufinfo"};
-	requestv("bufinfo", cmd, ARRLEN(cmd), &log_L);
+	requestv("bufinfo", cmd, ARRLEN(cmd), &show_open_files);
+}
+
+void list_remotes(void) {
+	const char *cmd[] = {"git", "remote", NULL};
+	call((char **)cmd, NULL);
 }
 
 void list_stashes(void) {
@@ -365,7 +371,7 @@ void cmd_log(void) {
 	set("scratch", cwd, "git:log", "git", "log", "--decorate",
 	    "--left-right", NULL);
 	hint("< -S HEAD ...@{u} >", NULL);
-	if (add(list_selections)) {
+	if (add(list_open_files)) {
 		request("scratched", NULL);
 	}
 }
