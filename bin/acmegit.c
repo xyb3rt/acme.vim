@@ -12,13 +12,6 @@ enum reply {
 
 typedef void list_func(void);
 
-list_func list_allbranches;
-list_func list_branches;
-list_func list_remotes;
-list_func list_stashes;
-list_func list_submodules;
-list_func list_tags;
-
 cmd_func cmd_add;
 cmd_func cmd_branch;
 cmd_func cmd_cd;
