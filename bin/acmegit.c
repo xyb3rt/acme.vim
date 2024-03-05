@@ -225,10 +225,10 @@ int main(int argc, char *argv[]) {
 void list_branches(void) {
 	system("git branch --all --format='%(objectname) %(refname)' "
 		"--sort=-committerdate | awk '$1 != l && $0 !~ /(^|\\/)HEAD/ {"
+			"l = $1;"
 			"sub(/^[^ ]* /, \"\");"
 			"sub(/^refs\\/(heads|remotes)\\//, \"\");"
-			"print;"
-			"l = $1;}'");
+			"print}'");
 }
 
 void list_dirs(void) {
