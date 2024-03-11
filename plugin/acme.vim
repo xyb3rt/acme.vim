@@ -508,7 +508,17 @@ endfunc
 function s:Dir()
 	" Expanding '%:p:h' in a dir buf gives the dir not its parent!
 	let dir = get(s:cwd, bufnr(), expand('%:p:h'))
-	return isdirectory(dir) ? dir : getcwd()
+	let dir = isdirectory(dir) ? dir : getcwd()
+	if &buftype != ''
+		let [d, q] = ['directory:? ', "[`'\"]"]
+		let l = searchpair('\vEntering '.d.q, '', 'Leaving '.d.q, 'bnW')
+		let m = matchlist(getline(l), '\vEntering '.d.q.'(.+)'.q)
+		if m != []
+			let d = m[1][0] == '/' ? m[1] : dir.'/'.m[1]
+			let dir = isdirectory(d) ? d : dir
+		endif
+	endif
+	return dir
 endfunc
 
 function s:OpenFile(name, pos)
