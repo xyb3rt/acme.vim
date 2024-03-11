@@ -224,11 +224,15 @@ int main(int argc, char *argv[]) {
 
 void list_branches(void) {
 	system("git branch --all --format='%(objectname) %(refname)' "
-		"--sort=-committerdate | awk '$1 != l && $0 !~ /(^|\\/)HEAD/ {"
+		"--sort=-committerdate | awk '{"
+			"s = !l ? \"\" : $1 == l ? \" \" : \"\\n\";"
 			"l = $1;"
 			"sub(/^[^ ]* /, \"\");"
 			"sub(/^refs\\/(heads|remotes)\\//, \"\");"
-			"print}'");
+			"printf(\"%s%s\", s, $0);"
+		"} END {"
+			"printf(\"\\n\");"
+		"}'");
 }
 
 void list_dirs(void) {
