@@ -432,8 +432,8 @@ void cmd_rm(void) {
 
 void cmd_snarf(void) {
 	clear();
-	set("git", "submodule", "foreach", "--recursive",
-	    "git", "fetch", "--all", "--prune", NULL);
+	set("git", "submodule", "-q", "foreach", "--recursive",
+	    "indir", "--", "git", "fetch", "--all", "--prune", NULL);
 	run(1);
 	set("git", "fetch", "--all", "--prune", "--no-recurse-submodules",
 	    NULL);
