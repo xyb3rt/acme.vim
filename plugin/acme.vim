@@ -684,7 +684,10 @@ function s:MiddleRelease(click)
 		endif
 		let p = getmousepos()
 		if p.line == 0 && p.winid == s:click.winid
+			let sb = &splitbelow
+			let &splitbelow = p.wincol < winwidth(0) / 2
 			exe s:clickstatus.'close!'
+			let &splitbelow = sb
 		endif
 		return
 	endif
