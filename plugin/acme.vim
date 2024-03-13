@@ -593,6 +593,32 @@ endfunc
 command -nargs=1 -complete=customlist,s:FileComplete O
 	\ call s:Open(expand(<q-args>), 0, s:Dir())
 
+function s:InCol(wa, wb)
+	let [a, b] = [min([a:wa, a:wb]), max([a:wa, a:wb])]
+	for w in range(a + 1, b)
+		if winwidth(w) != winwidth(a) ||
+			\ win_screenpos(w)[1] != win_screenpos(a)[1]
+			return 0
+		endif
+	endfor
+	return a:wa - a:wb
+endfunc
+
+function s:CloseWin(w)
+	let col = s:InCol(a:w, winnr())
+	let h = winheight(a:w) + 1
+	let sb = &splitbelow
+	let &splitbelow = 0
+	exe a:w.'close!'
+	let &splitbelow = sb
+	if col == 0
+		return
+	endif
+	for i in col < 0 ? range(col + 1, -1) : reverse(range(col))
+		call win_move_statusline(winnr() + i, h * (col < 0 ? -1 : 1))
+	endfor
+endfunc
+
 function AcmeMoveWin(dir)
 	let w = win_getid()
 	let p = win_getid(winnr('#'))
@@ -685,10 +711,7 @@ function s:MiddleRelease(click)
 		endif
 		let p = getmousepos()
 		if p.line == 0 && p.winid == s:click.winid
-			let sb = &splitbelow
-			let &splitbelow = p.wincol < winwidth(0) / 2
-			exe s:clickstatus.'close!'
-			let &splitbelow = sb
+			call s:CloseWin(win_id2win(p.winid))
 		endif
 		return
 	endif
