@@ -522,7 +522,7 @@ function s:Dir()
 endfunc
 
 function s:OpenFile(name, pos)
-	let f = a:name =~ '^[~/]' ? a:name : s:Dir().'/'.a:name
+	let f = a:name =~ '^[~/]' ? a:name : s:plumbdir.'/'.a:name
 	let f = fnamemodify(f, ':p')
 	if isdirectory(f)
 		call s:FileOpen(f, '')
@@ -549,15 +549,14 @@ function AcmePlumb(title, cmd, ...)
 	for arg in a:000
 		let cmd .= ' '.shellescape(arg)
 	endfor
-	let dir = s:Dir()
-	let owd = chdir(dir)
+	let owd = chdir(s:plumbdir)
 	let outp = systemlist(cmd)
 	if owd != ''
 		call chdir(owd)
 	endif
 	if v:shell_error == 0
 		if a:title != ''
-			call s:ScratchNew(a:title, dir)
+			call s:ScratchNew(a:title, s:plumbdir)
 			call setline('$', outp)
 			filetype detect
 		endif
@@ -571,7 +570,8 @@ let s:plumbing = [
 	\ ['\f+', {m -> s:OpenFile(m[0], '')}],
 	\ ['^\s*(\d+)[-:]', {m -> s:RgOpen(m[1])}]]
 
-function s:Open(text, click)
+function s:Open(text, click, dir)
+	let s:plumbdir = a:dir
 	for [pat, Handler] in s:plumbing + get(g:, 'acme_plumbing', [])
 		let m = s:Match(a:text, a:click, pat)
 		if m != [] && call(Handler, [m])
@@ -591,7 +591,7 @@ function s:FileComplete(arg, line, pos)
 endfunc
 
 command -nargs=1 -complete=customlist,s:FileComplete O
-	\ call s:Open(expand(<q-args>), 0)
+	\ call s:Open(expand(<q-args>), 0, s:Dir())
 
 function AcmeMoveWin(dir)
 	let w = win_getid()
@@ -742,26 +742,30 @@ function s:RightRelease(click)
 	endif
 	exe "normal! \<LeftRelease>"
 	let click = s:clicksel ? -1 : a:click
+	let w = win_getid()
+	let focused = w == s:clickwin
 	if click <= 0
 		let text = trim(s:Sel()[0], "\r\n", 2)
 		let pat = substitute(escape(text, '/\'), '\n', '\\n', 'g')
 		call s:RestVisual(s:visual)
 	else
-		if v:hlsearch != 0 && @/ != ''
+		if focused && v:hlsearch != 0 && @/ != ''
 			if searchpos(@/.'\v%>.c', 'bcn', line('.'))[1] != 0
 				exe "normal! /\<CR>"
 				return
 			endif
 		endif
 		let text = getline('.')
-		if match(text, '\v%'.click.'c([(){}]|\[|\])') != -1
+		if focused && match(text, '\v%'.click.'c([(){}]|\[|\])') != -1
 			normal! %
 			return
 		endif
 		let word = matchstr(text, s:PatPos('\k*', click))
 		let pat = '\<'.escape(word, '/\').'\>'
 	endif
-	if !s:Open(text, click, dir)
+	let dir = s:Dir()
+	exe win_id2win(s:clickwin).'wincmd w'
+	if !s:Open(text, click, dir) && focused
 		let @/ = '\V'.pat
 		call feedkeys(&hlsearch ? ":let v:hlsearch=1\<CR>" : 'n', 'n')
 	elseif s:clickterm
