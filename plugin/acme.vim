@@ -910,8 +910,10 @@ for n in ['', '2-', '3-', '4-']
 	exe 'tnoremap <expr> <silent> <'.n.'RightMouse>'
 		\ '<SID>TermRightMouse()'
 endfor
+inoremap <silent> <MiddleMouse> <Esc>:call <SID>MiddleMouse('')<CR>
 noremap <silent> <MiddleDrag> <LeftDrag>
 vnoremap <silent> <MiddleRelease> :<C-u>call <SID>MiddleRelease(-1)<CR>
+inoremap <silent> <RightMouse> <Esc>:call <SID>RightMouse('')<CR>
 noremap <silent> <RightDrag> <LeftDrag>
 vnoremap <silent> <RightRelease> :<C-u>call <SID>RightRelease(-1)<CR>
 nnoremap <silent> <ScrollWheelDown> :call <SID>ScrollWheelDown()<CR>
