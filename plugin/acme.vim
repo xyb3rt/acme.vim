@@ -665,7 +665,8 @@ function AcmeClick()
 	let s:visual = s:SaveVisual()
 	let s:clicksel = s:clickmode == 'v' && win_getid() == s:clickwin &&
 		\ s:InSel()
-	if term_getstatus(bufnr()) == 'running'
+	let s:clickterm = term_getstatus(bufnr()) == 'running'
+	if s:clickterm
 		call feedkeys("\<C-w>N\<LeftMouse>", 'in')
 	endif
 endfunc
@@ -760,11 +761,12 @@ function s:RightRelease(click)
 		let word = matchstr(text, s:PatPos('\k*', click))
 		let pat = '\<'.escape(word, '/\').'\>'
 	endif
-	if s:Open(text, click)
-		return
+	if !s:Open(text, click, dir)
+		let @/ = '\V'.pat
+		call feedkeys(&hlsearch ? ":let v:hlsearch=1\<CR>" : 'n', 'n')
+	elseif s:clickterm
+		call win_execute(w, 'normal! i')
 	endif
-	let @/ = '\V'.pat
-	call feedkeys(&hlsearch ? ":let v:hlsearch=1\<CR>" : 'n', 'n')
 endfunc
 
 function s:ScrollWheelDown()
