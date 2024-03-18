@@ -538,7 +538,9 @@ function s:OpenFile(name, pos)
 endfunc
 
 function s:RgOpen(pos)
-	let f = getline(search('\v^(\s*(\d+[-:]|\-\-$))@!', 'bnW'))
+	call win_execute(s:plumbwin,
+		\ 'let s:l = search("\\v^(\\s*(\\d+[-:]|\\-\\-$))@!", "bnW")')
+	let f = getbufoneline(winbufnr(s:plumbwin), s:l)
 	if f != ''
 		return s:OpenFile(f, a:pos)
 	endif
@@ -570,8 +572,9 @@ let s:plumbing = [
 	\ ['\f+', {m -> s:OpenFile(m[0], '')}],
 	\ ['^\s*(\d+)[-:]', {m -> s:RgOpen(m[1])}]]
 
-function s:Open(text, click, dir)
+function s:Open(text, click, dir, win)
 	let s:plumbdir = a:dir
+	let s:plumbwin = a:win
 	for [pat, Handler] in s:plumbing + get(g:, 'acme_plumbing', [])
 		let m = s:Match(a:text, a:click, pat)
 		if m != [] && call(Handler, [m])
@@ -591,7 +594,7 @@ function s:FileComplete(arg, line, pos)
 endfunc
 
 command -nargs=1 -complete=customlist,s:FileComplete O
-	\ call s:Open(expand(<q-args>), 0, s:Dir())
+	\ call s:Open(expand(<q-args>), 0, s:Dir(), win_getid())
 
 function s:InCol(wa, wb)
 	let [a, b] = [min([a:wa, a:wb]), max([a:wa, a:wb])]
@@ -788,7 +791,7 @@ function s:RightRelease(click)
 	endif
 	let dir = s:Dir()
 	exe win_id2win(s:clickwin).'wincmd w'
-	if !s:Open(text, click, dir) && focused
+	if !s:Open(text, click, dir, w) && focused
 		let @/ = '\V'.pat
 		call feedkeys(&hlsearch ? ":let v:hlsearch=1\<CR>" : 'n', 'n')
 	elseif s:clickterm
