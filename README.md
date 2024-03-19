@@ -28,9 +28,8 @@ Bringing the spirit of Plan 9 acme to vim.
 	Commands are run in the directory containing the current file (useful
 	for `guide` files).
 
-	By default the output of commands is put into a `+Errors` buffer.
-	Each directory has its own such buffer. When a command is started this
-	buffer is opened in a window if it is not already visible.
+	By default the output of commands is put into a `+Errors` buffer. Each
+	directory has its own such buffer.
 
 	Commands are associated with their output buffer and are listed in the
 	status lines of the buffer's windows. The commands of a buffer are
@@ -110,14 +109,15 @@ refs, that you can add to your `~/.vimrc`:
 
 ```
 let g:acme_plumbing = [
-	\ ['<https?\:\/\/(\f|[-.~!*();:@&=+$,/?#%]|\[|\])+', {m -> AcmePlumb(
-		\ '', 'xdg-open', m[0])}],
-	\ ['(\f{-1,})\s*\((\d\a*)\)', {m -> AcmePlumb(
-		\ m[1].'('.m[2].')', 'man', m[2], m[1])}],
-	\ ['(\f|[@{}])*\.\.\.?(\f|[@{}])*', {m -> AcmePlumb(
-		\ 'git:'.m[0], 'git log -s --left-right', m[0])}],
-	\ ['(\f|[@{}])+', {m -> AcmePlumb(
-		\ 'git:'.m[0], 'git show --format=fuller -p --stat', m[0])}]]
+	\ ['<https?\:\/\/(\f|[-.~!*();:@&=+$,/?#%]|\[|\])+', {m ->
+		\ AcmePlumb('', 'setsid xdg-open', m[0])}],
+	\ ['(\f{-1,})\s*\((\d\a*)\)', {m ->
+		\ AcmePlumb(m[1].'('.m[2].')', 'man', m[2], m[1])}],
+	\ ['(\f|[@{}])*\.\.\.?(\f|[@{}])*', {m ->
+		\ AcmePlumb('git:'.m[0], 'git log -s --left-right', m[0])}],
+	\ ['(\f|[@{}])+', {m ->
+		\ AcmePlumb('git:'.m[0], 'git show --format=fuller -p --stat '.
+			\ '--decorate', m[0])}]]
 ```
 
 To get simple right-clickable directory listings you have to disable vim's
