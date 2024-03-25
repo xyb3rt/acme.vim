@@ -423,8 +423,8 @@ void cmd_revert(void) {
 }
 
 void cmd_rm(void) {
-	set("git", "rm", "--", NULL);
-	hint("< >", NULL);
+	set("git", "rm", NULL);
+	hint("< --dry-run -r >", NULL);
 	if (add(NULL)) {
 		run(devnull);
 	}
