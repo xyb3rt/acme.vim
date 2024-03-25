@@ -15,7 +15,6 @@ typedef void list_func(void);
 cmd_func cmd_add;
 cmd_func cmd_branch;
 cmd_func cmd_cd;
-cmd_func cmd_checkout;
 cmd_func cmd_clean;
 cmd_func cmd_commit;
 cmd_func cmd_config;
@@ -27,6 +26,7 @@ cmd_func cmd_merge;
 cmd_func cmd_push;
 cmd_func cmd_rebase;
 cmd_func cmd_reset;
+cmd_func cmd_restore;
 cmd_func cmd_revert;
 cmd_func cmd_rm;
 cmd_func cmd_snarf;
@@ -50,13 +50,13 @@ struct cmd cmds[] = {
 	{">\n<"},
 	{"diff", cmd_diff},
 	{"add", cmd_add},
-	{"reset", cmd_reset},
+	{"restore", cmd_restore},
 	{"commit", cmd_commit},
 	{"stash", cmd_stash},
 	{"merge", cmd_merge},
 	{"rebase", cmd_rebase},
 	{"revert", cmd_revert},
-	{"checkout", cmd_checkout},
+	{"reset", cmd_reset},
 	{"clean", cmd_clean},
 	{"rm", cmd_rm},
 	{NULL}
@@ -318,14 +318,6 @@ void cmd_cd(void) {
 	}
 }
 
-void cmd_checkout(void) {
-	set("git", "checkout", NULL);
-	hint("< --recurse-submodules HEAD -- ./ >", NULL);
-	if (add(NULL)) {
-		run(devnull);
-	}
-}
-
 void cmd_clean(void) {
 	set("git", "clean", NULL);
 	hint("< --dry-run --force ./ >", NULL);
@@ -408,7 +400,15 @@ void cmd_rebase(void) {
 
 void cmd_reset(void) {
 	set("git", "reset", NULL);
-	hint("< --hard HEAD @{u} -- ./ >", NULL);
+	hint("< --soft --mixed --hard @{u} >", NULL);
+	if (add(NULL)) {
+		run(devnull);
+	}
+}
+
+void cmd_restore(void) {
+	set("git", "restore", NULL);
+	hint("< --source= --staged --worktree -- ./ >", NULL);
 	if (add(NULL)) {
 		run(devnull);
 	}
@@ -458,7 +458,7 @@ void cmd_submodule(void) {
 
 void cmd_switch(void) {
 	set("git", "switch", NULL);
-	hint("< --create >", NULL);
+	hint("< --create --recurse-submodules >", NULL);
 	if (add(list_branches)) {
 		run(devnull);
 	}
