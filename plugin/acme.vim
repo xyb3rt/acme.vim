@@ -653,6 +653,31 @@ function s:SplitMove(other, vertical, rightbelow)
 	noa exe win_id2win(w).'wincmd w'
 endfunc
 
+function s:Zoom()
+	let h = winheight(0)
+	call win_move_statusline(winnr(), 999)
+	if winheight(0) != h
+		return
+	endif
+	wincmd _
+	if winheight(0) != h
+		return
+	endif
+	let w = winnr()
+	let h = winheight(0)
+	while w > 1 && winwidth(w - 1) == winwidth(w) &&
+		\ win_screenpos(w - 1)[1] == win_screenpos(w)[1]
+		let w -= 1
+		let h += winheight(w)
+	endwhile
+	while w != winnr()
+		let d = h / (winnr() - w + 1) - winheight(w)
+		call win_move_statusline(w, d)
+		let h -= d
+		let w += 1
+	endwhile
+endfunc
+
 function s:InSel()
 	let p = getpos('.')
 	let v = s:visual
@@ -762,7 +787,7 @@ function s:RightRelease(click)
 				call s:SplitMove(p.winid, 0, p.winrow > my)
 			endif
 		elseif p.line == 0 && p.winid == s:click.winid
-			wincmd _
+			call s:Zoom()
 		endif
 		return
 	endif
