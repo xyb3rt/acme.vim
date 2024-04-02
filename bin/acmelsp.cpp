@@ -111,6 +111,9 @@ QJsonObject capabilities(void) {
 		}},
 		{"offsetEncoding", QJsonArray{"utf-8"}},
 		{"textDocument", QJsonObject{
+			{"completion", QJsonObject{
+				{"contextSupport", true},
+			}},
 			{"declaration", QJsonObject{}},
 			{"definition", QJsonObject{}},
 			{"implementation", QJsonObject{}},
@@ -255,6 +258,17 @@ void showmessage(const QJsonObject &msg) {
 	if (type > 0 && type < 4 && !message.isEmpty()) {
 		printf("%s: %s", msgtype[type], message.toUtf8().data());
 		nl();
+	}
+}
+
+void showcompls(const QJsonObject &msg) {
+	auto result = msg.value("result").toObject();
+	for (const QJsonValue &i : result.value("items").toArray()) {
+		auto txt = get(i, {"textEdit", "newText"}).toString().toUtf8();
+		auto detail = get(i, {"detail"}).toString().toUtf8();
+		if (!txt.isEmpty()) {
+			printf("%s %s\n", txt.data(), detail.data());
+		}
 	}
 }
 
@@ -413,6 +427,9 @@ void txtdoc(const char *method, msghandler *handler,
 	if (!getpos() || !txtdocopen(filepos.path)) {
 		return;
 	}
+	if (strcmp(method, "completion") == 0) {
+		filepos.col++;
+	}
 	QJsonObject params = txtpos();
 	for (auto i = extra.begin(), end = extra.end(); i != end; i++) {
 		params[i.key()] = i.value();
@@ -549,6 +566,12 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
+void cmd_compl(void) {
+	txtdoc("completion", showcompls, QJsonObject{
+		{"context", QJsonObject{{"triggerKind", 1}}}
+	});
+}
+
 void cmd_decl(void) {
 	txtdoc("declaration", gotomatch);
 }
@@ -591,6 +614,7 @@ void addcmd(const char *name, cmd_func *func, const QJsonObject &capabilities,
 }
 
 void initmenu(const QJsonObject &cap) {
+	addcmd("compl", cmd_compl, cap, "completionProvider");
 	addcmd("decl", cmd_decl, cap, "declarationProvider");
 	addcmd("def", cmd_def, cap, "definitionProvider");
 	addcmd("impl", cmd_impl, cap, "implementationProvider");
