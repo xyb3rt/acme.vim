@@ -561,7 +561,7 @@ void cmd_impl(void) {
 	txtdoc("implementation", gotomatch);
 }
 
-void cmd_all(void) {
+void cmd_all_refs(void) {
 	txtdoc("references", showmatches, QJsonObject{
 		{"context", QJsonObject{{"includeDeclaration", true}}}
 	});
@@ -594,7 +594,7 @@ void initmenu(const QJsonObject &cap) {
 	addcmd("decl", cmd_decl, cap, "declarationProvider");
 	addcmd("def", cmd_def, cap, "definitionProvider");
 	addcmd("impl", cmd_impl, cap, "implementationProvider");
-	addcmd("all", cmd_all, cap, "referencesProvider");
+	addcmd("all-", cmd_all_refs, cap, "referencesProvider");
 	addcmd("refs", cmd_refs, cap, "referencesProvider");
 	addcmd("typedef", cmd_typedef, cap, "typeDefinitionProvider");
 	addcmd("typehy", cmd_typehy, cap, "typeHierarchyProvider");
