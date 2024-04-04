@@ -609,7 +609,7 @@ endfunc
 
 function s:CloseWin(w)
 	let col = s:InCol(a:w, winnr())
-	let h = winheight(a:w) + 1
+	let h = (winheight(a:w) + 1) * (col < 0 ? -1 : 1)
 	let sb = &splitbelow
 	let &splitbelow = 0
 	exe a:w.'close!'
@@ -618,7 +618,23 @@ function s:CloseWin(w)
 		return
 	endif
 	for i in col < 0 ? range(col + 1, -1) : reverse(range(col))
-		call win_move_statusline(winnr() + i, h * (col < 0 ? -1 : 1))
+		call win_move_statusline(winnr() + i, h)
+	endfor
+endfunc
+
+function s:Minimize(w)
+	let w = a:w
+	if winheight(w) == &winminheight && winheight(0) != &winminheight
+		let w = winnr()
+		exe a:w.'wincmd w'
+	endif
+	let col = s:InCol(w, winnr())
+	if col == 0
+		return
+	endif
+	let h = (winheight(w) - &winminheight) * (col < 0 ? -1 : 1)
+	for i in col < 0 ? range(col, -1) : reverse(range(col))
+		call win_move_statusline(winnr() + i, h)
 	endfor
 endfunc
 
@@ -776,9 +792,9 @@ function s:RightRelease(click)
 		if s:clickmode == 't'
 			normal! i
 		endif
-		exe s:clickstatus.'wincmd w'
 		let p = getmousepos()
 		if p.winid != 0 && p.winid != s:click.winid
+			exe s:clickstatus.'wincmd w'
 			let mx = (winwidth(p.winid) + 1) / 2
 			let my = (winheight(p.winid) + 1) / 2
 			if abs(p.wincol - mx) > 2 * (abs(p.winrow - my) + 5)
@@ -787,7 +803,11 @@ function s:RightRelease(click)
 				call s:SplitMove(p.winid, 0, p.winrow > my)
 			endif
 		elseif p.line == 0 && p.winid == s:click.winid
-			call s:Zoom()
+			if p.winid == win_getid()
+				call s:Zoom()
+			else
+				call s:Minimize(win_id2win(p.winid))
+			endif
 		endif
 		return
 	endif
