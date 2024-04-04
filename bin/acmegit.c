@@ -30,6 +30,7 @@ cmd_func cmd_reset;
 cmd_func cmd_restore;
 cmd_func cmd_revert;
 cmd_func cmd_rm;
+cmd_func cmd_show_branch;
 cmd_func cmd_snarf;
 cmd_func cmd_stash;
 cmd_func cmd_submodule;
@@ -39,11 +40,12 @@ cmd_func cmd_tag;
 struct cmd cmds[] = {
 	{"log", cmd_log},
 	{"graph", cmd_graph},
-	{"switch", cmd_switch},
+	{"show-", cmd_show_branch},
 	{"branch", cmd_branch},
+	{"switch", cmd_switch},
 	{"tag", cmd_tag},
 	{"cd", cmd_cd},
-	{"submodule", cmd_submodule},
+	{"module", cmd_submodule},
 	{"snarf", cmd_snarf},
 	{"fetch", cmd_fetch},
 	{"push", cmd_push},
@@ -438,6 +440,14 @@ void cmd_rm(void) {
 	hint("< --dry-run -r >", NULL);
 	if (add(NULL)) {
 		run(devnull);
+	}
+}
+
+void cmd_show_branch(void) {
+	set("scratch", cwd, "git:show-branch", "git", "show-branch", NULL);
+	hint("< --independent --topics HEAD @{u} >", NULL);
+	if (add(list_branches)) {
+		request("scratched", NULL);
 	}
 }
 
