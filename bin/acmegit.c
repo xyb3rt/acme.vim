@@ -23,6 +23,7 @@ cmd_func cmd_fetch;
 cmd_func cmd_graph;
 cmd_func cmd_log;
 cmd_func cmd_merge;
+cmd_func cmd_pick;
 cmd_func cmd_push;
 cmd_func cmd_rebase;
 cmd_func cmd_reset;
@@ -55,6 +56,7 @@ struct cmd cmds[] = {
 	{"stash", cmd_stash},
 	{"merge", cmd_merge},
 	{"rebase", cmd_rebase},
+	{"pick", cmd_pick},
 	{"revert", cmd_revert},
 	{"reset", cmd_reset},
 	{"clean", cmd_clean},
@@ -377,6 +379,15 @@ void cmd_merge(void) {
 	hint("< --ff-only --no-ff --squash @{u} >",
 	     "< --abort --continue --quit >", NULL);
 	if (add(list_branches)) {
+		run(1);
+	}
+}
+
+void cmd_pick(void) {
+	set("git", "cherry-pick", NULL);
+	hint("< --edit --no-commit >",
+	     "< --abort --continue --quit --skip", NULL);
+	if (add(NULL)) {
 		run(1);
 	}
 }
