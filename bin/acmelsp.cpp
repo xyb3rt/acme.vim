@@ -510,7 +510,8 @@ QByteArray ext(const char *path) {
 
 void detectserver(acmevim_strv msg) {
 	QHash<QByteArray, const char *> srv{
-		{"cpp", "clangd"}, {"hpp", "clangd"}, {"h", "clangd"},
+		{"c", "clangd"}, {"h", "clangd"},
+		{"cpp", "clangd"}, {"hpp", "clangd"},
 		{"go", "gopls"},
 	};
 	for (size_t i = 1; i + 4 < vec_len(&msg); i += 5) {
