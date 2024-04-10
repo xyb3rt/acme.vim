@@ -337,6 +337,7 @@ command -nargs=? -complete=customlist,s:ShComplete T call s:Term(<q-args>)
 function s:Exe(cmd, dir)
 	let v:errmsg = ''
 	let s:exedir = a:dir
+	let hl = v:hlsearch
 	let pat = @/
 	let out = split(execute(a:cmd, 'silent!'), '\n')
 	let s:exedir = ''
@@ -345,10 +346,10 @@ function s:Exe(cmd, dir)
 	elseif out != [] || v:errmsg != ''
 		call s:ErrorOpen('+Errors', out + split(v:errmsg, '\n'))
 	endif
-	if @/ != pat
+	if v:hlsearch != hl || @/ != pat
 		" Fix function-search-undo
 		let @/ = @/
-		call feedkeys(":let v:hlsearch=1\<CR>", 'n')
+		call feedkeys(":let v:hlsearch=".v:hlsearch."\<CR>", 'n')
 	endif
 endfunc
 
