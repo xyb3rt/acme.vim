@@ -724,6 +724,10 @@ function s:PreClick(mode)
 	let s:clickmode = a:mode
 	let s:clickstatus = s:click.line == 0 ? win_id2win(s:click.winid) : 0
 	let s:clickwin = win_getid()
+	if s:clickstatus != 0 && s:click.winrow <= winheight(s:clickstatus)
+		let s:click.winid = 0
+		let s:clickstatus = 0
+	endif
 endfunc
 
 function AcmeClick()
