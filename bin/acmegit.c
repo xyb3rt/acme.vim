@@ -130,11 +130,11 @@ void hint(const char *hint, ...) {
 }
 
 void show(list_func *ls) {
-	size_t arg = strcmp(cmdv[0], "git") == 0 ? 1 :
-	             strcmp(cmdv[0], "scratch") == 0 ? 4 : 0;
+	size_t arg = strcmp(cmdv[0], "scratch") == 0 ? 3 : 0;
 	char *p = vec_new();
 	acmevim_push(&p, "<< ");
-	if (arg == 1) {
+	if (strcmp(cmdv[arg], "git") == 0) {
+		arg++;
 		acmevim_push(&p, "git-");
 		acmevim_push(&p, cmdv[arg++]);
 		acmevim_push(&p, "(1)");
