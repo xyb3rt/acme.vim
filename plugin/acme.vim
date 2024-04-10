@@ -660,11 +660,13 @@ function s:SplitMove(other, vertical, rightbelow)
 	if w == a:other
 		return
 	endif
+	let v = winsaveview()
 	noa exe win_id2win(a:other).'wincmd w'
 	noa exe (a:rightbelow ? 'bel' : 'abo') s:SplitSize(1, a:vertical)
 		\ (a:vertical ? 'vs' : 'sp')
 	noa exe 'b' winbufnr(w)
 	noa exe win_id2win(w).'close'
+	call winrestview(v)
 	let w = win_getid()
 	noa exe win_id2win(p).'wincmd w'
 	noa exe win_id2win(w).'wincmd w'
