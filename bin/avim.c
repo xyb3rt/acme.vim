@@ -6,8 +6,8 @@ enum mode {
 	SCRATCH = 's'
 };
 
-struct acmevim_conn **conns;
-void (*handle)(acmevim_strv *, size_t);
+struct avim_conn **conns;
+void (*handle)(avim_strv *, size_t);
 enum mode mode;
 
 enum mode parse(int argc, char *argv[]) {
@@ -51,11 +51,11 @@ const char *resp(enum mode mode) {
 	}
 }
 
-void sendport(struct acmevim_conn *conn, uint16_t port) {
+void sendport(struct avim_conn *conn, uint16_t port) {
 	char buf[16];
 	snprintf(buf, sizeof(buf), "%u", port);
 	const char *msg[] = {"", "port", buf};
-	acmevim_send(conn, msg, ARRLEN(msg));
+	avim_send(conn, msg, ARRLEN(msg));
 }
 
 uint16_t sockport(int sockfd) {
@@ -85,8 +85,8 @@ int startlisten(void) {
 	return sockfd;
 }
 
-struct acmevim_conn *newconn(int rxfd, int txfd) {
-	struct acmevim_conn *conn = acmevim_create(rxfd, txfd);
+struct avim_conn *newconn(int rxfd, int txfd) {
+	struct avim_conn *conn = avim_create(rxfd, txfd);
 	vec_push(&conns, conn);
 	return conn;
 }
@@ -100,12 +100,12 @@ void acceptconn(int listenfd) {
 
 void closeconn(size_t c) {
 	handle(NULL, c);
-	acmevim_destroy(conns[c]);
+	avim_destroy(conns[c]);
 	vec_erase(&conns, c, 1);
 }
 
-acmevim_strv msg(const char *cmd, char *argv[], size_t argc) {
-	acmevim_strv msg = vec_new();
+avim_strv msg(const char *cmd, char *argv[], size_t argc) {
+	avim_strv msg = vec_new();
 	char **p = vec_dig(&msg, 0, argc + 1);
 	p[0] = (char *)cmd;
 	for (size_t i = 0; i < argc; i++) {
@@ -115,8 +115,8 @@ acmevim_strv msg(const char *cmd, char *argv[], size_t argc) {
 }
 
 void request(char *argv[], size_t argc) {
-	vec_push(&conns, acmevim_connect());
-	acmevim_strv req = msg(cmd(mode), argv, argc);
+	vec_push(&conns, avim_connect());
+	avim_strv req = msg(cmd(mode), argv, argc);
 	char *cwd = NULL;
 	if (mode == 0 || mode == 's') {
 		cwd = xgetcwd();
@@ -125,12 +125,12 @@ void request(char *argv[], size_t argc) {
 			vec_insert(&req, 2, "");
 		}
 	}
-	acmevim_send(conns[0], (const char **)req, vec_len(&req));
+	avim_send(conns[0], (const char **)req, vec_len(&req));
 	free(cwd);
 	vec_free(&req);
 }
 
-void server(acmevim_strv *msg, size_t c) {
+void server(avim_strv *msg, size_t c) {
 	if (msg == NULL && c == 0) {
 		error(EXIT_FAILURE, conns[c]->err, "vim connection lost");
 	}
@@ -139,16 +139,16 @@ void server(acmevim_strv *msg, size_t c) {
 	}
 	if (c != 0) {
 		vec_insert(msg, 0, conns[c]->id);
-		acmevim_send(conns[0], (const char **)*msg, vec_len(msg));
+		avim_send(conns[0], (const char **)*msg, vec_len(msg));
 	} else for (size_t i = 0, n = vec_len(&conns); i < n; i++) {
 		if (strcmp(conns[i]->id, (*msg)[0]) == 0) {
-			acmevim_send(conns[i], (const char **)&(*msg)[1],
+			avim_send(conns[i], (const char **)&(*msg)[1],
 			             vec_len(msg) - 1);
 		}
 	}
 }
 
-void client(acmevim_strv *msg, size_t c) {
+void client(avim_strv *msg, size_t c) {
 	if (msg == NULL) {
 		error(EXIT_FAILURE, conns[c]->err, "connection closed");
 	}
@@ -158,10 +158,10 @@ void client(acmevim_strv *msg, size_t c) {
 }
 
 void process(size_t c) {
-	struct acmevim_conn *conn = conns[c];
+	struct avim_conn *conn = conns[c];
 	size_t pos = 0;
 	for (;;) {
-		acmevim_strv msg = acmevim_parse(&conn->rx, &pos);
+		avim_strv msg = avim_parse(&conn->rx, &pos);
 		if (msg == NULL) {
 			break;
 		}
@@ -169,7 +169,7 @@ void process(size_t c) {
 		vec_free(&msg);
 	}
 	if (pos > 0) {
-		acmevim_pop(&conn->rx, pos);
+		avim_pop(&conn->rx, pos);
 	}
 }
 
@@ -180,7 +180,7 @@ int main(int argc, char *argv[]) {
 	if (argc == 1) {
 		handle = server;
 		listenfd = startlisten();
-		struct acmevim_conn *vim = newconn(0, 1);
+		struct avim_conn *vim = newconn(0, 1);
 		sendport(vim, sockport(listenfd));
 	} else {
 		handle = client;
@@ -188,7 +188,7 @@ int main(int argc, char *argv[]) {
 		request(&argv[optind], argc - optind);
 	}
 	for (;;) {
-		if (acmevim_sync(conns, vec_len(&conns), listenfd)) {
+		if (avim_sync(conns, vec_len(&conns), listenfd)) {
 			acceptconn(listenfd);
 		}
 		size_t c = 0;

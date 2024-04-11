@@ -66,7 +66,7 @@ struct cmd cmds[] = {
 	{NULL}
 };
 
-acmevim_strv cmdv;
+avim_strv cmdv;
 int devnull;
 const char **hints;
 int promptline;
@@ -112,7 +112,7 @@ int run(int outfd) {
 	return call(cmdv, fds);
 }
 
-void changed(acmevim_strv msg) {
+void changed(avim_strv msg) {
 	if (vec_len(&msg) > 1) {
 		promptline = atoi(msg[1]);
 	}
@@ -132,27 +132,27 @@ void hint(const char *hint, ...) {
 void show(list_func *ls) {
 	size_t arg = strcmp(cmdv[0], "scratch") == 0 ? 3 : 0;
 	char *p = vec_new();
-	acmevim_push(&p, "<< ");
+	avim_push(&p, "<< ");
 	if (strcmp(cmdv[arg], "git") == 0) {
 		arg++;
-		acmevim_push(&p, "git-");
-		acmevim_push(&p, cmdv[arg++]);
-		acmevim_push(&p, "(1)");
+		avim_push(&p, "git-");
+		avim_push(&p, cmdv[arg++]);
+		avim_push(&p, "(1)");
 	} else {
-		acmevim_push(&p, cmdv[arg++]);
+		avim_push(&p, cmdv[arg++]);
 	}
-	acmevim_push(&p, ":");
+	avim_push(&p, ":");
 	for (size_t i = arg; i < vec_len(&cmdv); i++) {
-		acmevim_push(&p, " ");
-		acmevim_push(&p, cmdv[i]);
+		avim_push(&p, " ");
+		avim_push(&p, cmdv[i]);
 	}
-	acmevim_pushn(&p, " >>", 4);
+	avim_pushn(&p, " >>", 4);
 	int first = !promptline;
 	char *l1 = xasprintf("%d", first ? -3 : promptline);
 	const char *l2 = first ? "-1" : l1;
 	const char **argv = vec_new();
 	vec_push(&argv, "change");
-	vec_push(&argv, acmevimbuf);
+	vec_push(&argv, avimbuf);
 	vec_push(&argv, l1);
 	vec_push(&argv, l2);
 	vec_push(&argv, p);
@@ -245,7 +245,7 @@ void list_dirs(void) {
 		"| sort");
 }
 
-void show_open_files(acmevim_strv msg) {
+void show_open_files(avim_strv msg) {
 	for (size_t i = 1; i + 4 < vec_len(&msg); i += 5) {
 		char *path = indir(msg[i], cwd);
 		char *l1 = msg[i + 3], *l2 = msg[i + 4];

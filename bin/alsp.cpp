@@ -50,7 +50,7 @@ QList<typeinfo> types;
 QHash<unsigned int, qsizetype> parenttype;
 const char *server;
 
-void setpos(acmevim_strv msg) {
+void setpos(avim_strv msg) {
 	filepos.path.clear();
 	if (vec_len(&msg) > 3) {
 		const char *path = msg[1];
@@ -437,7 +437,7 @@ void txtdoc(const char *method, msghandler *handler,
 	send(newreq(QString("textDocument/") + method, params, handler));
 }
 
-void openall(acmevim_strv msg) {
+void openall(avim_strv msg) {
 	for (size_t i = 1; i + 4 < vec_len(&msg); i += 5) {
 		char *path = msg[i];
 		if (!docs.contains(path)) {
@@ -508,7 +508,7 @@ QByteArray ext(const char *path) {
 	return QString(p ? &p[1] : "").toLower().toUtf8();
 }
 
-void detectserver(acmevim_strv msg) {
+void detectserver(avim_strv msg) {
 	QHash<QByteArray, const char *> srv{
 		{"c", "clangd"}, {"h", "clangd"},
 		{"cpp", "clangd"}, {"hpp", "clangd"},

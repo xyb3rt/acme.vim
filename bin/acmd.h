@@ -1,6 +1,6 @@
 #include "avim.h"
 
-typedef void msg_cb(acmevim_strv);
+typedef void msg_cb(avim_strv);
 typedef void cmd_func(void);
 
 struct cmd {
@@ -8,9 +8,9 @@ struct cmd {
 	cmd_func *func;
 };
 
-const char *acmevimbuf;
+const char *avimbuf;
 struct { char *d; size_t len, size; } buf;
-struct acmevim_conn *conn;
+struct avim_conn *conn;
 char *cwd;
 
 int process(const char *resp, msg_cb *cb) {
@@ -19,7 +19,7 @@ int process(const char *resp, msg_cb *cb) {
 	}
 	size_t pos = 0;
 	for (;;) {
-		acmevim_strv msg = acmevim_parse(&conn->rx, &pos);
+		avim_strv msg = avim_parse(&conn->rx, &pos);
 		if (msg == NULL) {
 			break;
 		}
@@ -32,20 +32,20 @@ int process(const char *resp, msg_cb *cb) {
 		vec_free(&msg);
 	}
 	if (pos > 0) {
-		acmevim_pop(&conn->rx, pos);
+		avim_pop(&conn->rx, pos);
 	}
 	return resp == NULL;
 }
 
 void requestv(const char *resp, const char **argv, size_t argc, msg_cb *cb) {
-	acmevim_send(conn, argv, argc);
+	avim_send(conn, argv, argc);
 	do {
-		acmevim_sync(&conn, 1, -1);
+		avim_sync(&conn, 1, -1);
 	} while (!process(resp, cb));
 }
 
 void clear(void) {
-	const char *cmd[] = {"clear^", acmevimbuf};
+	const char *cmd[] = {"clear^", avimbuf};
 	requestv("cleared", cmd, ARRLEN(cmd), NULL);
 }
 
@@ -88,7 +88,7 @@ int block(int fd) {
 			}
 		}
 		if (FD_ISSET(conn->rxfd, &readfds)) {
-			acmevim_rx(conn);
+			avim_rx(conn);
 			process(NULL, NULL);
 		}
 		if (FD_ISSET(0, &readfds)) {
@@ -111,11 +111,11 @@ void input(void) {
 }
 
 void init(void) {
-	acmevimbuf = getenv("ACMEVIMBUF");
-	if (acmevimbuf == NULL || acmevimbuf[0] == '\0') {
+	avimbuf = getenv("ACMEVIMBUF");
+	if (avimbuf == NULL || avimbuf[0] == '\0') {
 		error(EXIT_FAILURE, EINVAL, "ACMEVIMBUF");
 	}
-	conn = acmevim_connect();
+	conn = avim_connect();
 	cwd = xgetcwd();
 	clear();
 }
