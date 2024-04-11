@@ -201,14 +201,13 @@ void status(void) {
 }
 
 int main(int argc, char *argv[]) {
-	argv0 = argv[0];
+	init(argv[0]);
 	cmdv = vec_new();
 	hints = vec_new();
 	devnull = open("/dev/null", O_RDWR);
 	if (devnull == -1) {
 		error(EXIT_FAILURE, errno, "/dev/null");
 	}
-	init();
 	for (;;) {
 		promptline = 0;
 		checktime();

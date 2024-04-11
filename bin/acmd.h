@@ -110,7 +110,8 @@ void input(void) {
 	}
 }
 
-void init(void) {
+void init(const char *av0) {
+	argv0 = av0;
 	avimbuf = getenv("ACMEVIMBUF");
 	if (avimbuf == NULL || avimbuf[0] == '\0') {
 		error(EXIT_FAILURE, EINVAL, "ACMEVIMBUF");

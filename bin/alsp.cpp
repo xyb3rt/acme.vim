@@ -534,8 +534,7 @@ void guessinvocation(void) {
 }
 
 int main(int argc, char *argv[]) {
-	argv0 = argv[0];
-	init();
+	init(argv[0]);
 	if (argc > 1) {
 		spawn(&argv[1]);
 	} else {
