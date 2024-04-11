@@ -1,7 +1,7 @@
 /*
- * acmelsp: Simple LSP client in acme.vim scratch buffer
+ * alsp: Simple LSP client in acme.vim scratch buffer
  */
-#include "acmecmd.h"
+#include "acmd.h"
 #include <fcntl.h>
 #include <QFile>
 #include <QJsonArray>

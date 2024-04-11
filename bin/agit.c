@@ -1,7 +1,7 @@
 /*
- * acmegit: Simple git UI in acme.vim scratch buffer
+ * agit: Simple git UI in acme.vim scratch buffer
  */
-#include "acmecmd.h"
+#include "acmd.h"
 #include <fcntl.h>
 
 enum reply {
@@ -313,7 +313,7 @@ void cmd_cd(void) {
 		char *dir = buf.d[0] == '/' ? buf.d :
 		            xasprintf("%s/%s", cwd, buf.d);
 		if (access(dir, F_OK) == 0) {
-			const char *cmd[] = {"scratch", dir, "", "acmegit"};
+			const char *cmd[] = {"scratch", dir, "", argv0};
 			requestv("scratched", cmd, ARRLEN(cmd), NULL);
 		}
 		if (dir != buf.d) {

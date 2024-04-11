@@ -1135,7 +1135,7 @@ endif
 let &statusline = '%<%{%AcmeStatusName()%}%{%AcmeStatusFlags()%}' .
 	\ '%{AcmeStatusJobs()}%=%{%AcmeStatusRuler()%}'
 
-let s:ctrlexe = exepath(expand('<sfile>:p:h:h').'/bin/acmevim')
+let s:ctrlexe = exepath(expand('<sfile>:p:h:h').'/bin/avim')
 let s:ctrlrx = ''
 let s:cwd = {}
 let s:dirwidth = {}
