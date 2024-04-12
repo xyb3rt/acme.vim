@@ -311,8 +311,6 @@ endfunc
 command -nargs=1 -complete=customlist,s:ShComplete -range R
 	\ call s:Run(<q-args>, s:Dir(), 0)
 
-command -range V exe 'normal! '.<line1>.'GV'.<line2>.'G'
-
 function g:Tapi_lcd(_, path)
 	let s:cwd[bufnr()] = a:path
 endfunc
@@ -333,25 +331,6 @@ function s:Term(cmd)
 endfunc
 
 command -nargs=? -complete=customlist,s:ShComplete T call s:Term(<q-args>)
-
-function s:Exe(cmd, dir)
-	let v:errmsg = ''
-	let s:exedir = a:dir
-	let hl = v:hlsearch
-	let pat = @/
-	let out = split(execute(a:cmd, 'silent!'), '\n')
-	let s:exedir = ''
-	if len(out) == 1 && v:errmsg == ''
-		echo out[0]
-	elseif out != [] || v:errmsg != ''
-		call s:ErrorOpen('+Errors', out + split(v:errmsg, '\n'))
-	endif
-	if v:hlsearch != hl || @/ != pat
-		" Fix function-search-undo
-		let @/ = @/
-		call feedkeys(":let v:hlsearch=".v:hlsearch."\<CR>", 'n')
-	endif
-endfunc
 
 function s:ScratchNew(title, dir)
 	let buf = ''
@@ -779,9 +758,6 @@ function s:MiddleRelease(click)
 			let cmd = s:Sel()[0]
 		endif
 		call s:Send(w, cmd)
-	elseif cmd =~ '^\s*:'
-		let cmd = substitute(cmd, '^\s*:', vis ? "'<,'>" : '', '')
-		call s:Exe(cmd, dir)
 	else
 		call s:Run(cmd, dir, vis)
 	endif
