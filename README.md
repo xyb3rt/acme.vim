@@ -113,9 +113,9 @@ let g:acme_plumbing = [
 		\ AcmePlumb('', 'setsid xdg-open', m[0])}],
 	\ ['(\f{-1,})\s*\((\d\a*)\)', {m ->
 		\ AcmePlumb(m[1].'('.m[2].')', 'man', m[2], m[1])}],
-	\ ['(\f|[@{}])*\.\.\.?(\f|[@{}])*', {m ->
+	\ ['(\f|[@{}~^])*\.\.\.?(\f|[@{}~^])*', {m ->
 		\ AcmePlumb('git:'.m[0], 'git log -s --left-right', m[0])}],
-	\ ['(\f|[@{}])+', {m ->
+	\ ['(\f|[@{}~^])+', {m ->
 		\ AcmePlumb('git:'.m[0], 'git show --format=fuller -p --stat '.
 			\ '--decorate', m[0])}]]
 ```
