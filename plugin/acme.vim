@@ -797,20 +797,19 @@ function s:RightRelease(click)
 	exe "normal! \<LeftRelease>"
 	let click = s:clicksel ? -1 : a:click
 	let w = win_getid()
-	let focused = w == s:clickwin
 	if click <= 0
 		let text = trim(s:Sel()[0], "\r\n", 2)
 		let pat = substitute(escape(text, '/\'), '\n', '\\n', 'g')
 		call s:RestVisual(s:visual)
 	else
-		if focused && v:hlsearch != 0 && @/ != ''
+		if v:hlsearch != 0 && @/ != ''
 			if searchpos(@/.'\v%>.c', 'bcn', line('.'))[1] != 0
 				exe "normal! /\<CR>"
 				return
 			endif
 		endif
 		let text = getline('.')
-		if focused && match(text, '\v%'.click.'c([(){}]|\[|\])') != -1
+		if match(text, '\v%'.click.'c([(){}]|\[|\])') != -1
 			normal! %
 			return
 		endif
@@ -819,9 +818,10 @@ function s:RightRelease(click)
 	endif
 	let dir = s:Dir()
 	exe win_id2win(s:clickwin).'wincmd w'
-	if !s:Open(text, click, dir, w) && focused
+	if !s:Open(text, click, dir, w)
 		let @/ = '\V'.pat
-		call feedkeys(&hlsearch ? ":let v:hlsearch=1\<CR>" : 'n', 'n')
+		call feedkeys(&hlsearch ? ":let v:hlsearch=1\<CR>" :
+			\ w == s:clickwin ? 'n' : '', 'n')
 	elseif s:clickterm
 		call win_execute(w, 'normal! i')
 	endif
