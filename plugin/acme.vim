@@ -177,19 +177,17 @@ function s:Receiver(b)
 		\ (has_key(s:scratch, a:b) && s:Jobs(a:b) != [])
 endfunc
 
-function s:SplitSize(min, vertical)
-	let dim = a:vertical ? 'width' : 'height'
-	let min = getwinvar(0, '&winmin'.dim)
-	let min = min > 0 ? 2 * min + 1 : 2
-	if call('win'.dim, [0]) < min
-		exe min.'wincmd' (a:vertical ? '|' : '_')
+function s:SplitSize(min)
+	let min = &winminheight > 0 ? 2 * &winminheight + 1 : 2
+	if winheight(0) < min
+		exe min.'wincmd _'
 	endif
-	let stat = !a:vertical && winnr('$') == 1 && &laststatus == 1
-	return max([a:min, (call('win'.dim, [0]) - stat) / 2])
+	let stat = winnr('$') == 1 && &laststatus == 1
+	return max([a:min, (winheight(0) - stat) / 2])
 endfunc
 
 function s:New(cmd)
-	exe (s:SplitSize(10, 0)).a:cmd
+	exe (s:SplitSize(10)).a:cmd
 endfunc
 
 function s:Argv(cmd)
@@ -322,7 +320,7 @@ function s:Term(cmd)
 	if a:cmd == ''
 		let opts.term_finish = 'close'
 	endif
-	let h = s:SplitSize(10, 0)
+	let h = s:SplitSize(10)
 	call term_start(a:cmd != '' ? a:cmd : $SHELL, opts)
 	if winheight(0) < h
 		exe h.'wincmd _'
@@ -633,7 +631,7 @@ function AcmeMoveWin(dir)
 	noa exe win_id2win(w).'wincmd w'
 endfunc
 
-function s:SplitMove(other, vertical, rightbelow)
+function s:SplitMove(other, below)
 	let w = win_getid()
 	let p = win_getid(winnr('#'))
 	if w == a:other
@@ -641,8 +639,7 @@ function s:SplitMove(other, vertical, rightbelow)
 	endif
 	let v = winsaveview()
 	noa exe win_id2win(a:other).'wincmd w'
-	noa exe (a:rightbelow ? 'bel' : 'abo') s:SplitSize(1, a:vertical)
-		\ (a:vertical ? 'vs' : 'sp')
+	noa exe (a:below ? 'bel' : 'abo') s:SplitSize(1).'sp'
 	noa exe 'b' winbufnr(w)
 	noa exe win_id2win(w).'close'
 	call winrestview(v)
@@ -778,13 +775,8 @@ function s:RightRelease(click)
 		let p = getmousepos()
 		if p.winid != 0 && p.winid != s:click.winid
 			exe s:clickstatus.'wincmd w'
-			let mx = (winwidth(p.winid) + 1) / 2
 			let my = (winheight(p.winid) + 1) / 2
-			if abs(p.wincol - mx) > 2 * (abs(p.winrow - my) + 5)
-				call s:SplitMove(p.winid, 1, p.wincol > mx)
-			else
-				call s:SplitMove(p.winid, 0, p.winrow > my)
-			endif
+			call s:SplitMove(p.winid, p.winrow > my)
 		elseif p.line == 0 && p.winid == s:click.winid
 			if p.winid == win_getid()
 				call s:Zoom()
