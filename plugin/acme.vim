@@ -718,8 +718,9 @@ function AcmeClick()
 	let s:visual = s:SaveVisual()
 	let s:clicksel = s:clickmode == 'v' && win_getid() == s:clickwin &&
 		\ s:InSel()
-	let s:clickterm = term_getstatus(bufnr()) == 'running'
-	if s:clickterm
+	let s:clickterm = s:clickmode == 't' && s:clickwin == s:click.winid
+	if term_getstatus(bufnr()) == 'running'
+		let s:clickterm = 1
 		call feedkeys("\<C-w>N\<LeftMouse>", 'in')
 	endif
 endfunc
@@ -813,8 +814,9 @@ function s:RightRelease(click)
 	if !s:Open(text, click, dir, w)
 		let @/ = '\V'.pat
 		call feedkeys(&hlsearch ? ":let v:hlsearch=1\<CR>" : '', 'n')
-	elseif s:clickterm
-		call win_execute(w, 'normal! i')
+	endif
+	if s:clickterm
+		call feedkeys(":call win_execute(".w.", 'norm! i')\<CR>", 'n')
 	endif
 endfunc
 
