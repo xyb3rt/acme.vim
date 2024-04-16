@@ -791,11 +791,10 @@ function s:RightRelease(click)
 	let click = s:clicksel ? -1 : a:click
 	let w = win_getid()
 	if click > 0
-		if v:hlsearch != 0 && @/ != ''
-			if searchpos(@/.'\v%>.c', 'bcn', line('.'))[1] != 0
-				exe "normal! /\<CR>"
-				return
-			endif
+		if !s:clickterm && v:hlsearch != 0 && @/ != '' &&
+			\ searchpos(@/.'\v%>.c', 'bcn', line('.'))[1] != 0
+			exe "normal! /\<CR>"
+			return
 		endif
 		let text = getline('.')
 		let word = matchstr(text, s:PatPos('\k*', click))
