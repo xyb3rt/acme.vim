@@ -790,11 +790,7 @@ function s:RightRelease(click)
 	exe "normal! \<LeftRelease>"
 	let click = s:clicksel ? -1 : a:click
 	let w = win_getid()
-	if click <= 0
-		let text = trim(s:Sel()[0], "\r\n", 2)
-		let pat = substitute(escape(text, '/\'), '\n', '\\n', 'g')
-		call s:RestVisual(s:visual)
-	else
+	if click > 0
 		if v:hlsearch != 0 && @/ != ''
 			if searchpos(@/.'\v%>.c', 'bcn', line('.'))[1] != 0
 				exe "normal! /\<CR>"
@@ -804,6 +800,10 @@ function s:RightRelease(click)
 		let text = getline('.')
 		let word = matchstr(text, s:PatPos('\k*', click))
 		let pat = '\<'.escape(word, '/\').'\>'
+	else
+		let text = trim(s:Sel()[0], "\r\n", 2)
+		let pat = substitute(escape(text, '/\'), '\n', '\\n', 'g')
+		call s:RestVisual(s:visual)
 	endif
 	let dir = s:Dir()
 	exe win_id2win(s:clickwin).'wincmd w'
