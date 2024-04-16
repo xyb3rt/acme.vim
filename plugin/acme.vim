@@ -812,8 +812,7 @@ function s:RightRelease(click)
 	exe win_id2win(s:clickwin).'wincmd w'
 	if !s:Open(text, click, dir, w)
 		let @/ = '\V'.pat
-		call feedkeys(&hlsearch ? ":let v:hlsearch=1\<CR>" :
-			\ w == s:clickwin ? 'n' : '', 'n')
+		call feedkeys(&hlsearch ? ":let v:hlsearch=1\<CR>" : '', 'n')
 	elseif s:clickterm
 		call win_execute(w, 'normal! i')
 	endif
