@@ -66,29 +66,31 @@ struct cmd cmds[] = {
 	{NULL}
 };
 
-avim_strv cmdv;
+struct {
+	size_t fixed;
+	avim_strv v;
+} cmd;
 int devnull;
-size_t fixedcmdlen;
 const char **hints;
 int promptline;
 
 void set(const char *arg, ...) {
 	va_list ap;
 	va_start(ap, arg);
-	for (size_t i = 0, n = vec_len(&cmdv); i < n; i++) {
-		free(cmdv[i]);
+	for (size_t i = 0, n = vec_len(&cmd.v); i < n; i++) {
+		free(cmd.v[i]);
 	}
-	vec_clear(&cmdv);
+	vec_clear(&cmd.v);
 	while (arg != NULL) {
-		vec_push(&cmdv, xstrdup(arg));
+		vec_push(&cmd.v, xstrdup(arg));
 		arg = va_arg(ap, const char *);
 	}
 	va_end(ap);
-	fixedcmdlen = vec_len(&cmdv);
+	cmd.fixed = vec_len(&cmd.v);
 }
 
 void request(const char *resp, msg_cb *cb) {
-	requestv(resp, (const char **)cmdv, vec_len(&cmdv), cb);
+	requestv(resp, (const char **)cmd.v, vec_len(&cmd.v), cb);
 }
 
 void checktime(void) {
@@ -110,8 +112,8 @@ enum reply get(void) {
 
 int run(int outfd) {
 	int fds[3] = {devnull, outfd, 2};
-	vec_push(&cmdv, NULL);
-	return call(cmdv, fds);
+	vec_push(&cmd.v, NULL);
+	return call(cmd.v, fds);
 }
 
 void changed(avim_strv msg) {
@@ -132,21 +134,21 @@ void hint(const char *hint, ...) {
 }
 
 void show(list_func *ls) {
-	size_t arg = strcmp(cmdv[0], "scratch") == 0 ? 3 : 0;
+	size_t arg = strcmp(cmd.v[0], "scratch") == 0 ? 3 : 0;
 	char *p = vec_new();
 	avim_push(&p, "<< ");
-	if (strcmp(cmdv[arg], "git") == 0) {
+	if (strcmp(cmd.v[arg], "git") == 0) {
 		arg++;
 		avim_push(&p, "git-");
-		avim_push(&p, cmdv[arg++]);
+		avim_push(&p, cmd.v[arg++]);
 		avim_push(&p, "(1)");
 	} else {
-		avim_push(&p, cmdv[arg++]);
+		avim_push(&p, cmd.v[arg++]);
 	}
 	avim_push(&p, ":");
-	for (size_t i = arg; i < vec_len(&cmdv); i++) {
+	for (size_t i = arg; i < vec_len(&cmd.v); i++) {
 		avim_push(&p, " ");
-		avim_push(&p, cmdv[i]);
+		avim_push(&p, cmd.v[i]);
 	}
 	avim_pushn(&p, " >>", 4);
 	int first = !promptline;
@@ -178,17 +180,17 @@ int add(list_func *ls) {
 		show(ls);
 		reply = get();
 		if (reply == CANCEL) {
-			size_t n = vec_len(&cmdv);
-			if (n > fixedcmdlen) {
-				free(cmdv[n - 1]);
-				vec_erase(&cmdv, n - 1, 1);
+			size_t n = vec_len(&cmd.v);
+			if (n > cmd.fixed) {
+				free(cmd.v[n - 1]);
+				vec_erase(&cmd.v, n - 1, 1);
 				continue;
 			}
 		}
 		if (reply != SELECT) {
 			break;
 		}
-		vec_push(&cmdv, xstrdup(buf.d));
+		vec_push(&cmd.v, xstrdup(buf.d));
 	}
 	clear();
 	return reply == CONFIRM;
@@ -203,7 +205,7 @@ void status(void) {
 
 int main(int argc, char *argv[]) {
 	init(argv[0]);
-	cmdv = vec_new();
+	cmd.v = vec_new();
 	hints = vec_new();
 	devnull = open("/dev/null", O_RDWR);
 	if (devnull == -1) {
@@ -332,7 +334,7 @@ void cmd_clean(void) {
 
 void cmd_commit(void) {
 	set("git", "commit", "-v", NULL);
-	fixedcmdlen--; /* allow removing -v */
+	cmd.fixed--; /* allow removing -v */
 	hint("< --all --amend --no-edit --fixup >", NULL);
 	if (add(NULL)) {
 		run(1);
