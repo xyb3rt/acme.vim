@@ -802,10 +802,6 @@ function s:RightRelease(click)
 			endif
 		endif
 		let text = getline('.')
-		if match(text, '\v%'.click.'c([(){}]|\[|\])') != -1
-			normal! %
-			return
-		endif
 		let word = matchstr(text, s:PatPos('\k*', click))
 		let pat = '\<'.escape(word, '/\').'\>'
 	endif
