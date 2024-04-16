@@ -68,6 +68,7 @@ struct cmd cmds[] = {
 
 avim_strv cmdv;
 int devnull;
+size_t fixedcmdlen;
 const char **hints;
 int promptline;
 
@@ -83,6 +84,7 @@ void set(const char *arg, ...) {
 		arg = va_arg(ap, const char *);
 	}
 	va_end(ap);
+	fixedcmdlen = vec_len(&cmdv);
 }
 
 void request(const char *resp, msg_cb *cb) {
@@ -172,13 +174,12 @@ void show(list_func *ls) {
 
 int add(list_func *ls) {
 	enum reply reply;
-	size_t fixed = vec_len(&cmdv);
 	for (;;) {
 		show(ls);
 		reply = get();
 		if (reply == CANCEL) {
 			size_t n = vec_len(&cmdv);
-			if (n > fixed) {
+			if (n > fixedcmdlen) {
 				free(cmdv[n - 1]);
 				vec_erase(&cmdv, n - 1, 1);
 				continue;
@@ -331,6 +332,7 @@ void cmd_clean(void) {
 
 void cmd_commit(void) {
 	set("git", "commit", "-v", NULL);
+	fixedcmdlen--; /* allow removing -v */
 	hint("< --all --amend --no-edit --fixup >", NULL);
 	if (add(NULL)) {
 		run(1);
