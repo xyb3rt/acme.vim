@@ -616,34 +616,28 @@ function s:Minimize(w)
 	endfor
 endfunc
 
-function AcmeMoveWin(dir)
+function s:MoveWin(w, other, below)
 	let w = win_getid()
 	let p = win_getid(winnr('#'))
-	noa exe 'wincmd' (a:dir > 0 ? 'j' : 'k')
-	let o = win_getid()
-	if o != w && winwidth(o) == winwidth(w)
-		if a:dir > 0
-			noa wincmd p
-		endif
-		noa exe "normal! \<C-w>x"
+	noa exe (win_id2win(a:w)).'wincmd w'
+	let dir = s:InCol(win_id2win(a:other), winnr())
+	if dir != 0
+		let [k, i] = dir < 0 ? ['kx', 1] : ['xj', -1]
+		while dir != 0
+			noa exe "normal! \<C-w>".k[0]."\<C-w>".k[1]
+			let dir += i
+		endwhile
+	else
+		let v = winsaveview()
+		noa exe win_id2win(a:other).'wincmd w'
+		let h = min([winheight(a:w), s:SplitSize(1)])
+		noa exe (a:below ? 'bel' : 'abo') h.'sp'
+		noa exe 'b' winbufnr(a:w)
+		noa exe win_id2win(a:w).'close'
+		call winrestview(v)
+		let w = w != a:w ? w : win_getid()
+		let p = p != a:w ? p : win_getid()
 	endif
-	noa exe win_id2win(p).'wincmd w'
-	noa exe win_id2win(w).'wincmd w'
-endfunc
-
-function s:SplitMove(other, below)
-	let w = win_getid()
-	let p = win_getid(winnr('#'))
-	if w == a:other
-		return
-	endif
-	let v = winsaveview()
-	noa exe win_id2win(a:other).'wincmd w'
-	noa exe (a:below ? 'bel' : 'abo') s:SplitSize(1).'sp'
-	noa exe 'b' winbufnr(w)
-	noa exe win_id2win(w).'close'
-	call winrestview(v)
-	let w = win_getid()
 	noa exe win_id2win(p).'wincmd w'
 	noa exe win_id2win(w).'wincmd w'
 endfunc
@@ -775,9 +769,8 @@ function s:RightRelease(click)
 		endif
 		let p = getmousepos()
 		if p.winid != 0 && p.winid != s:click.winid
-			exe s:clickstatus.'wincmd w'
 			let my = (winheight(p.winid) + 1) / 2
-			call s:SplitMove(p.winid, p.winrow > my)
+			call s:MoveWin(s:click.winid, p.winid, p.winrow > my)
 		elseif p.line == 0 && p.winid == s:click.winid
 			if p.winid == win_getid()
 				call s:Zoom()
@@ -812,26 +805,6 @@ function s:RightRelease(click)
 	endif
 	if s:clickterm
 		call feedkeys(":call win_execute(".w.", 'norm! i')\<CR>", 'n')
-	endif
-endfunc
-
-function s:ScrollWheelDown()
-	call s:PreClick('')
-	if (s:clickstatus != 0 && s:clickstatus != winnr()) ||
-		\ s:click.winid == 0
-		call AcmeMoveWin(1)
-	elseif s:clickstatus == 0
-		exe "normal! \<ScrollWheelDown>"
-	endif
-endfunc
-
-function s:ScrollWheelUp()
-	call s:PreClick('')
-	if (s:clickstatus != 0 && s:clickstatus != winnr() - 1) ||
-		\ s:click.winid == 0
-		call AcmeMoveWin(-1)
-	elseif s:clickstatus == 0
-		exe "normal! \<ScrollWheelUp>"
 	endif
 endfunc
 
@@ -873,36 +846,6 @@ function s:TermRightMouse()
 	endif
 endfunc
 
-function s:TermScrollWheelDown()
-	call s:PreClick('t')
-	if (s:clickstatus != 0 && s:clickstatus != winnr()) ||
-		\ s:click.winid == 0
-		return "\<C-w>N:call AcmeMoveWin(1)\<CR>i"
-	elseif s:clickstatus == 0 && s:clickwin == s:click.winid &&
-		\ !term_getaltscreen(bufnr())
-		return "\<C-w>N\<ScrollWheelDown>"
-	elseif s:clickstatus == 0
-		return "\<ScrollWheelDown>"
-	else
-		return ''
-	endif
-endfunc
-
-function s:TermScrollWheelUp()
-	call s:PreClick('t')
-	if (s:clickstatus != 0 && s:clickstatus != winnr() - 1) ||
-		\ s:click.winid == 0
-		return "\<C-w>N:call AcmeMoveWin(-1)\<CR>i"
-	elseif s:clickstatus == 0 && s:clickwin == s:click.winid &&
-		\ !term_getaltscreen(bufnr())
-		return "\<C-w>N\<ScrollWheelUp>"
-	elseif s:clickstatus == 0
-		return "\<ScrollWheelUp>"
-	else
-		return ''
-	endif
-endfunc
-
 for m in ['', 'i']
 	for n in ['', '2-', '3-', '4-']
 		for c in ['Mouse', 'Drag', 'Release']
@@ -935,11 +878,7 @@ vnoremap <silent> <MiddleRelease> :<C-u>call <SID>MiddleRelease(-1)<CR>
 inoremap <silent> <RightMouse> <Esc>:call <SID>RightMouse('')<CR>
 noremap <silent> <RightDrag> <LeftDrag>
 vnoremap <silent> <RightRelease> :<C-u>call <SID>RightRelease(-1)<CR>
-nnoremap <silent> <ScrollWheelDown> :call <SID>ScrollWheelDown()<CR>
-nnoremap <silent> <ScrollWheelUp> :call <SID>ScrollWheelUp()<CR>
 tnoremap <expr> <silent> <LeftMouse> <SID>TermLeftMouse()
-tnoremap <expr> <silent> <ScrollWheelDown> <SID>TermScrollWheelDown()
-tnoremap <expr> <silent> <ScrollWheelUp> <SID>TermScrollWheelUp()
 
 function s:Clear(b, top)
 	call deletebufline(a:b, 1, "$")
