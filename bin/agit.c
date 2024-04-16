@@ -72,7 +72,10 @@ struct {
 } cmd;
 int devnull;
 const char **hints;
-int promptline;
+struct {
+	int l1;
+	int l2;
+} prompt;
 
 void set(const char *arg, ...) {
 	va_list ap;
@@ -118,7 +121,8 @@ int run(int outfd) {
 
 void changed(avim_strv msg) {
 	if (vec_len(&msg) > 1) {
-		promptline = atoi(msg[1]);
+		prompt.l1 = atoi(msg[1]);
+		prompt.l2 = prompt.l1;
 	}
 }
 
@@ -151,27 +155,29 @@ void show(list_func *ls) {
 		avim_push(&p, cmd.v[i]);
 	}
 	avim_pushn(&p, " >>", 4);
-	int first = !promptline;
-	char *l1 = xasprintf("%d", first ? -3 : promptline);
-	const char *l2 = first ? "-1" : l1;
+	char *l1 = xasprintf("%d", prompt.l1);
+	char *l2 = xasprintf("%d", prompt.l2);
 	const char **argv = vec_new();
 	vec_push(&argv, "change");
 	vec_push(&argv, avimbuf);
 	vec_push(&argv, l1);
 	vec_push(&argv, l2);
 	vec_push(&argv, p);
-	if (first) {
+	if (prompt.l1 != prompt.l2) {
 		for (size_t i = 0; i < vec_len(&hints); i++) {
 			vec_push(&argv, hints[i]);
 		}
+	} else {
+		ls = NULL;
 	}
 	requestv("changed", argv, vec_len(&argv), changed);
-	if (first && ls) {
+	if (ls) {
 		ls();
 	}
 	vec_free(&argv);
 	vec_free(&p);
 	free(l1);
+	free(l2);
 }
 
 int add(list_func *ls) {
@@ -212,7 +218,8 @@ int main(int argc, char *argv[]) {
 		error(EXIT_FAILURE, errno, "/dev/null");
 	}
 	for (;;) {
-		promptline = 0;
+		prompt.l1 = -3;
+		prompt.l2 = -1;
 		checktime();
 		status();
 		menu(cmds);
@@ -239,6 +246,13 @@ void list_branches(void) {
 		"} END {"
 			"printf(\"\\n\");"
 		"}'");
+}
+
+void list_clean(void) {
+	vec_push(&cmd.v, "--dry-run");
+	run(1);
+	vec_erase(&cmd.v, vec_len(&cmd.v) - 2, 2);
+	prompt.l2 = -1;
 }
 
 void list_dirs(void) {
@@ -326,8 +340,9 @@ void cmd_cd(void) {
 
 void cmd_clean(void) {
 	set("git", "clean", NULL);
-	hint("< --dry-run --force ./ >", NULL);
-	if (add(NULL)) {
+	hint("< -d -x -X ./ >", NULL);
+	if (add(list_clean)) {
+		vec_push(&cmd.v, xstrdup("--force"));
 		run(1);
 	}
 }
