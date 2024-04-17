@@ -489,7 +489,8 @@ function s:Dir(...)
 	let dir = isdirectory(dir) ? dir : getcwd()
 	if a:0 > 0 && &buftype != ''
 		let [d, q] = ['ing directory:? ', "[`'\"]"]
-		let l = searchpair('\vEnter'.d.q, '', '\vLeav'.d.q, 'nW')
+		let l = searchpair('\vEnter'.d.q, '', '\vLeav'.d.q, 'nW',
+			\ '', 0, 50)
 		let m = matchlist(getline(l), '\vLeav'.d.q.'(.+)'.q)
 		if m != []
 			let d = m[1][0] == '/' ? m[1] : dir.'/'.m[1]
