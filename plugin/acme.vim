@@ -853,6 +853,8 @@ for m in ['', 'i']
 			exe m.'noremap <'.n.'Right'.c.'> <Nop>'
 		endfor
 	endfor
+	exe m.'noremap <silent> <MiddleDrag> <LeftDrag>'
+	exe m.'noremap <silent> <RightDrag> <LeftDrag>'
 endfor
 for n in ['', '2-', '3-', '4-']
 	exe 'nnoremap <silent> <'.n.'MiddleMouse>'
@@ -873,10 +875,10 @@ for n in ['', '2-', '3-', '4-']
 		\ '<SID>TermRightMouse()'
 endfor
 inoremap <silent> <MiddleMouse> <Esc>:call <SID>MiddleMouse('')<CR>
-noremap <silent> <MiddleDrag> <LeftDrag>
+inoremap <silent> <MiddleRelease> <Esc>:call <SID>MiddleRelease(col('.'))<CR>
 vnoremap <silent> <MiddleRelease> :<C-u>call <SID>MiddleRelease(-1)<CR>
 inoremap <silent> <RightMouse> <Esc>:call <SID>RightMouse('')<CR>
-noremap <silent> <RightDrag> <LeftDrag>
+inoremap <silent> <RightRelease> <Esc>:call <SID>RightRelease(col('.'))<CR>
 vnoremap <silent> <RightRelease> :<C-u>call <SID>RightRelease(-1)<CR>
 tnoremap <expr> <silent> <LeftMouse> <SID>TermLeftMouse()
 
