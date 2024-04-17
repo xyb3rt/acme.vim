@@ -628,19 +628,19 @@ function s:MoveWin(w, other, below)
 			noa exe "normal! \<C-w>".k[0]."\<C-w>".k[1]
 			let dir += i
 		endwhile
+		noa exe win_id2win(p).'wincmd w'
+		noa exe win_id2win(w).'wincmd w'
 	else
 		let v = winsaveview()
 		noa exe win_id2win(a:other).'wincmd w'
 		let h = min([winheight(a:w), s:SplitSize(1)])
 		noa exe (a:below ? 'bel' : 'abo') h.'sp'
 		noa exe 'b' winbufnr(a:w)
-		noa exe win_id2win(a:w).'close'
 		call winrestview(v)
-		let w = w != a:w ? w : win_getid()
-		let p = p != a:w ? p : win_getid()
+		noa exe win_id2win(p).'wincmd w'
+		noa exe win_id2win(w).'wincmd w'
+		noa call s:CloseWin(win_id2win(a:w))
 	endif
-	noa exe win_id2win(p).'wincmd w'
-	noa exe win_id2win(w).'wincmd w'
 endfunc
 
 function s:Zoom()
