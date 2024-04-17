@@ -483,11 +483,11 @@ function s:Match(text, click, pat)
 	return m
 endfunc
 
-function s:Dir()
+function s:Dir(...)
 	" Expanding '%:p:h' in a dir buf gives the dir not its parent!
 	let dir = get(s:cwd, bufnr(), expand('%:p:h'))
 	let dir = isdirectory(dir) ? dir : getcwd()
-	if &buftype != ''
+	if a:0 > 0 && &buftype != ''
 		let [d, q] = ['ing directory:? ', "[`'\"]"]
 		let l = searchpair('\vEnter'.d.q, '', '\vLeav'.d.q, 'nW')
 		let m = matchlist(getline(l), '\vLeav'.d.q.'(.+)'.q)
@@ -797,7 +797,7 @@ function s:RightRelease(click)
 		let pat = substitute(escape(text, '/\'), '\n', '\\n', 'g')
 		call s:RestVisual(s:visual)
 	endif
-	let dir = s:Dir()
+	let dir = s:Dir(1)
 	exe win_id2win(s:clickwin).'wincmd w'
 	if !s:Open(text, click, dir, w)
 		let @/ = '\V'.pat
