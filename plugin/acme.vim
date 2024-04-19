@@ -592,22 +592,6 @@ function s:CloseWin(w)
 	endfor
 endfunc
 
-function s:Minimize(w)
-	let w = a:w
-	if winheight(w) == &winminheight && winheight(0) != &winminheight
-		let w = winnr()
-		exe a:w.'wincmd w'
-	endif
-	let col = s:InCol(w, winnr())
-	if col == 0
-		return
-	endif
-	let h = (winheight(w) - &winminheight) * (col < 0 ? -1 : 1)
-	for i in col < 0 ? range(col, -1) : reverse(range(col))
-		call win_move_statusline(winnr() + i, h)
-	endfor
-endfunc
-
 function s:MoveWin(w, other, below)
 	let w = win_getid()
 	let p = win_getid(winnr('#'))
@@ -635,15 +619,7 @@ function s:MoveWin(w, other, below)
 endfunc
 
 function s:Zoom()
-	let h = winheight(0)
-	call win_move_statusline(winnr(), 999)
-	if winheight(0) != h
-		return
-	endif
 	wincmd _
-	if winheight(0) != h
-		return
-	endif
 	let w = winnr()
 	let h = winheight(0)
 	while w > 1 && winwidth(w - 1) == winwidth(w) &&
@@ -652,9 +628,10 @@ function s:Zoom()
 		let h += winheight(w)
 	endwhile
 	while w != winnr()
-		let d = h / (winnr() - w + 1) - winheight(w)
-		call win_move_statusline(w, d)
-		let h -= d
+		let n = winnr() - w + 1
+		let s = (h + n - 1) / n
+		call win_move_statusline(w, s - winheight(w))
+		let h -= s
 		let w += 1
 	endwhile
 endfunc
@@ -764,11 +741,8 @@ function s:RightRelease(click)
 			let my = (winheight(p.winid) + 1) / 2
 			call s:MoveWin(s:click.winid, p.winid, p.winrow > my)
 		elseif p.line == 0 && p.winid == s:click.winid
-			if p.winid == win_getid()
-				call s:Zoom()
-			else
-				call s:Minimize(win_id2win(p.winid))
-			endif
+			exe win_id2win(p.winid).'wincmd w'
+			call s:Zoom()
 		endif
 		return
 	endif
