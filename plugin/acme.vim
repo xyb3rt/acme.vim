@@ -173,8 +173,10 @@ function s:SplitSize(min)
 	if winheight(0) < min
 		exe min.'wincmd _'
 	endif
-	let stat = winnr('$') == 1 && &laststatus == 1
-	return max([a:min, (winheight(0) - stat) / 2])
+	let w = win_getid()
+	let h = winheight(w)
+	let stat = 1 + (winnr('$') == 1 && &laststatus == 1)
+	return max([a:min, h - s:Fit(w, (h - stat) / 2) - stat])
 endfunc
 
 function s:New(cmd)
