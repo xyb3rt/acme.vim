@@ -168,7 +168,7 @@ function s:Receiver(b)
 		\ (has_key(s:scratch, a:b) && s:Jobs(a:b) != [])
 endfunc
 
-function s:SplitSize(min)
+function s:SplitSize(n)
 	let min = &winminheight > 0 ? 2 * &winminheight + 1 : 2
 	if winheight(0) < min
 		exe min.'wincmd _'
@@ -176,7 +176,9 @@ function s:SplitSize(min)
 	let w = win_getid()
 	let h = winheight(w)
 	let stat = 1 + (winnr('$') == 1 && &laststatus == 1)
-	return max([a:min, h - s:Fit(w, (h - stat) / 2) - stat])
+	return a:n < 0
+		\ ? min([abs(a:n), h - stat - max([&winminheight, 1])])
+		\ : max([a:n, h - s:Fit(w, (h - stat) / 2) - stat])
 endfunc
 
 function s:New(cmd)
@@ -619,7 +621,7 @@ function s:MoveWin(w, other, below)
 	else
 		let v = winsaveview()
 		noa exe win_id2win(a:other).'wincmd w'
-		let h = min([winheight(a:w), s:SplitSize(1)])
+		let h = s:SplitSize(-winheight(a:w))
 		noa exe (a:below ? 'bel' : 'abo') h.'sp'
 		noa exe 'b' winbufnr(a:w)
 		call winrestview(v)
