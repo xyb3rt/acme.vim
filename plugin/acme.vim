@@ -3,22 +3,13 @@ function s:Bound(min, n, max)
 endfunc
 
 function s:BufWin(b)
-	for w in range(1, winnr('$'))
-		if winbufnr(w) == a:b
-			return w
-		endif
-	endfor
-	return 0
+	return get(filter(range(1, winnr('$')), 'winbufnr(v:val) == a:b'), 0)
 endfunc
 
 function s:FileWin(name)
 	let path = s:Path(a:name)
-	for w in range(1, winnr('$'))
-		if s:Path(bufname(winbufnr(w))) == path
-			return w
-		endif
-	endfor
-	return 0
+	return get(filter(range(1, winnr('$')),
+		\ 's:Path(bufname(winbufnr(v:val))) == path'), 0)
 endfunc
 
 function s:Sel()
