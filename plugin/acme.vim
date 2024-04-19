@@ -566,29 +566,37 @@ endfunc
 command -nargs=1 -complete=customlist,s:FileComplete O
 	\ call s:Open(expand(<q-args>), 0, s:Dir(), win_getid())
 
-function s:InCol(wa, wb)
-	let [a, b] = [min([a:wa, a:wb]), max([a:wa, a:wb])]
-	for w in range(a + 1, b)
-		if winwidth(w) != winwidth(a) ||
-			\ win_screenpos(w)[1] != win_screenpos(a)[1]
-			return 0
-		endif
-	endfor
-	return a:wa - a:wb
+function s:WinCol(w)
+	let col = [a:w]
+	let w = win_id2win(a:w) - 1
+	while w > 0 && winwidth(w) == winwidth(a:w) &&
+		\ win_screenpos(w)[1] == win_screenpos(a:w)[1]
+		call insert(col, win_getid(w))
+		let w -= 1
+	endwhile
+	let w = win_id2win(a:w) + 1
+	while w <= winnr('$') && winwidth(w) == winwidth(a:w) &&
+		\ win_screenpos(w)[1] == win_screenpos(a:w)[1]
+		call add(col, win_getid(w))
+		let w += 1
+	endwhile
+	return col
 endfunc
 
 function s:CloseWin(w)
-	let col = s:InCol(a:w, winnr())
-	let h = (winheight(a:w) + 1) * (col < 0 ? -1 : 1)
+	let h = winheight(a:w) + 1
+	let col = s:WinCol(a:w)
+	let [i, j] = [index(col, a:w), index(col, win_getid())]
 	let sb = &splitbelow
 	let &splitbelow = 0
-	exe a:w.'close!'
+	exe win_id2win(a:w).'close!'
 	let &splitbelow = sb
-	if col == 0
+	if j == -1
 		return
 	endif
-	for i in col < 0 ? range(col + 1, -1) : reverse(range(col))
-		call win_move_statusline(winnr() + i, h)
+	let d = i - j
+	for i in d < 0 ? range(d + 1, -1) : reverse(range(d))
+		call win_move_statusline(winnr() + i, d < 0 ? -h : h)
 	endfor
 endfunc
 
@@ -596,12 +604,13 @@ function s:MoveWin(w, other, below)
 	let w = win_getid()
 	let p = win_getid(winnr('#'))
 	noa exe (win_id2win(a:w)).'wincmd w'
-	let dir = s:InCol(win_id2win(a:other), winnr())
-	if dir != 0
-		let [k, i] = dir < 0 ? ['kx', 1] : ['xj', -1]
-		while dir != 0
+	let col = s:WinCol(a:w)
+	let [i, j] = [index(col, a:w), index(col, a:other)]
+	if j != -1
+		let [k, inc] = i > j ? ['kx', -1] : ['xj', 1]
+		while i != j
 			noa exe "normal! \<C-w>".k[0]."\<C-w>".k[1]
-			let dir += i
+			let i += inc
 		endwhile
 		noa exe win_id2win(p).'wincmd w'
 		noa exe win_id2win(w).'wincmd w'
@@ -614,26 +623,35 @@ function s:MoveWin(w, other, below)
 		call winrestview(v)
 		noa exe win_id2win(p).'wincmd w'
 		noa exe win_id2win(w).'wincmd w'
-		noa call s:CloseWin(win_id2win(a:w))
+		noa call s:CloseWin(a:w)
 	endif
 endfunc
 
-function s:Zoom()
-	wincmd _
-	let w = winnr()
-	let h = winheight(0)
-	while w > 1 && winwidth(w - 1) == winwidth(w) &&
-		\ win_screenpos(w - 1)[1] == win_screenpos(w)[1]
-		let w -= 1
-		let h += winheight(w)
-	endwhile
-	while w != winnr()
-		let n = winnr() - w + 1
-		let s = (h + n - 1) / n
-		call win_move_statusline(w, s - winheight(w))
+function s:Fit(w, h)
+	let h = line('$', a:w)
+	if h <= a:h && getwinvar(a:w, '&wrap')
+		" Requires 'nobreakindent' and 'nolinebreak'
+		let w = winwidth(a:w)
+		let h = reduce(getbufline(winbufnr(a:w), 1, '$'), {s, l ->
+			\ s + (max([strdisplaywidth(l), 1]) + w - 1) / w}, 0)
+	endif
+	return min([h, a:h])
+endfunc
+
+function s:Zoom(w)
+	let col = s:WinCol(a:w)
+	let col = slice(col, 0, index(col, a:w) + 1)
+	let h = reduce(col, {s, w -> s + winheight(w)}, 0)
+	let n = len(col)
+	for w in reverse(col)
+		let s = s:Fit(w, h / n)
+		if n == 1
+			break
+		endif
+		call win_move_statusline(win_id2win(w) - 1, winheight(w) - s)
 		let h -= s
-		let w += 1
-	endwhile
+		let n -= 1
+	endfor
 endfunc
 
 function s:InSel()
@@ -702,7 +720,7 @@ function s:MiddleRelease(click)
 		endif
 		let p = getmousepos()
 		if p.line == 0 && p.winid == s:click.winid
-			call s:CloseWin(win_id2win(p.winid))
+			call s:CloseWin(p.winid)
 		endif
 		return
 	endif
@@ -741,8 +759,7 @@ function s:RightRelease(click)
 			let my = (winheight(p.winid) + 1) / 2
 			call s:MoveWin(s:click.winid, p.winid, p.winrow > my)
 		elseif p.line == 0 && p.winid == s:click.winid
-			exe win_id2win(p.winid).'wincmd w'
-			call s:Zoom()
+			call s:Zoom(p.winid)
 		endif
 		return
 	endif
