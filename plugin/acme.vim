@@ -12,6 +12,21 @@ function s:FileWin(name)
 		\ 's:Path(bufname(winbufnr(v:val))) == path'), 0)
 endfunc
 
+function s:GuideWin(name)
+	let [w, match] = [0, 0]
+	let dir = s:Path(a:name, ':h')
+	for i in range(1, winnr('$'))
+		let f = fnamemodify(bufname(winbufnr(i)), ':p')
+		let [d, f] = [fnamemodify(f, ':h'), fnamemodify(f, ':t')]
+		let n = len(d)
+		if f == 'guide' && n >= match && n <= len(dir) &&
+			\ dir[:n-1] == d && dir[n:] =~ '\v^(/|$)'
+			let [w, match] = [i, n]
+		endif
+	endfor
+	return w
+endfunc
+
 function s:Sel()
 	let text = getreg('"')
 	let type = getregtype('"')
@@ -168,21 +183,20 @@ function s:Receiver(b)
 		\ (has_key(s:scratch, a:b) && s:Jobs(a:b) != [])
 endfunc
 
-function s:SplitSize(n)
+function s:SplitSize(n, mode)
 	let min = &winminheight > 0 ? 2 * &winminheight + 1 : 2
 	if winheight(0) < min
 		exe min.'wincmd _'
 	endif
-	let w = win_getid()
-	let h = winheight(w)
+	let h = winheight(0)
 	let stat = 1 + (winnr('$') == 1 && &laststatus == 1)
-	return a:n < 0
+	return a:mode == '=' ? a:n : a:mode == '<'
 		\ ? min([abs(a:n), h - stat - max([&winminheight, 1])])
-		\ : max([a:n, h - s:Fit(w, (h - stat) / 2) - stat])
+		\ : max([a:n, h - s:Fit(win_getid(), (h - stat) / 2) - stat])
 endfunc
 
 function s:New(cmd)
-	exe (s:SplitSize(10)).a:cmd
+	exe s:SplitSize(10, '>').a:cmd
 endfunc
 
 function s:Argv(cmd)
@@ -226,8 +240,12 @@ function s:ErrorOpen(name, ...)
 	if w != 0
 		exe w.'wincmd w'
 	else
-		call s:New('sp | b '.s:ErrorLoad(a:name))
-		let p = win_getid()
+		let w = s:GuideWin(a:name)
+		let [w, mode, d] = w != 0
+			\ ? [w, '', '>']
+			\ : [winnr('$'), 'bel', '=']
+		exe w.'wincmd w'
+		exe mode s:SplitSize(10, d).'sp | b '.s:ErrorLoad(a:name)
 	endif
 	if a:0 == 0
 	elseif line('$') == 1 && getline(1) == ''
@@ -315,7 +333,7 @@ function s:Term(cmd)
 	if a:cmd == ''
 		let opts.term_finish = 'close'
 	endif
-	let h = s:SplitSize(10)
+	let h = s:SplitSize(10, '>')
 	call term_start(a:cmd != '' ? a:cmd : $SHELL, opts)
 	if winheight(0) < h
 		exe h.'wincmd _'
@@ -619,7 +637,7 @@ function s:MoveWin(w, other, below)
 	else
 		let v = winsaveview()
 		noa exe win_id2win(a:other).'wincmd w'
-		let h = s:SplitSize(-winheight(a:w))
+		let h = s:SplitSize(winheight(a:w), '<')
 		noa exe (a:below ? 'bel' : 'abo') h.'sp'
 		noa exe 'b' winbufnr(a:w)
 		call winrestview(v)
