@@ -611,11 +611,9 @@ function s:MoveWin(w, other, below)
 	let col = s:WinCol(a:w)
 	let [i, j] = [index(col, a:w), index(col, a:other)]
 	if j != -1
-		let [k, inc] = i > j ? ['kx', -1] : ['xj', 1]
-		while i != j
-			noa exe "normal! \<C-w>".k[0]."\<C-w>".k[1]
-			let i += inc
-		endwhile
+		for key in repeat(i > j ? ['k', 'x'] : ['x', 'j'], abs(i - j))
+			noa exe "normal! \<C-w>".key
+		endfor
 		noa exe win_id2win(p).'wincmd w'
 		noa exe win_id2win(w).'wincmd w'
 	else
