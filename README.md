@@ -49,12 +49,30 @@ Bringing the spirit of Plan 9 acme to vim.
 	current buffer or the ones matching a given pattern can be killed with
 	the `K` command.
 
+* Manage windows with the mouse:
+
+	A window can be closed by middle-clicking its status bar. The space of
+	the closed window is put into the focused one if they are
+	in the same column.
+
+	A window can be moved by dragging its status bar while holding down the
+	right mouse button. The window is moved above or below the one over
+	which the button is released if both of them are in the same column.
+	Otherwise the dragged window is re-opened as a new split of the window
+	under the mouse.
+
+	Right-clicking a status bar resizes the windows above it. The available
+	space is distributed equally among them. But each window is limited to
+	the number of lines in its buffer and any saved space is given to the
+	windows above.
+
 * Send text to commands:
 
 	Middle-clicking in scratch and terminal windows sends the text to the
 	command running in the window instead of executing it. Middle-clicking
 	anywhere in a scratch or terminal window from another window in visual
-	mode sends that window's selection.
+	mode sends that window's selection. This is useful for evaluating part
+	of a buffer in a REPL.
 
 * Commands open files in the vim instance they are running in:
 
@@ -67,18 +85,6 @@ Bringing the spirit of Plan 9 acme to vim.
 
 	This needs an optional helper program to be compiled. Please see the
 	installation instructions below on how to do this.
-
-* Arrange windows with the mouse:
-
-	A Window can be maximized vertically by right-clicking its status bar.
-	Middle-clicking a status bar closes the window.
-
-	The current window can be moved up or down in its column by scrolling
-	over a status bar, but the window is not moved past this status bar.
-
-	Dragging a status bar while holding down the right button moves the
-	window to a new split of the window over which the button is released.
-	With this a window can be moved from one column to another.
 
 
 Installation
@@ -93,10 +99,10 @@ git clone https://github.com/xyb3rt/acme.vim.git \
 ```
 
 If you want external commands to open files in the vim instance they are
-running in, then compile the *acmevim* helper program written in C:
+running in, then compile the *avim* helper program written in C:
 
 ```
-make -C ~/.vim/pack/xyb3rt/start/acme.vim/bin acmevim
+make -C ~/.vim/pack/xyb3rt/start/acme.vim/bin avim
 ```
 
 
