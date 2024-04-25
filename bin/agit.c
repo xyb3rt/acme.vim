@@ -76,6 +76,7 @@ struct {
 	int l1;
 	int l2;
 } prompt;
+int scratch;
 
 void set(const char *arg, ...) {
 	va_list ap;
@@ -203,8 +204,8 @@ int add(list_func *ls) {
 }
 
 void status(void) {
-	set("git", "status", "-sb", NULL);
-	if (run(1) != 0) {
+	const char *cmd[] = {"git", "status", "-sb", NULL};
+	if (call((char **)cmd, NULL) != 0) {
 		exit(EXIT_FAILURE);
 	}
 }
@@ -223,6 +224,10 @@ int main(int argc, char *argv[]) {
 		checktime();
 		status();
 		menu(cmds);
+		if (scratch) {
+			request("scratched", NULL);
+			scratch = 0;
+		}
 		block(-1);
 		input();
 		struct cmd *cmd = match(cmds);
@@ -326,13 +331,12 @@ void cmd_cd(void) {
 	enum reply reply = get();
 	clear();
 	if (reply == SELECT) {
-		char *dir = buf.d[0] == '/' ? buf.d :
+		char *dir = buf.d[0] == '/' ? xstrdup(buf.d) :
 		            xasprintf("%s/%s", cwd, buf.d);
-		if (access(dir, F_OK) == 0) {
-			const char *cmd[] = {"scratch", dir, "", argv0};
-			requestv("scratched", cmd, ARRLEN(cmd), NULL);
-		}
-		if (dir != buf.d) {
+		if (isdir(dir)) {
+			vec_push(&cmd.v, dir);
+			scratch = 1;
+		} else {
 			free(dir);
 		}
 	}
@@ -366,7 +370,7 @@ void cmd_diff(void) {
 	set("scratch", cwd, "git:diff", "git", "diff", NULL);
 	hint("< --cached -p --stat --submodule=diff HEAD @{u} -- >", NULL);
 	if (add(NULL)) {
-		request("scratched", NULL);
+		scratch = 1;
 	}
 }
 
@@ -382,7 +386,7 @@ void cmd_graph(void) {
 	clear();
 	set("scratch", cwd, "git:graph", "git", "log", "--graph", "--oneline",
 	    "--decorate", "--all", "--date-order", NULL);
-	request("scratched", NULL);
+	scratch = 1;
 }
 
 void cmd_log(void) {
@@ -390,7 +394,7 @@ void cmd_log(void) {
 	    "--left-right", NULL);
 	hint("< -S HEAD ...@{u} >", NULL);
 	if (add(list_open_files)) {
-		request("scratched", NULL);
+		scratch = 1;
 	}
 }
 
@@ -465,7 +469,7 @@ void cmd_show_branch(void) {
 	set("scratch", cwd, "git:show-branch", "git", "show-branch", NULL);
 	hint("< --independent --topics HEAD @{u} >", NULL);
 	if (add(list_branches)) {
-		request("scratched", NULL);
+		scratch = 1;
 	}
 }
 
