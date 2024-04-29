@@ -325,20 +325,18 @@ void cmd_branch(void) {
 }
 
 void cmd_cd(void) {
-	set("cd", NULL);
+	set("scratch", "", "", "cd", NULL);
 	hint("< >", NULL);
 	show(list_dirs);
 	enum reply reply = get();
 	clear();
-	if (reply == SELECT) {
-		char *dir = buf.d[0] == '/' ? xstrdup(buf.d) :
-		            xasprintf("%s/%s", cwd, buf.d);
-		if (isdir(dir)) {
-			vec_push(&cmd.v, dir);
-			scratch = 1;
-		} else {
-			free(dir);
-		}
+	if (reply == SELECT && isdir(buf.d)) {
+		free(cmd.v[1]);
+		cmd.v[1] = buf.d[0] == '/' ? xstrdup(buf.d) :
+		           xasprintf("%s/%s", cwd, buf.d);
+		free(cmd.v[3]);
+		cmd.v[3] = xstrdup(argv0);
+		scratch = 1;
 	}
 }
 
