@@ -647,6 +647,19 @@ function s:MoveWin(w, other, below)
 	endif
 endfunc
 
+function s:NewCol(w)
+	let w = win_getid()
+	let p = win_getid(winnr('#'))
+	noa exe win_id2win(a:w).'wincmd w'
+	noa topleft vs
+	if w == a:w
+		let w = win_getid()
+	endif
+	noa exe win_id2win(p).'wincmd w'
+	noa exe win_id2win(w).'wincmd w'
+	call s:CloseWin(a:w)
+endfunc
+
 function s:Fit(w, h)
 	let h = line('$', a:w)
 	if h <= a:h && getwinvar(a:w, '&wrap')
@@ -701,10 +714,6 @@ function s:PreClick(mode)
 	let s:clickmode = a:mode
 	let s:clickstatus = s:click.line == 0 ? win_id2win(s:click.winid) : 0
 	let s:clickwin = win_getid()
-	if s:clickstatus != 0 && s:click.winrow <= winheight(s:clickstatus)
-		let s:click.winid = 0
-		let s:clickstatus = 0
-	endif
 endfunc
 
 function AcmeClick()
@@ -739,8 +748,15 @@ function s:MiddleRelease(click)
 			normal! i
 		endif
 		let p = getmousepos()
-		if p.line == 0 && p.winid == s:click.winid
+		if s:click.winrow <= winheight(s:click.winid)
+			" vertical separator
+		elseif p.winid != s:click.winid ||
+			\ p.winrow <= winheight(p.winid)
+			" off the statusline
+		elseif p.wincol < 3
 			call s:CloseWin(p.winid)
+		else
+			call s:Kill(winbufnr(p.winid))
 		endif
 		return
 	endif
@@ -775,10 +791,17 @@ function s:RightRelease(click)
 			normal! i
 		endif
 		let p = getmousepos()
-		if p.winid != 0 && p.winid != s:click.winid
+		if s:click.winrow <= winheight(s:click.winid)
+			" vertical separator
+		elseif p.winid != 0 && p.winid != s:click.winid
 			let my = (winheight(p.winid) + 1) / 2
 			call s:MoveWin(s:click.winid, p.winid, p.winrow > my)
-		elseif p.line == 0 && p.winid == s:click.winid
+		elseif p.winid != s:click.winid ||
+			\ p.winrow <= winheight(p.winid)
+			" off the statusline
+		elseif p.wincol < 3
+			call s:NewCol(p.winid)
+		else
 			call s:Zoom(p.winid)
 		endif
 		return
@@ -1040,8 +1063,8 @@ if exists("s:ctrlexe")
 	finish
 endif
 
-let &statusline = '%<%{%AcmeStatusName()%}%{%AcmeStatusFlags()%}' .
-	\ '%{AcmeStatusJobs()}%=%{%AcmeStatusRuler()%}'
+let &statusline = "\u2592%<%{%AcmeStatusName()%}%{%AcmeStatusFlags()%}"
+	\ . "%{AcmeStatusJobs()}%=%{%AcmeStatusRuler()%}"
 
 let s:ctrlexe = exepath(expand('<sfile>:p:h:h').'/bin/avim')
 let s:ctrlrx = ''
