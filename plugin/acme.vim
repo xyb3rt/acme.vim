@@ -461,7 +461,7 @@ endfunc
 
 function s:FileOpen(name, pos)
 	let path = s:Path(a:name)
-	let w = s:FileWin(path)
+	let w = s:FileWin(resolve(path))
 	if w != 0
 		exe w.'wincmd w'
 	elseif isdirectory(expand('%')) && isdirectory(path)
