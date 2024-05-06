@@ -1028,6 +1028,9 @@ endfunc
 function s:BufWinLeave()
 	let b = str2nr(expand('<abuf>'))
 	call s:Kill(b)
+	if getbufvar(b, '&modified')
+		call win_execute(bufwinid(b), 'silent! write')
+	endif
 	if !getbufvar(b, '&modified') && has_key(s:editcids, b)
 		for cid in remove(s:editcids, b)
 			let s:editbufs[cid] -= 1
