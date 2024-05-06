@@ -14,9 +14,6 @@ Bringing the spirit of Plan 9 acme to vim.
 	goes to the specified position in the file. This is useful for error
 	messages and other grep-like output.
 
-	Additionally, like in Plan 9 acme, if the item cannot be opend, all its
-	occurences are highlighted and right-clicking a match goes to the next.
-
 	Items can also be opened with the `O` command.
 
 * Execute external commands with the middle mouse button:

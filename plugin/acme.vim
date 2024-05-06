@@ -478,10 +478,6 @@ function s:FileOpen(name, pos)
 	endif
 endfunc
 
-function s:PatPos(pat, click)
-	return '\v%<'.(a:click+1).'c'.a:pat.'%>'.a:click.'c'
-endfunc
-
 function s:Match(text, click, pat)
 	let isf = &isfname
 	if a:click <= 0
@@ -489,7 +485,7 @@ function s:Match(text, click, pat)
 		let p = '\v^'.a:pat.'$'
 	else
 		set isfname+=^:,^=
-		let p = s:PatPos(a:pat, a:click)
+		let p = '\v%<'.(a:click+1).'c'.a:pat.'%>'.a:click.'c'
 	endif
 	let m = matchlist(a:text, p)
 	let &isfname = isf
@@ -808,27 +804,12 @@ function s:RightRelease(click)
 	endif
 	exe "normal! \<LeftRelease>"
 	let click = s:clicksel ? -1 : a:click
+	let text = click <= 0 ? trim(s:Sel()[0], "\r\n", 2) : getline('.')
+	call s:RestVisual(s:visual)
 	let w = win_getid()
-	if click > 0
-		if !s:clickterm && v:hlsearch != 0 && @/ != '' &&
-			\ searchpos(@/.'\v%>.c', 'bcn', line('.'))[1] != 0
-			exe "normal! /\<CR>"
-			return
-		endif
-		let text = getline('.')
-		let word = matchstr(text, s:PatPos('\k*', click))
-		let pat = '\<'.escape(word, '/\').'\>'
-	else
-		let text = trim(s:Sel()[0], "\r\n", 2)
-		let pat = substitute(escape(text, '/\'), '\n', '\\n', 'g')
-		call s:RestVisual(s:visual)
-	endif
 	let dir = s:Dir(1)
 	exe win_id2win(s:clickwin).'wincmd w'
-	if !s:Open(text, click, dir, w)
-		let @/ = '\V'.pat
-		call feedkeys(&hlsearch ? ":let v:hlsearch=1\<CR>" : '', 'n')
-	endif
+	call s:Open(text, click, dir, w)
 	if s:clickterm
 		call feedkeys(":call win_execute(".w.", 'norm! i')\<CR>", 'n')
 	endif
