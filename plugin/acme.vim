@@ -953,6 +953,16 @@ function s:Change(b, l1, l2, lines)
 	return l
 endfunc
 
+function s:Look(p)
+	if len(a:p) == 3
+		let a:p[1] = escape(a:p[1], '\/')
+		let @/ = join(a:p, '')
+		call feedkeys(":let v:hlsearch=1\<CR>", 'n')
+	else
+		call feedkeys(":nohlsearch\<CR>", 'n')
+	endif
+endfunc
+
 function s:CtrlRecv(ch, data)
 	let s:ctrlrx .= a:data
 	let end = strridx(s:ctrlrx, "\x1e")
@@ -1003,6 +1013,9 @@ function s:CtrlRecv(ch, data)
 			let l = len(msg) < 6 ? 0 : s:Change(str2nr(msg[2]),
 				\ str2nr(msg[3]), str2nr(msg[4]), msg[5:])
 			call s:CtrlSend([cid, 'changed', l])
+		elseif msg[1] == 'look'
+			call s:Look(msg[2:])
+			call s:CtrlSend([cid, 'looked'])
 		endif
 	endfor
 endfunc

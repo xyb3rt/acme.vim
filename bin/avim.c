@@ -3,6 +3,7 @@
 
 enum mode {
 	CLEAR = 'c',
+	LOOK = 'l',
 	SCRATCH = 's'
 };
 
@@ -15,9 +16,10 @@ enum mode parse(int argc, char *argv[]) {
 	int opt;
 	opterr = 0;
 	setenv("POSIXLY_CORRECT", "1", 1);
-	while ((opt = getopt(argc, argv, "cs")) != -1) {
+	while ((opt = getopt(argc, argv, "cls")) != -1) {
 		switch (opt) {
 		case 'c':
+		case 'l':
 		case 's':
 			if (mode != 0 && mode != opt) {
 				error(EXIT_FAILURE, EINVAL, "-%c -%c", mode, opt);
@@ -32,21 +34,27 @@ enum mode parse(int argc, char *argv[]) {
 }
 
 const char *cmd(enum mode mode) {
-	if (mode == CLEAR) {
+	switch (mode) {
+	case CLEAR:
 		return "clear";
-	} else if (mode == SCRATCH) {
+	case LOOK:
+		return "look";
+	case SCRATCH:
 		return "scratch";
-	} else {
+	default:
 		return "edit";
 	}
 }
 
 const char *resp(enum mode mode) {
-	if (mode == CLEAR) {
+	switch (mode) {
+	case CLEAR:
 		return "cleared";
-	} else if (mode == SCRATCH) {
+	case LOOK:
+		return "looked";
+	case SCRATCH:
 		return "scratched";
-	} else {
+	default:
 		return "done";
 	}
 }
