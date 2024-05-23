@@ -205,6 +205,7 @@ endfunc
 
 function s:JobStart(cmd, b, opts, inp)
 	let opts = {
+		\ 'env': {'ACMEVIMBUF': a:b},
 		\ 'exit_cb': 's:Exited',
 		\ 'err_io': 'out',
 		\ 'out_io': 'buffer',
@@ -377,7 +378,6 @@ function s:ScratchExec(cmd, dir, inp, title)
 	let b = bufnr()
 	let opts = {
 		\ 'callback': function('s:ScratchCb', [b]),
-		\ 'env': {'ACMEVIMBUF': b},
 		\ 'in_io': 'pipe',
 	\ }
 	if a:dir != ''
