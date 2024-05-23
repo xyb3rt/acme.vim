@@ -285,10 +285,16 @@ function s:System(cmd, dir, inp)
 	return out
 endfunc
 
-function s:Filter(cmd, dir, inp, vis)
-	let out = s:System(a:cmd, a:dir, a:inp)
-	call setreg('"', out, a:vis ? s:Sel()[1] : 'c')
-	exe 'normal!' (a:vis ? 'gv""p' : '""P')
+function s:Filter(cmd, dir)
+	let sel = s:Sel()
+	call setreg('"', s:System(a:cmd, a:dir, sel[0]), sel[1])
+	normal! gv""p
+endfunc
+
+function s:Read(cmd, dir)
+	let end = getcurpos()[4] > strdisplaywidth(getline('.'))
+	call setreg('"', s:System(a:cmd, a:dir, ''), 'c')
+	exe 'normal! ""'.(end ? 'p' : 'P')
 endfunc
 
 function s:ParseCmd(cmd)
@@ -305,13 +311,14 @@ function s:Run(cmd, dir, vis)
 	if a:vis && io !~ '[<>|]'
 		let cmd .= ' '.shellescape(trim(s:Sel()[0], "\r\n", 2))
 	endif
-	let inp = io =~ '[>|]' ? s:Sel()[0] : ''
-	if io =~ '[<|]'
-		call s:Filter(cmd, a:dir, inp, a:vis || io =~ '|')
+	if io =~ '|' || (a:vis && io =~ '<')
+		call s:Filter(cmd, a:dir)
+	elseif io =~ '<'
+		call s:Read(cmd, a:dir)
 	elseif io =~ '\^'
-		call s:ScratchExec(cmd, a:dir, inp, '')
+		call s:ScratchExec(cmd, a:dir, io =~ '>' ? s:Sel()[0] : '', '')
 	else
-		call s:ErrorExec(cmd, a:dir, inp)
+		call s:ErrorExec(cmd, a:dir, io =~ '>' ? s:Sel()[0] : '')
 	endif
 endfunc
 
