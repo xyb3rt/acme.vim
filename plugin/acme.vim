@@ -971,6 +971,11 @@ function s:Look(p)
 	endif
 endfunc
 
+function s:BufNr(b)
+	let b = str2nr(a:b)
+	return b != 0 ? b : bufnr()
+endfunc
+
 function s:CtrlRecv(ch, data)
 	let s:ctrlrx .= a:data
 	let end = strridx(s:ctrlrx, "\x1e")
@@ -1000,7 +1005,7 @@ function s:CtrlRecv(ch, data)
 			call s:CtrlSend([cid, 'opened'])
 		elseif msg[1] =~ '\v^clear\^?'
 			for b in msg[2:]
-				call s:Clear(str2nr(b), msg[1] == 'clear^')
+				call s:Clear(s:BufNr(b), msg[1] == 'clear^')
 			endfor
 			call s:CtrlSend([cid, 'cleared'])
 		elseif msg[1] == 'checktime'
@@ -1018,7 +1023,7 @@ function s:CtrlRecv(ch, data)
 			silent! wall
 			call s:CtrlSend([cid, 'saved'])
 		elseif msg[1] == 'change'
-			let l = len(msg) < 6 ? 0 : s:Change(str2nr(msg[2]),
+			let l = len(msg) < 6 ? 0 : s:Change(s:BufNr(msg[2]),
 				\ str2nr(msg[3]), str2nr(msg[4]), msg[5:])
 			call s:CtrlSend([cid, 'changed', l])
 		elseif msg[1] == 'look'
