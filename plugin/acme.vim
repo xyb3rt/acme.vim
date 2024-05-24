@@ -962,9 +962,9 @@ function s:Change(b, l1, l2, lines)
 endfunc
 
 function s:Look(p)
-	if len(a:p) == 3
-		let a:p[1] = escape(a:p[1], '\/')
-		let @/ = join(a:p, '')
+	if len(a:p) > 2
+		let p = map(a:p[1:-2], {i, v -> escape(v, '\/')})
+		let @/ = '\V'.a:p[0].'\%\('.join(p, '\|').'\)'.a:p[-1]
 		call feedkeys(":let v:hlsearch=1\<CR>", 'n')
 	else
 		call feedkeys(":nohlsearch\<CR>", 'n')
