@@ -1043,7 +1043,7 @@ function s:BufWinLeave()
 	if getbufvar(b, '&modified')
 		call win_execute(bufwinid(b), 'silent! write')
 	endif
-	if !getbufvar(b, '&modified') && has_key(s:editcids, b)
+	if has_key(s:editcids, b)
 		for cid in remove(s:editcids, b)
 			let s:editbufs[cid] -= 1
 			if s:editbufs[cid] <= 0
