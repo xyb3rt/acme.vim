@@ -759,8 +759,6 @@ function s:MiddleRelease(click)
 			" off the statusline
 		elseif p.wincol < 3
 			call s:CloseWin(p.winid)
-		else
-			call s:Kill(winbufnr(p.winid))
 		endif
 		return
 	endif
@@ -1026,6 +1024,11 @@ function s:CtrlRecv(ch, data)
 			let l = len(msg) < 6 ? 0 : s:Change(s:BufNr(msg[2]),
 				\ str2nr(msg[3]), str2nr(msg[4]), msg[5:])
 			call s:CtrlSend([cid, 'changed', l])
+		elseif msg[1] == 'kill'
+			for p in len(msg) > 2 ? msg[2:] : [bufnr()]
+				call s:Kill(p)
+			endfor
+			call s:CtrlSend([cid, 'killed'])
 		elseif msg[1] == 'look'
 			call s:Look(msg[2:])
 			call s:CtrlSend([cid, 'looked'])

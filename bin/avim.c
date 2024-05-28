@@ -9,7 +9,7 @@ void parse(int argc, char *argv[]) {
 	int opt;
 	opterr = 0;
 	setenv("POSIXLY_CORRECT", "1", 1);
-	while ((opt = getopt(argc, argv, "cls")) != -1) {
+	while ((opt = getopt(argc, argv, "ckls")) != -1) {
 		if (opt == '?') {
 			error(EXIT_FAILURE, EINVAL, "-%c", optopt);
 		} else if (mode != 0 && mode != opt) {
@@ -23,6 +23,8 @@ const char *cmd(void) {
 	switch (mode) {
 	case 'c':
 		return "clear";
+	case 'k':
+		return "kill";
 	case 'l':
 		return "look";
 	case 's':
@@ -36,6 +38,8 @@ const char *resp(void) {
 	switch (mode) {
 	case 'c':
 		return "cleared";
+	case 'k':
+		return "killed";
 	case 'l':
 		return "looked";
 	case 's':
