@@ -1,58 +1,44 @@
 #include "avim.h"
 #include <fcntl.h>
 
-enum mode {
-	CLEAR = 'c',
-	LOOK = 'l',
-	SCRATCH = 's'
-};
-
 struct avim_conn **conns;
 void (*handle)(avim_strv *, size_t);
-enum mode mode;
+int mode;
 
-enum mode parse(int argc, char *argv[]) {
-	enum mode mode = 0;
+void parse(int argc, char *argv[]) {
 	int opt;
 	opterr = 0;
 	setenv("POSIXLY_CORRECT", "1", 1);
 	while ((opt = getopt(argc, argv, "cls")) != -1) {
-		switch (opt) {
-		case 'c':
-		case 'l':
-		case 's':
-			if (mode != 0 && mode != opt) {
-				error(EXIT_FAILURE, EINVAL, "-%c -%c", mode, opt);
-			}
-			mode = opt;
-			break;
-		default:
+		if (opt == '?') {
 			error(EXIT_FAILURE, EINVAL, "-%c", optopt);
+		} else if (mode != 0 && mode != opt) {
+			error(EXIT_FAILURE, EINVAL, "-%c -%c", mode, opt);
 		}
+		mode = opt;
 	}
-	return mode;
 }
 
-const char *cmd(enum mode mode) {
+const char *cmd(void) {
 	switch (mode) {
-	case CLEAR:
+	case 'c':
 		return "clear";
-	case LOOK:
+	case 'l':
 		return "look";
-	case SCRATCH:
+	case 's':
 		return "scratch";
 	default:
 		return "edit";
 	}
 }
 
-const char *resp(enum mode mode) {
+const char *resp(void) {
 	switch (mode) {
-	case CLEAR:
+	case 'c':
 		return "cleared";
-	case LOOK:
+	case 'l':
 		return "looked";
-	case SCRATCH:
+	case 's':
 		return "scratched";
 	default:
 		return "done";
@@ -124,7 +110,7 @@ avim_strv msg(const char *cmd, char *argv[], size_t argc) {
 
 void request(char *argv[], size_t argc) {
 	vec_push(&conns, avim_connect());
-	avim_strv req = msg(cmd(mode), argv, argc);
+	avim_strv req = msg(cmd(), argv, argc);
 	char *cwd = NULL;
 	if (mode == 0 || mode == 's') {
 		cwd = xgetcwd();
@@ -160,7 +146,7 @@ void client(avim_strv *msg, size_t c) {
 	if (msg == NULL) {
 		error(EXIT_FAILURE, conns[c]->err, "connection closed");
 	}
-	if (vec_len(msg) > 0 && strcmp((*msg)[0], resp(mode)) == 0) {
+	if (vec_len(msg) > 0 && strcmp((*msg)[0], resp()) == 0) {
 		exit(0);
 	}
 }
@@ -192,7 +178,7 @@ int main(int argc, char *argv[]) {
 		sendport(vim, sockport(listenfd));
 	} else {
 		handle = client;
-		mode = parse(argc, argv);
+		parse(argc, argv);
 		request(&argv[optind], argc - optind);
 	}
 	for (;;) {
