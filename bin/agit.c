@@ -416,7 +416,8 @@ void cmd_pick(void) {
 
 void cmd_push(void) {
 	set("git", "push", NULL);
-	hint("< --all --dry-run --force --set-upstream --tags >", NULL);
+	hint("< --all --delete --dry-run --force --set-upstream --tags >",
+	     NULL);
 	if (add(list_remotes)) {
 		run(1);
 	}
