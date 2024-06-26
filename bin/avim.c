@@ -1,15 +1,31 @@
 #include "avim.h"
 #include <fcntl.h>
 
+struct {
+	char *name, *resp;
+} cmds[128] = {
+	[0] = {"edit", "done"},
+	['c'] = {"clear", "cleared"},
+	['k'] = {"kill", "killed"},
+	['l'] = {"look", "looked"},
+	['s'] = {"scratch", "scratched"},
+};
 struct avim_conn **conns;
 void (*handle)(avim_strv *, size_t);
 int mode;
 
 void parse(int argc, char *argv[]) {
+	avim_buf opts = vec_new();
 	int opt;
 	opterr = 0;
+	for (size_t i = 0; i < ARRLEN(cmds); i++) {
+		if (cmds[i].name != NULL) {
+			char optc[2] = {i};
+			avim_push(&opts, optc);
+		}
+	}
 	setenv("POSIXLY_CORRECT", "1", 1);
-	while ((opt = getopt(argc, argv, "ckls")) != -1) {
+	while ((opt = getopt(argc, argv, opts)) != -1) {
 		if (opt == '?') {
 			error(EXIT_FAILURE, EINVAL, "-%c", optopt);
 		} else if (mode != 0 && mode != opt) {
@@ -17,36 +33,7 @@ void parse(int argc, char *argv[]) {
 		}
 		mode = opt;
 	}
-}
-
-const char *cmd(void) {
-	switch (mode) {
-	case 'c':
-		return "clear";
-	case 'k':
-		return "kill";
-	case 'l':
-		return "look";
-	case 's':
-		return "scratch";
-	default:
-		return "edit";
-	}
-}
-
-const char *resp(void) {
-	switch (mode) {
-	case 'c':
-		return "cleared";
-	case 'k':
-		return "killed";
-	case 'l':
-		return "looked";
-	case 's':
-		return "scratched";
-	default:
-		return "done";
-	}
+	vec_free(&opts);
 }
 
 void sendport(struct avim_conn *conn, uint16_t port) {
@@ -114,7 +101,7 @@ avim_strv msg(const char *cmd, char *argv[], size_t argc) {
 
 void request(char *argv[], size_t argc) {
 	vec_push(&conns, avim_connect());
-	avim_strv req = msg(cmd(), argv, argc);
+	avim_strv req = msg(cmds[mode].name, argv, argc);
 	char *cwd = NULL;
 	if (mode == 0 || mode == 's') {
 		cwd = xgetcwd();
@@ -150,7 +137,7 @@ void client(avim_strv *msg, size_t c) {
 	if (msg == NULL) {
 		error(EXIT_FAILURE, conns[c]->err, "connection closed");
 	}
-	if (vec_len(msg) > 0 && strcmp((*msg)[0], resp()) == 0) {
+	if (vec_len(msg) > 0 && strcmp((*msg)[0], cmds[mode].resp) == 0) {
 		exit(0);
 	}
 }
