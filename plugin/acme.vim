@@ -626,6 +626,15 @@ function s:CloseWin(w)
 	endfor
 endfunc
 
+function s:RestWinVars(w, vars)
+	let vars = getwinvar(a:w, '&')
+	for v in keys(a:vars)
+		if !has_key(vars, v) || vars[v] != a:vars[v]
+			call setwinvar(a:w, '&'.v, a:vars[v])
+		endif
+	endfor
+endfunc
+	
 function s:MoveWin(w, other, below)
 	let w = win_getid()
 	let p = win_getid(winnr('#'))
@@ -640,14 +649,17 @@ function s:MoveWin(w, other, below)
 		noa exe win_id2win(w).'wincmd w'
 	else
 		let v = winsaveview()
+		let vars = getwinvar(0, '&')
 		noa exe win_id2win(a:other).'wincmd w'
 		let h = s:SplitSize(winheight(a:w), '<')
 		noa exe (a:below ? 'bel' : 'abo') h.'sp'
 		noa exe 'b' winbufnr(a:w)
 		call winrestview(v)
+		let nw = win_getid()
 		noa exe win_id2win(p).'wincmd w'
 		noa exe win_id2win(w).'wincmd w'
 		noa call s:CloseWin(a:w)
+		call s:RestWinVars(nw, vars)
 	endif
 endfunc
 
