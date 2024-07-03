@@ -261,7 +261,7 @@ void list_clean(void) {
 }
 
 void list_dirs(void) {
-	system("find . -type f -name .git"
+	system("rg --files -g .git --hidden --no-ignore"
 		"| sed -n -e 's,^\\./,,' -e 's,/\\.git$,,p'"
 		"| sort");
 }
