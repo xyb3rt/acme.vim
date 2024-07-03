@@ -919,15 +919,18 @@ function s:Edit(files, dir, cid)
 	endfor
 endfunc
 
-function s:BufInfo()
+function s:BufInfo(args)
 	let p = 0
 	let r = []
 	for i in range(1, winnr('$'))
 		let w = win_getid(i)
 		let b = winbufnr(w)
-		if getbufvar(b, '&buftype', '') == ''
-			let l = [fnamemodify(bufname(b), ':p'), line('.', w),
-				\ col('.', w), line("'<", w), line("'>", w)]
+		if a:args != [] || getbufvar(b, '&buftype', '') == ''
+			let f = has_key(s:scratch, b)
+				\ ? s:Path(s:cwd[b].'/+Scratch')
+				\ : fnamemodify(bufname(b), ':p')
+			let l = [f, line('.', w), col('.', w), line("'<", w),
+				\ line("'>", w)]
 			call extend(r, l, i == winnr() ? 0 :
 				\ i == winnr('#') ? p : len(r))
 			if i == winnr()
@@ -1016,7 +1019,7 @@ function s:CtrlRecv(ch, data)
 			endif
 			call s:CtrlSend([cid, 'scratched'])
 		elseif msg[1] == 'bufinfo'
-			call s:CtrlSend([cid, 'bufinfo'] + s:BufInfo())
+			call s:CtrlSend([cid, 'bufinfo'] + s:BufInfo(msg[2:]))
 		elseif msg[1] == 'save'
 			silent! wall
 			call s:CtrlSend([cid, 'saved'])

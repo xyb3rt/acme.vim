@@ -1,12 +1,16 @@
 #include "avim.h"
 #include <fcntl.h>
 
+void bufinfo(avim_strv *msg);
+
 struct {
 	char *name, *resp;
+	void (*cb)(avim_strv *);
 } cmds[128] = {
 	[0] = {"edit", "done"},
 	['c'] = {"clear", "cleared"},
 	['k'] = {"kill", "killed"},
+	['i'] = {"bufinfo", "bufinfo", bufinfo},
 	['l'] = {"look", "looked"},
 	['s'] = {"scratch", "scratched"},
 };
@@ -115,6 +119,12 @@ void request(char *argv[], size_t argc) {
 	vec_free(&req);
 }
 
+void bufinfo(avim_strv *msg) {
+	for (size_t i = 1; i + 4 < vec_len(msg); i += 5) {
+		printf("%s\t%s\t%s\n", (*msg)[i], (*msg)[i + 1], (*msg)[i + 2]);
+	}
+}
+
 void server(avim_strv *msg, size_t c) {
 	if (msg == NULL && c == 0) {
 		error(EXIT_FAILURE, conns[c]->err, "vim connection lost");
@@ -138,6 +148,9 @@ void client(avim_strv *msg, size_t c) {
 		error(EXIT_FAILURE, conns[c]->err, "connection closed");
 	}
 	if (vec_len(msg) > 0 && strcmp((*msg)[0], cmds[mode].resp) == 0) {
+		if (cmds[mode].cb != NULL) {
+			cmds[mode].cb(msg);
+		}
 		exit(0);
 	}
 }
