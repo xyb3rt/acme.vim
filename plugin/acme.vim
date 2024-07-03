@@ -1036,7 +1036,7 @@ function s:CtrlRecv(ch, data)
 			silent! wall
 			call s:CtrlSend([cid, 'saved'])
 		elseif msg[1] == 'change'
-			let l = len(msg) < 6 ? 0 : s:Change(s:BufNr(msg[2]),
+			let l = len(msg) < 5 ? 0 : s:Change(s:BufNr(msg[2]),
 				\ str2nr(msg[3]), str2nr(msg[4]), msg[5:])
 			call s:CtrlSend([cid, 'changed', l])
 		elseif msg[1] == 'kill'
