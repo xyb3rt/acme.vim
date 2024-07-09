@@ -78,6 +78,10 @@ struct {
 } prompt;
 int scratch;
 
+void opt(const char *arg) {
+	vec_push(&cmd.v, xstrdup(arg));
+}
+
 void set(const char *arg, ...) {
 	va_list ap;
 	va_start(ap, arg);
@@ -350,8 +354,8 @@ void cmd_clean(void) {
 }
 
 void cmd_commit(void) {
-	set("git", "commit", "-v", NULL);
-	cmd.fixed--; /* allow removing -v */
+	set("git", "commit", NULL);
+	opt("-v");
 	hint("< --all --amend --no-edit --fixup >", NULL);
 	if (add(NULL)) {
 		run(1);
@@ -388,8 +392,9 @@ void cmd_graph(void) {
 }
 
 void cmd_log(void) {
-	set("scratch", cwd, "git:log", "git", "log", "--decorate",
-	    "--left-right", NULL);
+	set("scratch", cwd, "git:log", "git", "log", NULL);
+	opt("--decorate");
+	opt("--left-right");
 	hint("< -S HEAD ...@{u} >", NULL);
 	if (add(list_open_files)) {
 		scratch = 1;
