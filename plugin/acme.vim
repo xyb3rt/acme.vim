@@ -524,7 +524,11 @@ function s:OpenFile(name, pos)
 	if isdirectory(f)
 		call s:FileOpen(f, '')
 	elseif !filereadable(f)
-		return 0
+		if s:plumbclick > 0 || a:pos != '' || a:name !~ '/' ||
+			\ !isdirectory(fnamemodify(f, ':h'))
+			return 0
+		endif
+		call s:FileOpen(f, '')
 	elseif join(readfile(f, '', 4096), '') !~ '\n'
 		" No null bytes found, not considered a binary file.
 		call s:FileOpen(f, a:pos)
@@ -571,6 +575,7 @@ let s:plumbing = [
 	\ ['^\s*(\d+)[-:]', {m -> s:RgOpen(m[1])}]]
 
 function s:Open(text, click, dir, win)
+	let s:plumbclick = a:click
 	let s:plumbdir = a:dir
 	let s:plumbwin = a:win
 	for [pat, Handler] in s:plumbing + get(g:, 'acme_plumbing', [])
