@@ -270,6 +270,12 @@ void list_dirs(void) {
 		"| sort");
 }
 
+void list_local_branches(void) {
+	const char *cmd[] = {"git", "branch", "--format=%(refname:short)",
+	                     "--sort=-committerdate", NULL};
+	call((char **)cmd, NULL);
+}
+
 void show_open_files(avim_strv msg) {
 	for (size_t i = 1; i + 4 < vec_len(&msg); i += 5) {
 		char *path = indir(msg[i], cwd);
@@ -293,8 +299,18 @@ void list_open_files(void) {
 }
 
 void list_remotes(void) {
-	const char *cmd[] = {"git", "remote", NULL};
-	call((char **)cmd, NULL);
+	system("git remote | awk '{"
+			"printf(\"%s \", $0);"
+		"} BEGIN {"
+			"printf(\"< \");"
+		"} END {"
+			"printf(\">\\n\");"
+		"}'");
+}
+
+void list_remotes_and_branches(void) {
+	list_remotes();
+	list_local_branches();
 }
 
 void list_stashes(void) {
@@ -423,7 +439,7 @@ void cmd_push(void) {
 	set("git", "push", NULL);
 	hint("< --all --delete --dry-run --force --set-upstream --tags >",
 	     NULL);
-	if (add(list_remotes)) {
+	if (add(list_remotes_and_branches)) {
 		run(1);
 	}
 }
