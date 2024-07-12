@@ -678,6 +678,13 @@ function s:NewCol(w)
 	call s:CloseWin(a:w)
 endfunc
 
+function s:FixScroll()
+	let pos = getpos('.')
+	normal! gg
+	normal! G
+	call setpos('.', pos)
+endfunc
+
 function s:Fit(w, h)
 	if fnamemodify(bufname(winbufnr(a:w)), ':t') == 'guide'
 		call win_execute(a:w, 'normal! gg')
@@ -690,7 +697,11 @@ function s:Fit(w, h)
 		let h = reduce(getbufline(winbufnr(a:w), 1, '$'), {s, l ->
 			\ s + (max([strdisplaywidth(l), 1]) + w - 1) / w}, 0)
 	endif
-	return min([h, a:h])
+	if h <= a:h
+		call win_execute(a:w, 'noa call s:FixScroll()')
+		return h
+	endif
+	return a:h
 endfunc
 
 function s:Zoom(w)
@@ -699,10 +710,10 @@ function s:Zoom(w)
 	let h = reduce(col, {s, w -> s + winheight(w)}, 0)
 	let n = len(col)
 	for w in reverse(col)
-		let s = s:Fit(w, h / n)
 		if n == 1
 			break
 		endif
+		let s = s:Fit(w, h / n)
 		call win_move_statusline(win_id2win(w) - 1, winheight(w) - s)
 		let h -= s
 		let n -= 1
