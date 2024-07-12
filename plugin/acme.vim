@@ -255,7 +255,9 @@ function s:ErrorOpen(name, ...)
 		call append('$', a:1)
 	endif
 	normal! G0
-	exe win_id2win(p).'wincmd w'
+	if fnamemodify(bufname(winbufnr(p)), ':t') != 'guide'
+		exe win_id2win(p).'wincmd w'
+	endif
 endfunc
 
 function s:ErrorCb(b, ch, msg)
@@ -677,6 +679,10 @@ function s:NewCol(w)
 endfunc
 
 function s:Fit(w, h)
+	if fnamemodify(bufname(winbufnr(a:w)), ':t') == 'guide'
+		call win_execute(a:w, 'normal! gg')
+		return 1
+	endif
 	let h = line('$', a:w)
 	if h <= a:h && getwinvar(a:w, '&wrap')
 		" Requires 'nobreakindent' and 'nolinebreak'
