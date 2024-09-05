@@ -696,11 +696,10 @@ function s:NewCol(w)
 	call s:CloseWin(a:w)
 endfunc
 
-function s:FixScroll()
-	let pos = getpos('.')
-	normal! gg
-	normal! G
-	call setpos('.', pos)
+function s:Scroll(topline)
+	let v = winsaveview()
+	let v.topline = a:topline
+	call winrestview(v)
 endfunc
 
 function s:Fit(w, h)
@@ -708,18 +707,26 @@ function s:Fit(w, h)
 		call win_execute(a:w, 'normal! gg')
 		return 1
 	endif
-	let h = line('$', a:w)
-	if h <= a:h && getwinvar(a:w, '&wrap')
-		" Requires 'nobreakindent' and 'nolinebreak'
-		let w = winwidth(a:w)
-		let h = reduce(getbufline(winbufnr(a:w), 1, '$'), {s, l ->
-			\ s + (max([strdisplaywidth(l), 1]) + w - 1) / w}, 0)
+	let b = winbufnr(a:w)
+	let ww = winwidth(a:w)
+	let wrap = getwinvar(a:w, '&wrap')
+	let h = 0
+	let top = line('$', a:w) + 1
+	while top > 1
+		" Only works without fold, number & sign columns and just with
+		" line wrapping, e.g. 'nobreakindent', 'nolinebreak' & 'nolist'
+		let l = wrap ? strdisplaywidth(getbufoneline(b, top - 1)) : 1
+		let h += (max([l, 1]) + ww - 1) / ww
+		if h > a:h
+			break
+		endif
+		let top -= 1
+	endwhile
+	if top < getwininfo(a:w)[0].topline
+		call timer_start(0, {_ ->
+			\ win_execute(a:w, 'noa call s:Scroll('.top.')')})
 	endif
-	if h <= a:h
-		call win_execute(a:w, 'noa call s:FixScroll()')
-		return h
-	endif
-	return a:h
+	return min([h, a:h])
 endfunc
 
 function s:Zoom(w)
@@ -728,10 +735,10 @@ function s:Zoom(w)
 	let h = reduce(col, {s, w -> s + winheight(w)}, 0)
 	let n = len(col)
 	for w in reverse(col)
+		let s = s:Fit(w, h / n)
 		if n == 1
 			break
 		endif
-		let s = s:Fit(w, h / n)
 		call win_move_statusline(win_id2win(w) - 1, winheight(w) - s)
 		let h -= s
 		let n -= 1
