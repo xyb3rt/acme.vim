@@ -55,6 +55,15 @@ function s:Path(path, ...)
 	return path
 endfunc
 
+function s:FiletypeDetect(w)
+	redir => ft
+	silent filetype
+	redir END
+	if ft =~ 'detection:ON'
+		call win_execute(a:w, 'filetype detect')
+	endif
+endfunc
+
 function s:Jobs(p)
 	return filter(copy(s:jobs), type(a:p) == type(0)
 		\ ? 'v:val.buf == a:p'
@@ -121,7 +130,7 @@ function s:RemoveJob(i, status)
 	endif
 	if has_key(s:scratch, job.buf)
 		let w = s:BufWin(job.buf)
-		call win_execute(win_getid(w), 'filetype detect')
+		call s:FiletypeDetect(win_getid(w))
 	endif
 endfunc
 
@@ -561,7 +570,7 @@ function AcmePlumb(title, cmd, ...)
 		if a:title != ''
 			call s:ScratchNew(a:title, s:plumbdir)
 			call setline('$', outp)
-			filetype detect
+			call s:FiletypeDetect(win_getid())
 		endif
 		return 1
 	endif
