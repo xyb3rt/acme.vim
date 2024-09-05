@@ -645,6 +645,10 @@ endfunc
 function s:RestWinVars(w, vars)
 	let vars = getwinvar(a:w, '&')
 	for v in keys(a:vars)
+		if v == 'scroll'
+			" Prevent E49
+			continue
+		endif
 		if !has_key(vars, v) || vars[v] != a:vars[v]
 			call setwinvar(a:w, '&'.v, a:vars[v])
 		endif
