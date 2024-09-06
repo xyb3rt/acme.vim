@@ -10,6 +10,7 @@ struct {
 } cmds[] = {
 	{0, "edit", "done"},
 	{'c', "clear", "cleared"},
+	{'h', "help", "helped"},
 	{'i', "bufinfo", "bufinfo", bufinfo},
 	{'k', "kill", "killed"},
 	{'l', "look", "looked"},

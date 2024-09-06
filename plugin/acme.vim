@@ -1089,6 +1089,11 @@ function s:CtrlRecv(ch, data)
 		elseif msg[1] == 'look'
 			call s:Look(msg[2:])
 			call s:CtrlSend([cid, 'looked'])
+		elseif msg[1] == 'help'
+			if len(msg) > 2
+				silent! exe 'help' msg[2]
+			endif
+			call s:CtrlSend([cid, 'helped'])
 		endif
 	endfor
 endfunc
