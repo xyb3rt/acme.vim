@@ -1,0 +1,13 @@
+#!/bin/sh -e
+tmp="$(mktemp)"
+cleanup() {
+	rm -f "$tmp"
+}
+. trap.sh
+cat >"$tmp"
+buf="$(avim -i all | awk -F '\t' 'NR==1{print $1}')"
+case "$buf" in
+*/) cd "$buf";;
+*) cd "$(dirname "$buf")";;
+esac
+avim -s cat "$tmp"
