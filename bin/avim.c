@@ -5,16 +5,16 @@ void bufinfo(avim_strv *msg);
 
 struct {
 	int opt;
-	char *name, *resp;
+	char *name;
 	void (*cb)(avim_strv *);
 } cmds[] = {
-	{0, "edit", "done"},
-	{'c', "clear", "cleared"},
-	{'h', "help", "helped"},
-	{'i', "bufinfo", "bufinfo", bufinfo},
-	{'k', "kill", "killed"},
-	{'l', "look", "looked"},
-	{'s', "scratch", "scratched"},
+	{0, "edit"},
+	{'c', "clear"},
+	{'h', "help"},
+	{'i', "bufinfo", bufinfo},
+	{'k', "kill"},
+	{'l', "look"},
+	{'s', "scratch"},
 };
 struct avim_conn **conns;
 void (*handle)(avim_strv *, size_t);
@@ -146,7 +146,7 @@ void server(avim_strv *msg, size_t c) {
 	} else for (size_t i = 0, n = vec_len(&conns); i < n; i++) {
 		if (strcmp(conns[i]->id, (*msg)[0]) == 0) {
 			avim_send(conns[i], (const char **)&(*msg)[1],
-			             vec_len(msg) - 1);
+			          vec_len(msg) - 1);
 		}
 	}
 }
@@ -155,7 +155,8 @@ void client(avim_strv *msg, size_t c) {
 	if (msg == NULL) {
 		error(EXIT_FAILURE, conns[c]->err, "connection closed");
 	}
-	if (vec_len(msg) > 0 && strcmp((*msg)[0], cmds[mode].resp) == 0) {
+	if (vec_len(msg) > 0 && strncmp((*msg)[0], "resp:", 5) == 0 &&
+	    strcmp(&(*msg)[0][5], cmds[mode].name) == 0) {
 		if (cmds[mode].cb != NULL) {
 			cmds[mode].cb(msg);
 		}

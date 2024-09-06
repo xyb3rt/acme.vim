@@ -1044,56 +1044,42 @@ function s:CtrlRecv(ch, data)
 		if len(msg) < 2
 			continue
 		endif
-		let cid = msg[0]
-		if msg[1] == 'port'
-			if len(msg) > 2
-				let $ACMEVIMPORT = msg[2]
-			endif
-		elseif msg[1] == 'edit'
-			if len(msg) > 3
-				call s:Edit(msg[3:], msg[2], cid)
-			endif
-		elseif msg[1] == 'open'
-			if len(msg) == 4
-				call s:FileOpen(msg[2], msg[3])
-			endif
-			call s:CtrlSend([cid, 'opened'])
-		elseif msg[1] =~ '\v^clear\^?'
-			for b in msg[2:]
-				call s:Clear(s:BufNr(b), msg[1] == 'clear^')
+		let [cid, cmd, args] = [msg[0], msg[1], msg[2:]]
+		let resp = ["resp:" . cmd]
+		if cmd == 'port' && len(args) > 0
+			let $ACMEVIMPORT = args[0]
+		elseif cmd == 'edit' && len(args) > 1
+			call s:Edit(args[1:], args[0], cid)
+			let resp = []
+		elseif cmd == 'open' && len(args) == 2
+			call s:FileOpen(args[0], args[1])
+		elseif cmd =~ '\v^clear\^?'
+			for b in args
+				call s:Clear(s:BufNr(b), cmd == 'clear^')
 			endfor
-			call s:CtrlSend([cid, 'cleared'])
-		elseif msg[1] == 'checktime'
+		elseif cmd == 'checktime'
 			checktime
 			call s:ReloadDirs()
-			call s:CtrlSend([cid, 'timechecked'])
-		elseif msg[1] == 'scratch'
-			if len(msg) > 4
-				call s:ScratchExec(msg[4:], msg[2], '', msg[3])
-			endif
-			call s:CtrlSend([cid, 'scratched'])
-		elseif msg[1] == 'bufinfo'
-			call s:CtrlSend([cid, 'bufinfo'] + s:BufInfo(msg[2:]))
-		elseif msg[1] == 'save'
+		elseif cmd == 'scratch' && len(args) > 2
+			call s:ScratchExec(args[2:], args[0], '', args[1])
+		elseif cmd == 'bufinfo'
+			let resp += s:BufInfo(msg[2:])
+		elseif cmd == 'save'
 			silent! wall
-			call s:CtrlSend([cid, 'saved'])
-		elseif msg[1] == 'change'
-			let l = len(msg) < 5 ? 0 : s:Change(s:BufNr(msg[2]),
-				\ str2nr(msg[3]), str2nr(msg[4]), msg[5:])
-			call s:CtrlSend([cid, 'changed', l])
-		elseif msg[1] == 'kill'
-			for p in len(msg) > 2 ? msg[2:] : [bufnr()]
+		elseif cmd == 'change' && len(args) > 2
+			call add(resp, s:Change(s:BufNr(args[0]),
+				\ str2nr(args[1]), str2nr(args[2]), args[3:]))
+		elseif cmd == 'kill'
+			for p in len(args) > 0 ? args : [bufnr()]
 				call s:Kill(p)
 			endfor
-			call s:CtrlSend([cid, 'killed'])
-		elseif msg[1] == 'look'
-			call s:Look(msg[2:])
-			call s:CtrlSend([cid, 'looked'])
-		elseif msg[1] == 'help'
-			if len(msg) > 2
-				silent! exe 'help' msg[2]
-			endif
-			call s:CtrlSend([cid, 'helped'])
+		elseif cmd == 'look'
+			call s:Look(args)
+		elseif cmd == 'help' && len(args) > 0
+			silent! exe 'help' args[0]
+		endif
+		if resp != []
+			call s:CtrlSend([cid] + resp)
 		endif
 	endfor
 endfunc
@@ -1113,7 +1099,7 @@ function s:BufWinLeave()
 			let s:editbufs[cid] -= 1
 			if s:editbufs[cid] <= 0
 				call remove(s:editbufs, cid)
-				call s:CtrlSend([cid, 'done'])
+				call s:CtrlSend([cid, 'resp:edit'])
 			endif
 		endfor
 		call timer_start(0, {_ -> execute('silent! bdelete '.b)})

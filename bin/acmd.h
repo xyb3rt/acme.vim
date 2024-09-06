@@ -13,40 +13,42 @@ struct { char *d; size_t len, size; } buf;
 struct avim_conn *conn;
 char *cwd;
 
-int process(const char *resp, msg_cb *cb) {
+int process(const char *cmd, msg_cb *cb) {
 	if (conn->rxfd == -1) {
 		error(EXIT_FAILURE, conn->err, "connection closed");
 	}
 	size_t pos = 0;
+	int responded = 0;
 	for (;;) {
 		avim_strv msg = avim_parse(&conn->rx, &pos);
 		if (msg == NULL) {
 			break;
 		}
-		if (vec_len(&msg) > 0 && resp && strcmp(msg[0], resp) == 0) {
+		if (vec_len(&msg) > 0 && strncmp(msg[0], "resp:", 5) == 0 &&
+		    strcmp(&msg[0][5], cmd) == 0) {
 			if (cb != NULL) {
 				cb(msg);
 			}
-			resp = NULL;
+			responded = 1;
 		}
 		vec_free(&msg);
 	}
 	if (pos > 0) {
 		avim_pop(&conn->rx, pos);
 	}
-	return resp == NULL;
+	return responded;
 }
 
-void requestv(const char *resp, const char **argv, size_t argc, msg_cb *cb) {
+void request(const char **argv, size_t argc, msg_cb *cb) {
 	avim_send(conn, argv, argc);
 	do {
 		avim_sync(&conn, 1, -1);
-	} while (!process(resp, cb));
+	} while (!process(argv[0], cb));
 }
 
 void clear(void) {
 	const char *cmd[] = {"clear^", avimbuf};
-	requestv("cleared", cmd, ARRLEN(cmd), NULL);
+	request(cmd, ARRLEN(cmd), NULL);
 }
 
 void nl(void) {

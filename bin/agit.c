@@ -97,13 +97,9 @@ void set(const char *arg, ...) {
 	cmd.fixed = vec_len(&cmd.v);
 }
 
-void request(const char *resp, msg_cb *cb) {
-	requestv(resp, (const char **)cmd.v, vec_len(&cmd.v), cb);
-}
-
 void checktime(void) {
 	const char *cmd[] = {"checktime"};
-	requestv("timechecked", cmd, ARRLEN(cmd), NULL);
+	request(cmd, ARRLEN(cmd), NULL);
 }
 
 enum reply get(void) {
@@ -175,7 +171,7 @@ void show(list_func *ls) {
 	} else {
 		ls = NULL;
 	}
-	requestv("changed", argv, vec_len(&argv), changed);
+	request(argv, vec_len(&argv), changed);
 	if (ls) {
 		ls();
 	}
@@ -229,7 +225,7 @@ int main(int argc, char *argv[]) {
 		status();
 		menu(cmds);
 		if (scratch) {
-			request("scratched", NULL);
+			request((const char **)cmd.v, vec_len(&cmd.v), NULL);
 			scratch = 0;
 		}
 		block(-1);
@@ -295,7 +291,7 @@ void show_open_files(avim_strv msg) {
 
 void list_open_files(void) {
 	const char *cmd[] = {"bufinfo"};
-	requestv("bufinfo", cmd, ARRLEN(cmd), &show_open_files);
+	request(cmd, ARRLEN(cmd), &show_open_files);
 }
 
 void list_remotes(void) {

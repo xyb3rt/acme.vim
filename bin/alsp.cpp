@@ -66,12 +66,12 @@ void setpos(avim_strv msg) {
 
 bool getpos() {
 	const char *argv[] = {"bufinfo"};
-	requestv("bufinfo", argv, ARRLEN(argv), setpos);
+	request(argv, ARRLEN(argv), setpos);
 	if (filepos.path.isEmpty()) {
 		return false;
 	}
 	argv[0] = "save";
-	requestv("saved", argv, ARRLEN(argv), NULL);
+	request(argv, ARRLEN(argv), NULL);
 	return true;
 }
 
@@ -303,7 +303,7 @@ void gotomatch(const QJsonObject &msg) {
 	} else if (parseloc(result.at(0).toObject(), &pos)) {
 		QByteArray line = QByteArray::number(pos.line + 1);
 		const char *cmd[] = {"open", pos.path.data(), line.data()};
-		requestv("opened", cmd, ARRLEN(cmd), NULL);
+		request(cmd, ARRLEN(cmd), NULL);
 	}
 }
 
@@ -459,7 +459,7 @@ void initialized(const QJsonObject &msg) {
 	initmenu(get(msg, {"result", "capabilities"}).toObject());
 	send(newmsg("initialized", QJsonObject()));
 	const char *cmd[] = {"bufinfo"};
-	requestv("bufinfo", cmd, ARRLEN(cmd), openall);
+	request(cmd, ARRLEN(cmd), openall);
 }
 
 void inithandlers(void) {
@@ -525,7 +525,7 @@ void detectserver(avim_strv msg) {
 
 void guessinvocation(void) {
 	const char *cmd[] = {"bufinfo"};
-	requestv("bufinfo", cmd, ARRLEN(cmd), detectserver);
+	request(cmd, ARRLEN(cmd), detectserver);
 	if (server == NULL) {
 		error(EXIT_FAILURE, 0, "Which server?");
 	}
