@@ -4,15 +4,16 @@
 void bufinfo(avim_strv *msg);
 
 struct {
+	int opt;
 	char *name, *resp;
 	void (*cb)(avim_strv *);
-} cmds[128] = {
-	[0] = {"edit", "done"},
-	['c'] = {"clear", "cleared"},
-	['k'] = {"kill", "killed"},
-	['i'] = {"bufinfo", "bufinfo", bufinfo},
-	['l'] = {"look", "looked"},
-	['s'] = {"scratch", "scratched"},
+} cmds[] = {
+	{0, "edit", "done"},
+	{'c', "clear", "cleared"},
+	{'i', "bufinfo", "bufinfo", bufinfo},
+	{'k', "kill", "killed"},
+	{'l', "look", "looked"},
+	{'s', "scratch", "scratched"},
 };
 struct avim_conn **conns;
 void (*handle)(avim_strv *, size_t);
@@ -23,8 +24,8 @@ void parse(int argc, char *argv[]) {
 	int opt;
 	opterr = 0;
 	for (size_t i = 0; i < ARRLEN(cmds); i++) {
-		if (cmds[i].name != NULL) {
-			char optc[2] = {i};
+		if (cmds[i].opt != 0) {
+			char optc[2] = {cmds[i].opt};
 			avim_push(&opts, optc);
 		}
 	}
@@ -32,10 +33,16 @@ void parse(int argc, char *argv[]) {
 	while ((opt = getopt(argc, argv, opts)) != -1) {
 		if (opt == '?') {
 			error(EXIT_FAILURE, EINVAL, "-%c", optopt);
-		} else if (mode != 0 && mode != opt) {
-			error(EXIT_FAILURE, EINVAL, "-%c -%c", mode, opt);
+		} else if (mode != 0 && cmds[mode].opt != opt) {
+			error(EXIT_FAILURE, EINVAL, "-%c -%c",
+			      cmds[mode].opt, opt);
 		}
-		mode = opt;
+		for (size_t i = 0; i < ARRLEN(cmds); i++) {
+			if (cmds[i].opt == opt) {
+				mode = i;
+				break;
+			}
+		}
 	}
 	vec_free(&opts);
 }
@@ -107,10 +114,10 @@ void request(char *argv[], size_t argc) {
 	vec_push(&conns, avim_connect());
 	avim_strv req = msg(cmds[mode].name, argv, argc);
 	char *cwd = NULL;
-	if (mode == 0 || mode == 's') {
+	if (mode == 0 || cmds[mode].opt == 's') {
 		cwd = xgetcwd();
 		vec_insert(&req, 1, cwd);
-		if (mode == 's') {
+		if (cmds[mode].opt == 's') {
 			vec_insert(&req, 2, "");
 		}
 	}
