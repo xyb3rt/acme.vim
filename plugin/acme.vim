@@ -1051,6 +1051,12 @@ function s:Pty(b)
 	call win_execute(w, 'call s:PtyMap()')
 endfunc
 
+function s:SetCwd(b, path)
+	if has_key(s:scratch, a:b)
+		let s:cwd[a:b] = a:path
+	endif
+endfunc
+
 function s:Look(p)
 	if len(a:p) > 2
 		let p = map(a:p[1:-2], {i, v -> escape(v, '\/')})
@@ -1114,6 +1120,8 @@ function s:CtrlRecv(ch, data)
 			silent! exe 'help' args[0]
 		elseif cmd == 'pty' && len(args) > 0
 			call s:Pty(s:BufNr(args[0]))
+		elseif cmd == 'cwd' && len(args) > 1
+			call s:SetCwd(s:BufNr(args[0]), args[1])
 		endif
 		if resp != []
 			call s:CtrlSend([cid] + resp)
