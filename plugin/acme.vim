@@ -1031,9 +1031,15 @@ function s:Signal(sig)
 	endfor
 endfunc
 
+function s:PtyPw()
+	let pw = inputsecret('PW> ')
+	call s:Send(win_getid(), pw)
+endfunc
+
 function s:PtyMap()
 	inoremap <silent> <buffer> <C-c> <C-o>:call <SID>Signal("int")<CR>
 	inoremap <silent> <buffer> <C-d> <C-o>:call <SID>Signal("hup")<CR>
+	inoremap <silent> <buffer> <C-z> <C-o>:call <SID>PtyPw()<CR>
 endfunc
 
 function s:Pty(b)
