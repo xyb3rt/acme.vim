@@ -168,7 +168,9 @@ function s:Send(w, inp)
 	endif
 	let inp = split(a:inp, '\n')
 	if has_key(s:scratch, b)
-		if !get(s:scratch[b], 'top')
+		if get(s:scratch[b], 'pty')
+			call win_execute(a:w, 'normal! G$')
+		elseif !get(s:scratch[b], 'top')
 			call win_execute(a:w, 'normal! G')
 		endif
 		let job = s:Jobs(b)[0].h
@@ -1000,6 +1002,7 @@ function s:Change(b, l1, l2, lines)
 	if w == 0
 		return
 	endif
+	let pos = getcurpos(w)
 	let last = line('$', w)
 	let l = s:Bound(1, a:l1 < 0 ? a:l1 + last + 2 : a:l1, last + 1)
 	let n = s:Bound(0, (a:l2 < 0 ? a:l2 + last + 2 : a:l2) - l + 1,
@@ -1013,7 +1016,33 @@ function s:Change(b, l1, l2, lines)
 	elseif n > len(a:lines)
 		call deletebufline(a:b, l + i, l + n - 1)
 	endif
+	if get(get(s:scratch, a:b, {}), 'pty') && pos[1] == last
+		let pos[1] = line('$', w)
+		let pos[2] = 2147483647
+		let pos[4] = pos[2]
+		call win_execute(w, 'call setpos(".", pos)')
+	endif
 	return l
+endfunc
+
+function s:Signal(sig)
+	for job in s:Jobs(bufnr())
+		call job_stop(job.h, a:sig)
+	endfor
+endfunc
+
+function s:PtyMap()
+	inoremap <silent> <buffer> <C-c> <C-o>:call <SID>Signal("int")<CR>
+	inoremap <silent> <buffer> <C-d> <C-o>:call <SID>Signal("hup")<CR>
+endfunc
+
+function s:Pty(b)
+	let w = win_getid(s:BufWin(a:b))
+	if !has_key(s:scratch, a:b) || w == 0
+		return
+	endif
+	let s:scratch[a:b].pty = 1
+	call win_execute(w, 'call s:PtyMap()')
 endfunc
 
 function s:Look(p)
@@ -1077,6 +1106,8 @@ function s:CtrlRecv(ch, data)
 			call s:Look(args)
 		elseif cmd == 'help' && len(args) > 0
 			silent! exe 'help' args[0]
+		elseif cmd == 'pty' && len(args) > 0
+			call s:Pty(s:BufNr(args[0]))
 		endif
 		if resp != []
 			call s:CtrlSend([cid] + resp)
