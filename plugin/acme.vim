@@ -1021,6 +1021,7 @@ function s:Change(b, l1, l2, lines)
 		let pos[2] = 2147483647
 		let pos[4] = pos[2]
 		call win_execute(w, 'call setpos(".", pos)')
+		let s:scratch[a:b].prompt = getbufoneline(a:b, '$')
 	endif
 	return l
 endfunc
@@ -1031,6 +1032,18 @@ function s:Signal(sig)
 	endfor
 endfunc
 
+function s:PtyEnter()
+	if getpos('.')[1] != line('$')
+		call feedkeys("\<CR>", 'in')
+		return
+	endif
+	let [n, l, p] = [0, getline('$'), s:scratch[bufnr()].prompt]
+	while p[n] != '' && p[n] == l[n]
+		let n += 1
+	endwhile
+	call s:Send(win_getid(), l[n:])
+endfunc
+
 function s:PtyPw()
 	let pw = inputsecret('PW> ')
 	call s:Send(win_getid(), pw)
@@ -1039,6 +1052,7 @@ endfunc
 function s:PtyMap()
 	inoremap <silent> <buffer> <C-c> <C-o>:call <SID>Signal("int")<CR>
 	inoremap <silent> <buffer> <C-d> <C-o>:call <SID>Signal("hup")<CR>
+	inoremap <silent> <buffer> <C-m> <C-o>:call <SID>PtyEnter()<CR>
 	inoremap <silent> <buffer> <C-z> <C-o>:call <SID>PtyPw()<CR>
 endfunc
 
