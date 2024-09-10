@@ -1,35 +1,50 @@
 #include "acmd.h"
 #include <pty.h>
 
+struct ptybuf {
+	char *d;
+	size_t c, i;
+};
+
 int chld;
 pid_t pid;
 int pty;
 
-void send_(char **buf) {
-	size_t n = vec_len(buf);
-	if (n == 0) {
-		return;
-	}
-	vec_push(buf, '\0');
+void send_(struct ptybuf *buf) {
 	const char **cmd = vec_new();
 	vec_push(&cmd, "change");
 	vec_push(&cmd, avimbuf);
 	vec_push(&cmd, "-2");
 	vec_push(&cmd, "-1");
-	size_t nl = 0;
-	for (size_t i = 0; i < n; i++) {
-		if ((*buf)[i] == '\n') {
-			size_t cr = i > 0 && (*buf)[i - 1] == '\r';
-			(*buf)[i - cr] = '\0';
-			vec_push(&cmd, &(*buf)[nl]);
-			nl = i + 1;
+	size_t bol = 0, eol = 0;
+	size_t c = buf->c, i = buf->i;
+	size_t n = vec_len(&buf->d);
+	vec_push(&buf->d, '\0');
+	char *p = buf->d;
+	for (; i < n; i++) {
+		switch (p[i]) {
+		case '\r':
+			eol = MAX(c, eol);
+			c = bol;
+			break;
+		case '\n':
+			p[MAX(c, eol)] = '\0';
+			vec_push(&cmd, &p[bol]);
+			bol = c = i + 1;
+			break;
+		default:
+			p[c++] = p[i];
 		}
 	}
-	vec_push(&cmd, &(*buf)[nl]);
+	i = MAX(c, eol);
+	p[i] = '\0';
+	vec_push(&cmd, &p[bol]);
 	request(cmd, vec_len(&cmd), NULL);
 	vec_free(&cmd);
-	vec_erase(buf, n, 1); /* pushed '\0' */
-	vec_erase(buf, 0, nl);
+	vec_erase(&buf->d, i, n - i + 1);
+	vec_erase(&buf->d, 0, bol);
+	buf->c = c - bol;
+	buf->i = i - bol;
 }
 
 void read_(int fd, char **buf) {
@@ -106,7 +121,7 @@ int main(int argc, char *argv[]) {
 		tc.c_lflag |= ICANON;
 		tcsetattr(pty, TCSANOW, &tc);
 	}
-	char *rx = vec_new();
+	struct ptybuf rx = {.d = vec_new()};
 	char *tx = vec_new();
 	for (;;) {
 		fd_set rfds, wfds;
@@ -126,7 +141,7 @@ int main(int argc, char *argv[]) {
 			read_(0, &tx);
 		}
 		if (FD_ISSET(pty, &rfds)) {
-			read_(pty, &rx);
+			read_(pty, &rx.d);
 			send_(&rx);
 		}
 		if (FD_ISSET(pty, &wfds)) {

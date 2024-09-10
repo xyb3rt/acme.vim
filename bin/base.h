@@ -9,6 +9,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
 #define ARRLEN(array) (sizeof(array) / sizeof((array)[0]))
 #define xmalloc(size) xrealloc(NULL, (size))
 
