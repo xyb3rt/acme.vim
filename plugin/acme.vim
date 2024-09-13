@@ -678,8 +678,8 @@ function s:MoveWin(w, other, below)
 		noa exe 'b' winbufnr(a:w)
 		call winrestview(v)
 		let nw = win_getid()
-		noa exe win_id2win(p).'wincmd w'
-		noa exe win_id2win(w).'wincmd w'
+		noa exe win_id2win(p != a:w ? p : nw).'wincmd w'
+		noa exe win_id2win(w != a:w ? w : nw).'wincmd w'
 		noa call s:CloseWin(a:w)
 		call s:RestWinVars(nw, vars)
 	endif
