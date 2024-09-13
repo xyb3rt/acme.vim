@@ -1072,12 +1072,14 @@ function s:SetCwd(b, path)
 endfunc
 
 function s:Look(p)
-	if len(a:p) > 2
+	if len(a:p) <= 2
+		silent! normal! n
+	elseif len(a:p) == 3 && a:p[1] == ''
+		call feedkeys(":nohlsearch\<CR>", 'n')
+	else
 		let p = map(a:p[1:-2], {i, v -> escape(v, '\/')})
 		let @/ = '\V'.a:p[0].'\%\('.join(p, '\|').'\)'.a:p[-1]
 		call feedkeys(":let v:hlsearch=1\<CR>", 'n')
-	else
-		call feedkeys(":nohlsearch\<CR>", 'n')
 	endif
 endfunc
 
