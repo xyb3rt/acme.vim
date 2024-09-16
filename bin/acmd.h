@@ -47,7 +47,7 @@ void request(const char **argv, size_t argc, msg_cb *cb) {
 }
 
 void clear(void) {
-	const char *cmd[] = {"clear^", avimbuf};
+	const char *cmd[] = {"clear", avimbuf};
 	request(cmd, ARRLEN(cmd), NULL);
 }
 

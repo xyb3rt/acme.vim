@@ -165,10 +165,9 @@ function s:Send(w, inp)
 		return
 	endif
 	let inp = split(a:inp, '\n')
-	if get(s:scratch[b], 'pty')
-		call win_execute(a:w, 'normal! G$')
-	elseif !get(s:scratch[b], 'top')
-		call win_execute(a:w, 'normal! G')
+	if !get(s:scratch[b], 'cleared')
+		call win_execute(a:w, 'normal! G' .
+			\ (get(s:scratch[b], 'pty') ? '$' : ''))
 	endif
 	let job = s:Jobs(b)[0].h
 	call ch_setoptions(job, {'callback': ''})
@@ -844,14 +843,12 @@ inoremap <silent> <RightMouse> <Esc>:call <SID>MousePress('')<CR>
 inoremap <silent> <RightRelease> <Esc>:call <SID>RightRelease(col('.'))<CR>
 vnoremap <silent> <RightRelease> :<C-u>call <SID>RightRelease(-1)<CR>
 
-function s:Clear(b, top)
+function s:Clear(b)
 	call deletebufline(a:b, 1, "$")
-	if a:top && has_key(s:scratch, a:b)
-		let s:scratch[a:b].top = 1
+	if has_key(s:scratch, a:b)
+		let s:scratch[a:b].cleared = 1
 		for job in s:Jobs(a:b)
-			call ch_setoptions(job.h, {
-				\ 'callback': function('s:ScratchCb', [a:b]),
-			\ })
+			call ch_setoptions(job.h, {'callback': ''})
 		endfor
 	endif
 endfunc
@@ -1003,9 +1000,9 @@ function s:CtrlRecv(ch, data)
 			let resp = []
 		elseif cmd == 'open' && len(args) == 2
 			call s:FileOpen(args[0], args[1])
-		elseif cmd =~ '\v^clear\^?'
+		elseif cmd == 'clear'
 			for b in args
-				call s:Clear(s:BufNr(b), cmd == 'clear^')
+				call s:Clear(s:BufNr(b))
 			endfor
 		elseif cmd == 'checktime'
 			checktime
