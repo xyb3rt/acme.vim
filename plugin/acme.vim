@@ -200,7 +200,11 @@ endfunc
 
 function s:JobStart(cmd, b, opts, inp)
 	let opts = {
-		\ 'env': {'ACMEVIMBUF': a:b},
+		\ 'env': {
+			\ 'ACMEVIMBUF': a:b,
+			\ 'COLUMNS': 80,
+			\ 'LINES': 24,
+		\ },
 		\ 'exit_cb': 's:Exited',
 		\ 'err_io': 'out',
 		\ 'out_io': 'buffer',
