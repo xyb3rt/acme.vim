@@ -242,7 +242,7 @@ int main(int argc, char *argv[]) {
 
 void list_branches(void) {
 	system("git branch --all --format='%(objectname) %(refname)' "
-		"--sort=-committerdate | awk '{"
+		"--sort=-authordate --sort=-committerdate | awk '{"
 			"s = !l ? \"\" : $1 == l ? \" \" : \"\\n\";"
 			"l = $1;"
 			"sub(/^[^ ]* /, \"\");"
@@ -268,7 +268,8 @@ void list_dirs(void) {
 
 void list_local_branches(void) {
 	const char *cmd[] = {"git", "branch", "--format=%(refname:short)",
-	                     "--sort=-committerdate", NULL};
+	                     "--sort=-authordate", "--sort=-committerdate",
+	                     NULL};
 	call((char **)cmd, NULL);
 }
 
@@ -320,7 +321,8 @@ void list_submodules(void) {
 }
 
 void list_tags(void) {
-	const char *cmd[] = {"git", "tag", "--sort=-committerdate", NULL};
+	const char *cmd[] = {"git", "tag", "--sort=-authordate",
+	                     "--sort=-committerdate", NULL};
 	call((char **)cmd, NULL);
 }
 
