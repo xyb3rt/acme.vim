@@ -926,6 +926,10 @@ function s:Signal(sig)
 	endfor
 endfunc
 
+function s:PtyTab()
+	return pumvisible() ? "\<C-n>" : "\<C-x>\<C-u>"
+endfunc
+
 function s:PtyEnter()
 	if getpos('.')[1] != line('$')
 		call feedkeys("\<CR>", 'in')
@@ -946,8 +950,22 @@ endfunc
 function s:PtyMap()
 	inoremap <silent> <buffer> <C-c> <C-o>:call <SID>Signal("int")<CR>
 	inoremap <silent> <buffer> <C-d> <C-o>:call <SID>Signal("hup")<CR>
+	inoremap <expr> <silent> <buffer> <C-i> <SID>PtyTab()
 	inoremap <silent> <buffer> <C-m> <C-o>:call <SID>PtyEnter()<CR>
 	inoremap <silent> <buffer> <C-z> <C-o>:call <SID>PtyPw()<CR>
+endfunc
+
+function s:PtyComplete(findstart, base)
+	let line = getline('.')
+	let pos = col('.') - 1
+	if a:findstart
+		while pos > 0 && line[pos - 1] =~ '\a'
+			let pos -= 1
+		endwhile
+		return pos
+	else
+		return s:FileComplete(a:base, line, pos)
+	endif
 endfunc
 
 function s:Pty(b)
@@ -957,6 +975,7 @@ function s:Pty(b)
 	endif
 	let s:scratch[a:b].pty = 1
 	call win_execute(w, 'call s:PtyMap()')
+	setl completefunc=s:PtyComplete
 endfunc
 
 function s:SetCwd(b, path)
