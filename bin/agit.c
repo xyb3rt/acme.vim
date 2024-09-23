@@ -392,7 +392,7 @@ void cmd_diff(void) {
 
 void cmd_fetch(void) {
 	set("git", "fetch", NULL);
-	hint("< --all --prune >", NULL);
+	hint("< --all --prune --tags >", NULL);
 	if (add(list_remotes)) {
 		run(1);
 	}
@@ -493,11 +493,11 @@ void cmd_show_branch(void) {
 
 void cmd_snarf(void) {
 	clear();
-	set("git", "submodule", "-q", "foreach", "--recursive",
-	    "indir", "--", "git", "fetch", "--all", "--prune", NULL);
+	set("git", "submodule", "-q", "foreach", "--recursive", "indir", "--",
+	    "git", "fetch", "--all", "--prune", "--tags", NULL);
 	run(1);
-	set("git", "fetch", "--all", "--prune", "--no-recurse-submodules",
-	    NULL);
+	set("git", "fetch", "--all", "--prune", "--tags",
+	    "--no-recurse-submodules", NULL);
 	run(1);
 }
 
@@ -527,7 +527,7 @@ void cmd_switch(void) {
 
 void cmd_tag(void) {
 	set("git", "tag", NULL);
-	hint("< --annotate --delete --force >", NULL);
+	hint("< --annotate --delete >", NULL);
 	if (add(list_tags)) {
 		run(1);
 	}
