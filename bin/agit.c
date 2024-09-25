@@ -31,7 +31,6 @@ cmd_func cmd_restore;
 cmd_func cmd_revert;
 cmd_func cmd_rm;
 cmd_func cmd_show_branch;
-cmd_func cmd_snarf;
 cmd_func cmd_stash;
 cmd_func cmd_submodule;
 cmd_func cmd_switch;
@@ -46,7 +45,6 @@ struct cmd cmds[] = {
 	{"tag", cmd_tag},
 	{"cd", cmd_cd},
 	{"module", cmd_submodule},
-	{"snarf", cmd_snarf},
 	{"fetch", cmd_fetch},
 	{"push", cmd_push},
 	{"config", cmd_config},
@@ -391,11 +389,13 @@ void cmd_diff(void) {
 }
 
 void cmd_fetch(void) {
-	set("git", "fetch", NULL);
-	hint("< --all --prune --tags >", NULL);
-	if (add(list_remotes)) {
-		run(1);
-	}
+	clear();
+	set("git", "submodule", "-q", "foreach", "--recursive", "indir", "--",
+	    "git", "fetch", "--all", "--prune", "--tags", NULL);
+	run(1);
+	set("git", "fetch", "--all", "--prune", "--tags",
+	    "--no-recurse-submodules", NULL);
+	run(1);
 }
 
 void cmd_graph(void) {
@@ -489,16 +489,6 @@ void cmd_show_branch(void) {
 	if (add(list_branches)) {
 		scratch = 1;
 	}
-}
-
-void cmd_snarf(void) {
-	clear();
-	set("git", "submodule", "-q", "foreach", "--recursive", "indir", "--",
-	    "git", "fetch", "--all", "--prune", "--tags", NULL);
-	run(1);
-	set("git", "fetch", "--all", "--prune", "--tags",
-	    "--no-recurse-submodules", NULL);
-	run(1);
 }
 
 void cmd_stash(void) {
