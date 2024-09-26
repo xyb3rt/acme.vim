@@ -583,6 +583,22 @@ endfunc
 command -nargs=1 -complete=customlist,s:FileComplete O
 	\ call s:Open(expand(<q-args>), 0, s:Dir(), win_getid())
 
+function s:InsComplete(findstart, base)
+	let line = getline('.')
+	let pos = col('.') - 1
+	if a:findstart
+		while pos > 0 && line[pos - 1] =~ '\S'
+			let pos -= 1
+		endwhile
+		return pos
+	else
+		let g:base = a:base
+		return s:FileComplete(a:base, line, pos)
+	endif
+endfunc
+
+inoremap <expr> <silent> <C-f> pumvisible() ? "\<C-n>" :"\<C-x>\<C-u>"
+
 function s:WinCol(w)
 	let col = [a:w]
 	let w = win_id2win(a:w) - 1
@@ -929,10 +945,6 @@ function s:Signal(sig)
 	endfor
 endfunc
 
-function s:PtyTab()
-	return pumvisible() ? "\<C-n>" : "\<C-x>\<C-u>"
-endfunc
-
 function s:PtyEnter()
 	if getpos('.')[1] != line('$')
 		call feedkeys("\<CR>", 'in')
@@ -953,22 +965,9 @@ endfunc
 function s:PtyMap()
 	inoremap <silent> <buffer> <C-c> <C-o>:call <SID>Signal("int")<CR>
 	inoremap <silent> <buffer> <C-d> <C-o>:call <SID>Signal("hup")<CR>
-	inoremap <expr> <silent> <buffer> <C-i> <SID>PtyTab()
+	imap <silent> <buffer> <C-i> <C-f>
 	inoremap <silent> <buffer> <C-m> <C-o>:call <SID>PtyEnter()<CR>
 	inoremap <silent> <buffer> <C-z> <C-o>:call <SID>PtyPw()<CR>
-endfunc
-
-function s:PtyComplete(findstart, base)
-	let line = getline('.')
-	let pos = col('.') - 1
-	if a:findstart
-		while pos > 0 && line[pos - 1] =~ '\a'
-			let pos -= 1
-		endwhile
-		return pos
-	else
-		return s:FileComplete(a:base, line, pos)
-	endif
 endfunc
 
 function s:Pty(b)
@@ -978,7 +977,6 @@ function s:Pty(b)
 	endif
 	let s:scratch[a:b].pty = 1
 	call win_execute(w, 'call s:PtyMap()')
-	setl completefunc=s:PtyComplete
 	if bufnr() == a:b && mode() == 'n'
 		call feedkeys('A', 'n')
 	endif
@@ -1098,6 +1096,8 @@ augroup END
 if exists("s:ctrlexe")
 	finish
 endif
+
+set completefunc=s:InsComplete
 
 let &statusline = "\u2592%<%{%AcmeStatusName()%}%{%AcmeStatusFlags()%}"
 	\ . "%{AcmeStatusJobs()}%=%{%AcmeStatusRuler()%}"
