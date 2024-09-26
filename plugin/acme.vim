@@ -70,10 +70,6 @@ function s:Jobs(p)
 		\ : 'v:val.cmd =~ a:p')
 endfunc
 
-function AcmeStatusDir()
-	return s:Path(get(s:cwd, bufnr(), getcwd(0)), ':~')
-endfunc
-
 function AcmeStatusTitle()
 	let b = bufnr()
 	let s = get(s:scratch, b, {})
@@ -86,7 +82,8 @@ function AcmeStatusName()
 	if has_key(s:scratch, b)
 		return '%{AcmeStatusTitle()}'
 	else
-		return isdirectory(expand('%')) ? '%F/ ' : '%F '
+		let f = expand('%')
+		return isdirectory(f) && f != '/' ? '%F/ ' : '%F '
 	endif
 endfunc
 
