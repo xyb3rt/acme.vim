@@ -584,7 +584,7 @@ function s:InsComplete(findstart, base)
 	let line = getline('.')
 	let pos = col('.') - 1
 	if a:findstart
-		while pos > 0 && line[pos - 1] =~ '\S'
+		while pos > 0 && line[pos - 1] =~ '\f'
 			let pos -= 1
 		endwhile
 		return pos
