@@ -95,6 +95,14 @@ void set(const char *arg, ...) {
 	cmd.fixed = vec_len(&cmd.v);
 }
 
+void setscratch(const char *cwd, const char *title) {
+	char **p = vec_dig(&cmd.v, 0, 3);
+	p[0] = xstrdup("scratch");
+	p[1] = xstrdup(cwd);
+	p[2] = xstrdup(title);
+	scratch = 1;
+}
+
 void checktime(void) {
 	const char *cmd[] = {"checktime"};
 	request(cmd, ARRLEN(cmd), NULL);
@@ -137,7 +145,7 @@ void hint(const char *hint, ...) {
 }
 
 void show(list_func *ls) {
-	size_t arg = strcmp(cmd.v[0], "scratch") == 0 ? 3 : 0;
+	size_t arg = 0;
 	char *p = vec_new();
 	avim_push(&p, "<< ");
 	if (strcmp(cmd.v[arg], "git") == 0) {
@@ -341,18 +349,18 @@ void cmd_branch(void) {
 }
 
 void cmd_cd(void) {
-	set("scratch", "", "", "cd", NULL);
+	set("cd", NULL);
 	hint("< >", NULL);
 	show(list_dirs);
 	enum reply reply = get();
 	clear();
 	if (reply == SELECT && isdir(buf.d)) {
+		setscratch("", "");
 		free(cmd.v[1]);
+		free(cmd.v[3]);
 		cmd.v[1] = buf.d[0] == '/' ? xstrdup(buf.d) :
 		           xasprintf("%s/%s", cwd, buf.d);
-		free(cmd.v[3]);
 		cmd.v[3] = xstrdup(argv0);
-		scratch = 1;
 	}
 }
 
@@ -381,10 +389,10 @@ void cmd_config(void) {
 }
 
 void cmd_diff(void) {
-	set("scratch", cwd, "git:diff", "git", "diff", NULL);
+	set("git", "diff", NULL);
 	hint("< --cached -p --stat --submodule=diff HEAD @{u} -- >", NULL);
 	if (add(NULL)) {
-		scratch = 1;
+		setscratch(cwd, "git:diff");
 	}
 }
 
@@ -400,18 +408,18 @@ void cmd_fetch(void) {
 
 void cmd_graph(void) {
 	clear();
-	set("scratch", cwd, "git:graph", "git", "log", "--graph", "--oneline",
-	    "--decorate", "--all", "--date-order", NULL);
-	scratch = 1;
+	set("git", "log", "--graph", "--oneline", "--decorate", "--all",
+	    "--date-order", NULL);
+	setscratch(cwd, "git:graph");
 }
 
 void cmd_log(void) {
-	set("scratch", cwd, "git:log", "git", "log", NULL);
+	set("git", "log", NULL);
 	opt("--decorate");
 	opt("--left-right");
 	hint("< -S HEAD ...@{u} >", NULL);
 	if (add(list_open_files)) {
-		scratch = 1;
+		setscratch(cwd, "git:log");
 	}
 }
 
@@ -484,10 +492,10 @@ void cmd_rm(void) {
 }
 
 void cmd_show_branch(void) {
-	set("scratch", cwd, "git:show-branch", "git", "show-branch", NULL);
+	set("git", "show-branch", NULL);
 	hint("< --independent --topics HEAD @{u} >", NULL);
 	if (add(list_branches)) {
-		scratch = 1;
+		setscratch(cwd, "git:show-branch");
 	}
 }
 
