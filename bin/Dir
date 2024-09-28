@@ -1,0 +1,12 @@
+#!/bin/sh -e
+case "$1" in
+/*) ACMEVIMDIR="$1" ;;
+?*) ACMEVIMDIR="$ACMEVIMDIR/$1" ;;
+esac
+[ -d "$ACMEVIMDIR" ]
+if [ "${0##*/}" = "Dir" ]; then
+	exec avim -o "$ACMEVIMDIR"
+else
+	cd "$ACMEVIMDIR"
+	exec avim -s "$(echo "a${0##*/}" | tr '[[:upper:]]' '[[:lower:]]')"
+fi

@@ -1020,8 +1020,8 @@ function s:CtrlRecv(ch, data)
 		elseif cmd == 'edit' && len(args) > 1
 			call s:Edit(args[1:], args[0], cid)
 			let resp = []
-		elseif cmd == 'open' && len(args) == 2
-			call s:FileOpen(args[0], args[1])
+		elseif cmd == 'open' && len(args) > 0
+			call s:FileOpen(args[0], len(args) > 1 ? args[1] : '')
 		elseif cmd == 'clear'
 			for b in args
 				call s:Clear(s:BufNr(b))

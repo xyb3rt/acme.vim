@@ -11,6 +11,7 @@ struct {
 	{'h', "help"},
 	{'k', "kill"},
 	{'l', "look"},
+	{'o', "open"},
 	{'s', "scratch"},
 };
 struct avim_conn **conns;
