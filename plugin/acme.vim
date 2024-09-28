@@ -202,6 +202,7 @@ function s:JobStart(cmd, b, opts, inp)
 	let opts = {
 		\ 'env': {
 			\ 'ACMEVIMBUF': a:b,
+			\ 'ACMEVIMDIR': s:Dir(),
 			\ 'COLUMNS': 80,
 			\ 'LINES': 24,
 		\ },
@@ -885,18 +886,15 @@ function s:Edit(files, dir, cid)
 	endfor
 endfunc
 
-function s:BufInfo(args)
+function s:BufInfo()
 	let p = 0
 	let r = []
 	for i in range(1, winnr('$'))
 		let w = win_getid(i)
 		let b = winbufnr(w)
-		if a:args != [] || getbufvar(b, '&buftype', '') == ''
-			let f = has_key(s:scratch, b)
-				\ ? s:Path(s:cwd[b].'/+Scratch')
-				\ : fnamemodify(bufname(b), ':p')
-			let l = [f, line('.', w), col('.', w), line("'<", w),
-				\ line("'>", w)]
+		if getbufvar(b, '&buftype', '') == ''
+			let l = [fnamemodify(bufname(b), ':p'), line('.', w),
+				\ col('.', w), line("'<", w), line("'>", w)]
 			call extend(r, l, i == winnr() ? 0 :
 				\ i == winnr('#') ? p : len(r))
 			if i == winnr()
@@ -1034,7 +1032,7 @@ function s:CtrlRecv(ch, data)
 		elseif cmd == 'scratch' && len(args) > 2
 			call s:ScratchExec(args[2:], args[0], '', args[1])
 		elseif cmd == 'bufinfo'
-			let resp += s:BufInfo(msg[2:])
+			let resp += s:BufInfo()
 		elseif cmd == 'save'
 			silent! wall
 		elseif cmd == 'change' && len(args) > 2

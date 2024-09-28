@@ -5,9 +5,5 @@ cleanup() {
 }
 . trap.sh
 cat >"$tmp"
-buf="$(avim -i all | awk -F '\t' 'NR==1{print $1}')"
-case "$buf" in
-*/) cd "$buf";;
-*) cd "$(dirname "$buf")";;
-esac
+cd "$ACMEVIMDIR"
 avim -s cat "$tmp"
