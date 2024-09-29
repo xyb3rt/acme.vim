@@ -203,6 +203,7 @@ function s:JobStart(cmd, b, opts, inp)
 		\ 'env': {
 			\ 'ACMEVIMBUF': a:b,
 			\ 'ACMEVIMDIR': s:Dir(),
+			\ 'ACMEVIMFILE': &buftype == '' ? expand('%:t') : '',
 			\ 'COLUMNS': 80,
 			\ 'LINES': 24,
 		\ },

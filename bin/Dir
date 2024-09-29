@@ -5,6 +5,7 @@ case "$1" in
 esac
 [ -d "$ACMEVIMDIR" ]
 if [ "${0##*/}" = "Dir" ]; then
+	[ -n "$ACMEVIMFILE" ] && avim -l '\<' "${ACMEVIMFILE%.*}" '\>'
 	exec avim -o "$ACMEVIMDIR"
 else
 	cd "$ACMEVIMDIR"
