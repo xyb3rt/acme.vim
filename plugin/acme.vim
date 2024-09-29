@@ -692,8 +692,9 @@ function s:Scroll(topline)
 	call winrestview(v)
 endfunc
 
-function s:Fit(w, h)
-	if fnamemodify(bufname(winbufnr(a:w)), ':t') == 'guide'
+function s:Fit(w, h, ...)
+	if fnamemodify(bufname(winbufnr(a:w)), ':t') == 'guide' &&
+		\ (a:0 == 0 || a:w != a:1 || winheight(a:w) > 1)
 		call win_execute(a:w, 'normal! gg')
 		return 1
 	endif
@@ -725,7 +726,7 @@ function s:Zoom(w)
 	let h = reduce(col, {s, w -> s + winheight(w)}, 0)
 	let n = len(col)
 	for w in reverse(col)
-		let s = s:Fit(w, h / n)
+		let s = s:Fit(w, h / n, a:w)
 		if n == 1
 			break
 		endif
