@@ -14,9 +14,9 @@ endfunc
 
 function s:GuideWin(name)
 	let [w, match] = [0, 0]
-	let dir = s:Path(a:name, ':h')
+	let dir = fnamemodify(s:Path(a:name), ':h')
 	for i in range(1, winnr('$'))
-		let f = fnamemodify(bufname(winbufnr(i)), ':p')
+		let f = s:Path(bufname(winbufnr(i)))
 		let [d, f] = [fnamemodify(f, ':h'), fnamemodify(f, ':t')]
 		let n = len(d)
 		if f == 'guide' && n >= match && n <= len(dir) &&
@@ -38,21 +38,14 @@ function s:Sel()
 	return sel
 endfunc
 
-function s:Path(path, ...)
-	if a:path == ''
-		return ''
-	endif
-	let path = simplify(fnamemodify(a:path, ':p'))
-	if a:0 > 0
-		let path = fnamemodify(path, a:1)
-		if path == ''
-			let path = '.'
-		endif
-	endif
-	if isdirectory(path) && path !~ '/$'
-		let path .= '/'
-	endif
-	return path
+function s:Path(name)
+	let path = simplify(fnamemodify(a:name, ':p'))
+	return path !~ '^/*$' ? substitute(path, '/*$', '', '') : path
+endfunc
+
+function s:Name(path)
+	let name = fnamemodify(a:path, ':~:.')
+	return isdirectory(a:path) && name !~ '/$' ? name.'/' : name
 endfunc
 
 function s:FiletypeDetect(w)
@@ -74,7 +67,7 @@ function AcmeStatusTitle()
 	let b = bufnr()
 	let s = get(s:scratch, b, {})
 	let t = s.title != '' ? s.title : s:Jobs(b) == [] ? 'Scratch' : ''
-	return s:Path(s:cwd[b] . '/+' . t, ':~').(t != '' ? ' ' : '')
+	return fnamemodify(s:cwd[b] . '/+' . t, ':~').(t != '' ? ' ' : '')
 endfunc
 
 function AcmeStatusName()
@@ -226,7 +219,7 @@ function s:JobStart(cmd, b, opts, inp)
 endfunc
 
 function s:ErrorLoad(name)
-	let b = bufadd(s:Path(a:name, ':~:.'))
+	let b = bufadd(s:Name(s:Path(a:name)))
 	if !bufloaded(b)
 		call bufload(b)
 		call setbufvar(b, '&bufhidden', 'unload')
@@ -457,9 +450,9 @@ function s:FileOpen(name, pos)
 	if w != 0
 		exe w.'wincmd w'
 	elseif isdirectory(expand('%')) && isdirectory(path)
-		exe 'edit' s:Path(path, ':~:.')
+		exe 'edit' s:Name(path)
 	else
-		call s:New('new '.s:Path(path, ':~:.'))
+		call s:New('new '.s:Name(path))
 	endif
 	if a:pos != ''
 		normal! m'
@@ -981,7 +974,7 @@ endfunc
 
 function s:SetCwd(b, path)
 	if has_key(s:scratch, a:b)
-		let s:cwd[a:b] = a:path
+		let s:cwd[a:b] = s:Path(a:path)
 	endif
 endfunc
 
