@@ -157,11 +157,19 @@ function s:Send(w, inp)
 	if !s:Receiver(b)
 		return
 	endif
-	let inp = split(a:inp, '\n')
-	if !get(s:scratch[b], 'cleared')
-		call win_execute(a:w, 'normal! G' .
-			\ (get(s:scratch[b], 'pty') ? '$' : ''))
+	let inp = a:inp
+	let pty = get(s:scratch[b], 'pty')
+	if pty
+		let [n, l, p] = [0, getline('$'), s:scratch[b].prompt]
+		while p[n] != '' && p[n] == l[n]
+			let n += 1
+		endwhile
+		let inp = l[n:] . inp
 	endif
+	if pty || !get(s:scratch[b], 'cleared')
+		call win_execute(a:w, 'normal! G')
+	endif
+	let inp = split(inp, '\n')
 	let job = s:Jobs(b)[0].h
 	call ch_setoptions(job, {'callback': ''})
 	call ch_sendraw(job, join(inp, "\n")."\n")
@@ -938,18 +946,16 @@ endfunc
 function s:PtyEnter()
 	if getpos('.')[1] != line('$')
 		call feedkeys("\<CR>", 'in')
-		return
+	else
+		call s:Send(win_getid(), '')
 	endif
-	let [n, l, p] = [0, getline('$'), s:scratch[bufnr()].prompt]
-	while p[n] != '' && p[n] == l[n]
-		let n += 1
-	endwhile
-	call s:Send(win_getid(), l[n:])
 endfunc
 
 function s:PtyPw()
 	let pw = inputsecret('PW> ')
-	call s:Send(win_getid(), pw)
+	for job in s:Jobs(bufnr())
+		call ch_sendraw(job.h, pw."\n")
+	endfor
 endfunc
 
 function s:PtyMap()
