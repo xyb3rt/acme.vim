@@ -398,11 +398,11 @@ void cmd_diff(void) {
 
 void cmd_fetch(void) {
 	clear();
-	set("git", "submodule", "-q", "foreach", "--recursive", "indir", "--",
-	    "git", "fetch", "--all", "--prune", "--tags", NULL);
-	run(1);
 	set("git", "fetch", "--all", "--prune", "--tags",
 	    "--no-recurse-submodules", NULL);
+	run(1);
+	set("git", "submodule", "-q", "foreach", "--recursive", "indir", "--",
+	    "git", "fetch", "--all", "--prune", "--tags", NULL);
 	run(1);
 }
 
