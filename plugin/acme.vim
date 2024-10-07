@@ -860,11 +860,11 @@ for n in ['', '2-', '3-', '4-']
 	exe 'nnoremap <silent> <'.n.'RightRelease>'
 		\ ':call <SID>RightRelease(col("."))<CR>'
 endfor
-inoremap <silent> <MiddleMouse> <Esc>:call <SID>MousePress('')<CR>
-inoremap <silent> <MiddleRelease> <Esc>:call <SID>MiddleRelease(col('.'))<CR>
+inoremap <silent> <MiddleMouse> <C-o>:call <SID>MousePress('')<CR>
+inoremap <silent> <MiddleRelease> <C-o>:call <SID>MiddleRelease(col('.'))<CR>
 vnoremap <silent> <MiddleRelease> :<C-u>call <SID>MiddleRelease(-1)<CR>
-inoremap <silent> <RightMouse> <Esc>:call <SID>MousePress('')<CR>
-inoremap <silent> <RightRelease> <Esc>:call <SID>RightRelease(col('.'))<CR>
+inoremap <silent> <RightMouse> <C-o>:call <SID>MousePress('')<CR>
+inoremap <silent> <RightRelease> <C-o>:call <SID>RightRelease(col('.'))<CR>
 vnoremap <silent> <RightRelease> :<C-u>call <SID>RightRelease(-1)<CR>
 
 function s:Clear(b)
