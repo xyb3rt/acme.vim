@@ -115,9 +115,6 @@ function s:RemoveJob(i, status)
 		elseif sig != '' && !job.killed
 			call s:ErrorOpen(name, [toupper(sig).': '.job.cmd])
 		endif
-	elseif get(get(s:scratch, job.buf, {}), 'pty') && mode() == 'i' &&
-		\ (job.buf == bufnr() || s:BufWin(job.buf) == 0)
-		call feedkeys("\<Esc>", 'in')
 	endif
 	if has_key(s:scratch, job.buf)
 		let w = s:BufWin(job.buf)
@@ -973,9 +970,6 @@ function s:Pty(b)
 	endif
 	let s:scratch[a:b].pty = 1
 	call win_execute(w, 'call s:PtyMap()')
-	if bufnr() == a:b && mode() == 'n'
-		call feedkeys('A', 'n')
-	endif
 endfunc
 
 function s:SetCwd(b, path)
