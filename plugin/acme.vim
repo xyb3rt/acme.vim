@@ -157,7 +157,7 @@ function s:Send(w, inp)
 	let inp = a:inp
 	let pty = get(s:scratch[b], 'pty')
 	if pty
-		let [n, l, p] = [0, getline('$'), s:scratch[b].prompt]
+		let [n, l, p] = [0, getbufoneline(b, '$'), s:scratch[b].prompt]
 		while p[n] != '' && p[n] == l[n]
 			let n += 1
 		endwhile
