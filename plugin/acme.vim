@@ -886,6 +886,15 @@ function s:Edit(files, dir, cid)
 	endfor
 endfunc
 
+function s:Scratch(dir, title, cmd)
+	if a:cmd != []
+		call s:ScratchExec(a:cmd, a:dir, '', a:title)
+	else
+		call s:ScratchNew(a:title, a:dir)
+	endif
+	return bufnr()
+endfunc
+
 function s:BufInfo()
 	let p = 0
 	let r = []
@@ -1024,8 +1033,8 @@ function s:CtrlRecv(ch, data)
 		elseif cmd == 'checktime'
 			checktime
 			call s:ReloadDirs()
-		elseif cmd == 'scratch' && len(args) > 2
-			call s:ScratchExec(args[2:], args[0], '', args[1])
+		elseif cmd == 'scratch'
+			call add(resp, s:Scratch(args[0], args[1], args[2:]))
 		elseif cmd == 'bufinfo'
 			let resp += s:BufInfo()
 		elseif cmd == 'save'

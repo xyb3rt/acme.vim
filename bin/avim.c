@@ -14,9 +14,11 @@ struct {
 	{'o', "open"},
 	{'s', "scratch"},
 };
+void (*cb)(avim_strv *);
 struct avim_conn **conns;
 void (*handle)(avim_strv *, size_t);
 int mode;
+const char *response;
 
 void parse(int argc, char *argv[]) {
 	avim_buf opts = vec_new();
@@ -109,6 +111,21 @@ avim_strv msg(const char *cmd, char *argv[], size_t argc) {
 	return msg;
 }
 
+void scratch(avim_strv *resp) {
+	if (vec_len(resp) < 2) {
+		return;
+	}
+	avim_strv cmd = readlines(stdin);
+	char **p = vec_dig(&cmd, 0, 4);
+	p[0] = "change";
+	p[1] = (*resp)[1];
+	p[2] = "1";
+	p[3] = "-1";
+	cb = NULL;
+	response = "change";
+	avim_send(conns[0], (const char **)cmd, vec_len(&cmd));
+}
+
 void request(char *argv[], size_t argc) {
 	vec_push(&conns, avim_connect());
 	avim_strv req = msg(cmds[mode].name, argv, argc);
@@ -118,8 +135,12 @@ void request(char *argv[], size_t argc) {
 		vec_insert(&req, 1, cwd);
 		if (cmds[mode].opt == 's') {
 			vec_insert(&req, 2, "");
+			if (argc == 0) {
+				cb = scratch;
+			}
 		}
 	}
+	response = cmds[mode].name;
 	avim_send(conns[0], (const char **)req, vec_len(&req));
 	free(cwd);
 	vec_free(&req);
@@ -148,8 +169,14 @@ void client(avim_strv *msg, size_t c) {
 		error(EXIT_FAILURE, conns[c]->err, "connection closed");
 	}
 	if (vec_len(msg) > 0 && strncmp((*msg)[0], "resp:", 5) == 0 &&
-	    strcmp(&(*msg)[0][5], cmds[mode].name) == 0) {
-		exit(0);
+	    strcmp(&(*msg)[0][5], response) == 0) {
+		response = NULL;
+		if (cb != NULL) {
+			cb(msg);
+		}
+		if (response == NULL) {
+			exit(0);
+		}
 	}
 }
 
