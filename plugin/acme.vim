@@ -39,7 +39,7 @@ function s:Sel()
 endfunc
 
 function s:Path(name)
-	let path = simplify(fnamemodify(a:name, ':p'))
+	let path = a:name == '' ? '' : simplify(fnamemodify(a:name, ':p'))
 	return path !~ '^/*$' ? substitute(path, '/*$', '', '') : path
 endfunc
 
