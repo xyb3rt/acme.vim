@@ -504,7 +504,10 @@ function s:Dir(...)
 	return dir
 endfunc
 
-function s:OpenFile(name, pos)
+function AcmeOpen(name, pos)
+	if a:name == ''
+		return 0
+	endif
 	let f = a:name =~ '^[~/]' ? a:name : s:plumbdir.'/'.a:name
 	let f = fnamemodify(f, ':p')
 	if isdirectory(f)
@@ -529,7 +532,7 @@ function s:RgOpen(pos)
 		\ 'let s:l = search("\\v^(\\s*(\\d+[-:]|\\-\\-$))@!", "bnW")')
 	let f = getbufoneline(winbufnr(s:plumbwin), s:l)
 	if f != ''
-		return s:OpenFile(f, a:pos)
+		return AcmeOpen(f, a:pos)
 	endif
 endfunc
 
@@ -555,9 +558,9 @@ endfunc
 
 let s:plumbing = [
 	\ ['(\f+)%(%([:](%([0-9]+)|%([/?].+)))|%(\(([0-9]+)\)))',
-		\ {m -> s:OpenFile(m[1], m[2] != '' ? m[2] : m[3])}],
-	\ ['[Ff]ile "([^"]+)", line (\d+)', {m -> s:OpenFile(m[1], m[2])}],
-	\ ['\f+', {m -> s:OpenFile(m[0], '')}],
+		\ {m -> AcmeOpen(m[1], m[2] != '' ? m[2] : m[3])}],
+	\ ['[Ff]ile "([^"]+)", line (\d+)', {m -> AcmeOpen(m[1], m[2])}],
+	\ ['\f+', {m -> AcmeOpen(m[0], '')}],
 	\ ['^\s*(\d+)[-:]', {m -> s:RgOpen(m[1])}]]
 
 function s:Open(text, click, dir, win)
