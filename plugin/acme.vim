@@ -105,20 +105,19 @@ endfunc
 function s:RemoveJob(i, status)
 	let job = remove(s:jobs, a:i)
 	redrawstatus!
-	let name = bufname(job.buf)
-	if fnamemodify(name, ':t') == '+Errors'
+	if has_key(s:scratch, job.buf)
+		let w = s:BufWin(job.buf)
+		call s:FiletypeDetect(win_getid(w))
+	else
 		checktime
 		call s:ReloadDirs()
 		let sig = job_info(job.h).termsig
 		if a:status == 0
 			echo 'Done:' job.cmd
 		elseif sig != '' && !job.killed
+			let name = bufname(ch_getbufnr(job.h, 'out'))
 			call s:ErrorOpen(name, [toupper(sig).': '.job.cmd])
 		endif
-	endif
-	if has_key(s:scratch, job.buf)
-		let w = s:BufWin(job.buf)
-		call s:FiletypeDetect(win_getid(w))
 	endif
 endfunc
 
@@ -196,10 +195,10 @@ function s:Argv(cmd)
 	return type(a:cmd) == type([]) ? a:cmd : [&shell, &shellcmdflag, a:cmd]
 endfunc
 
-function s:JobStart(cmd, b, opts, inp)
+function s:JobStart(cmd, outb, ctxb, opts, inp)
 	let opts = {
 		\ 'env': {
-			\ 'ACMEVIMBUF': a:b,
+			\ 'ACMEVIMBUF': a:outb,
 			\ 'ACMEVIMDIR': s:Dir(),
 			\ 'ACMEVIMFILE': &buftype == '' ? expand('%:t') : '',
 			\ 'COLUMNS': 80,
@@ -208,7 +207,7 @@ function s:JobStart(cmd, b, opts, inp)
 		\ 'exit_cb': 's:Exited',
 		\ 'err_io': 'out',
 		\ 'out_io': 'buffer',
-		\ 'out_buf': a:b,
+		\ 'out_buf': a:outb,
 		\ 'out_msg': 0,
 	\ }
 	call extend(opts, a:opts)
@@ -216,7 +215,7 @@ function s:JobStart(cmd, b, opts, inp)
 	if job_status(job) == "fail"
 		return
 	endif
-	call s:Started(job, a:b, a:cmd)
+	call s:Started(job, s:BufWin(a:outb) != 0 ? a:outb : a:ctxb, a:cmd)
 	if a:inp != ''
 		call ch_sendraw(job, a:inp)
 		call ch_close_in(job)
@@ -245,7 +244,13 @@ function s:ErrorOpen(name, ...)
 			\ ? [w, '', '>']
 			\ : [winnr('$'), 'bel', '=']
 		exe w.'wincmd w'
-		exe mode s:SplitSize(10, d).'sp | b '.s:ErrorLoad(a:name)
+		let b = s:ErrorLoad(a:name)
+		for job in s:jobs
+			if ch_getbufnr(job.h, 'out') == b && job.buf != b
+				let job.buf = b
+			endif
+		endfor
+		exe mode s:SplitSize(10, d).'sp | b '.b
 	endif
 	if a:0 == 0
 	elseif line('$') == 1 && getline(1) == ''
@@ -264,7 +269,7 @@ function s:ErrorCb(b, ch, msg)
 	call ch_setoptions(a:ch, {'callback': ''})
 endfunc
 
-function s:ErrorExec(cmd, dir, inp)
+function s:ErrorExec(cmd, dir, b, inp)
 	let name = '+Errors'
 	let opts = {'in_io': (a:inp != '' ? 'pipe' : 'null')}
 	if a:dir != ''
@@ -274,7 +279,7 @@ function s:ErrorExec(cmd, dir, inp)
 	silent! wall
 	let b = s:ErrorLoad(name)
 	let opts.callback = function('s:ErrorCb', [b])
-	call s:JobStart(a:cmd, b, opts, a:inp)
+	call s:JobStart(a:cmd, b, a:b, opts, a:inp)
 endfunc
 
 function s:System(cmd, dir, inp)
@@ -303,7 +308,7 @@ function s:ParseCmd(cmd)
 	return [cmd, io]
 endfunc
 
-function s:Run(cmd, dir, vis)
+function s:Run(cmd, dir, b, vis)
 	let [cmd, io] = s:ParseCmd(a:cmd)
 	if cmd == ''
 		return
@@ -322,7 +327,7 @@ function s:Run(cmd, dir, vis)
 	elseif io =~ '\^'
 		call s:ScratchExec(cmd, a:dir, sel[0], '')
 	else
-		call s:ErrorExec(cmd, a:dir, sel[0])
+		call s:ErrorExec(cmd, a:dir, a:b, sel[0])
 	endif
 endfunc
 
@@ -332,7 +337,7 @@ function s:ShComplete(arg, line, pos)
 endfunc
 
 command -nargs=1 -complete=customlist,s:ShComplete -range R
-	\ call s:Run(<q-args>, s:Dir(), 0)
+	\ call s:Run(<q-args>, s:Dir(), bufnr(), 0)
 
 function s:ScratchNew(title, dir)
 	let buf = ''
@@ -373,7 +378,7 @@ function s:ScratchExec(cmd, dir, inp, title)
 	if a:dir != ''
 		let opts.cwd = a:dir
 	endif
-	call s:JobStart(a:cmd, b, opts, a:inp)
+	call s:JobStart(a:cmd, b, b, opts, a:inp)
 endfunc
 
 function s:Exec(cmd)
@@ -589,7 +594,6 @@ function s:InsComplete(findstart, base)
 		endwhile
 		return pos
 	else
-		let g:base = a:base
 		return s:FileComplete(a:base, line, pos)
 	endif
 endfunc
@@ -799,7 +803,7 @@ function s:MiddleRelease(click)
 		endif
 		call s:Send(w, cmd)
 	else
-		call s:Run(cmd, dir, vis)
+		call s:Run(cmd, dir, b, vis)
 	endif
 endfunc
 
