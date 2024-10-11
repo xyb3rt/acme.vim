@@ -350,7 +350,7 @@ void cmd_branch(void) {
 
 void cmd_cd(void) {
 	set("cd", NULL);
-	hint("< >", NULL);
+	hint(NULL);
 	show(list_dirs);
 	enum reply reply = get();
 	clear();
