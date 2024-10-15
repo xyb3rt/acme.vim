@@ -17,6 +17,7 @@ struct {
 void (*cb)(avim_strv *);
 struct avim_conn **conns;
 void (*handle)(avim_strv *, size_t);
+avim_strv input;
 int mode;
 const char *response;
 
@@ -115,15 +116,14 @@ void scratch(avim_strv *resp) {
 	if (vec_len(resp) < 2) {
 		return;
 	}
-	avim_strv cmd = readlines(stdin);
-	char **p = vec_dig(&cmd, 0, 4);
+	char **p = vec_dig(&input, 0, 4);
 	p[0] = "change";
 	p[1] = (*resp)[1];
 	p[2] = "1";
 	p[3] = "-1";
 	cb = NULL;
 	response = "change";
-	avim_send(conns[0], (const char **)cmd, vec_len(&cmd));
+	avim_send(conns[0], (const char **)input, vec_len(&input));
 }
 
 void request(char *argv[], size_t argc) {
@@ -137,6 +137,7 @@ void request(char *argv[], size_t argc) {
 			vec_insert(&req, 2, "");
 			if (argc == 0) {
 				cb = scratch;
+				input = readlines(stdin);
 			}
 		}
 	}
@@ -199,6 +200,7 @@ void process(size_t c) {
 int main(int argc, char *argv[]) {
 	argv0 = argv[0];
 	conns = vec_new();
+	input = vec_new();
 	int listenfd = -1;
 	if (argc == 1) {
 		handle = server;
