@@ -402,7 +402,8 @@ void cmd_fetch(void) {
 	    "--no-recurse-submodules", NULL);
 	run(1);
 	set("git", "submodule", "-q", "foreach", "--recursive", "indir", "--",
-	    "git", "fetch", "--all", "--prune", "--tags", NULL);
+	    "git", "fetch", "--all", "--prune", "--tags",
+	    "--no-recurse-submodules", NULL);
 	run(1);
 }
 
