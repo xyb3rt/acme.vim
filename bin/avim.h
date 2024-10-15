@@ -15,37 +15,36 @@ struct avim_conn {
 	int err;
 	int rxfd, txfd;
 	avim_buf rx, tx;
+	size_t rxend, rxpos;
 };
 
-avim_strv avim_parse(avim_buf *buf, size_t *pos) {
+avim_strv avim_parse(struct avim_conn *conn) {
 	int field = 1;
 	avim_strv msg = (avim_strv)vec_new();
-	for (size_t i = *pos, n = vec_len(buf); i < n; i++) {
+	for (size_t i = conn->rxpos; i < conn->rxend; i++) {
 		if (field) {
-			vec_push(&msg, &(*buf)[i]);
+			vec_push(&msg, &conn->rx[i]);
+			field = 0;
 		}
-		if ((*buf)[i] == '\x1e') {
-			(*buf)[i] = '\0';
-			*pos = i + 1;
+		if (conn->rx[i] == '\x1e') {
+			conn->rx[i] = '\0';
+			conn->rxpos = i + 1;
 			return msg;
+		} else if (conn->rx[i] == '\x1f') {
+			conn->rx[i] = '\0';
+			field = 1;
 		}
-		/*
-		 * The field separators get replaced with null bytes, so that
-		 * the strings returned in *f* are terminated. If the message
-		 * is incomplete, it is parsed again. It is therefore necessary
-		 * to always split on the null bytes.
-		 */
-		if ((*buf)[i] == '\x1f') {
-			(*buf)[i] = '\0';
-		}
-		field = (*buf)[i] == '\0';
 	}
 	vec_free(&msg);
 	return NULL;
 }
 
-void avim_pop(avim_buf *buf, size_t len) {
-	vec_erase(buf, 0, len);
+void avim_pop(struct avim_conn *conn) {
+	if (conn->rxpos > 0) {
+		vec_erase(&conn->rx, 0, conn->rxpos);
+		conn->rxend -= conn->rxpos;
+		conn->rxpos = 0;
+	}
 }
 
 void avim_pushn(avim_buf *buf, const char *s, size_t len) {
@@ -76,6 +75,8 @@ struct avim_conn *avim_create(int rxfd, int txfd) {
 	conn->txfd = txfd;
 	conn->rx = (avim_buf)vec_new();
 	conn->tx = (avim_buf)vec_new();
+	conn->rxend = 0;
+	conn->rxpos = 0;
 	return conn;
 }
 
@@ -128,6 +129,12 @@ loop:	ssize_t n = read(conn->rxfd, buf, ARRLEN(buf));
 		goto loop;
 	}
 	if (n > 0) {
+		for (size_t i = n; i > 0; i--) {
+			if (buf[i - 1] == '\x1e') {
+				conn->rxend = vec_len(&conn->rx) + i;
+				break;
+			}
+		}
 		avim_pushn(&conn->rx, buf, n);
 	} else if (n == 0 || errno != EAGAIN) {
 		avim_close(conn, n == -1 ? errno : 0);
@@ -140,7 +147,7 @@ loop:	ssize_t n = write(conn->txfd, conn->tx, vec_len(&conn->tx));
 		goto loop;
 	}
 	if (n != -1) {
-		avim_pop(&conn->tx, n);
+		vec_erase(&conn->tx, 0, n);
 	} else if (errno != EAGAIN) {
 		avim_close(conn, errno);
 	}

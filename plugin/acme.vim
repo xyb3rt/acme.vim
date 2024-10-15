@@ -1003,13 +1003,14 @@ function s:BufNr(b)
 endfunc
 
 function s:CtrlRecv(ch, data)
+	let len = strridx(a:data, "\x1e")
+	let len += len == -1 ? 0 : len(s:ctrlrx)
 	let s:ctrlrx .= a:data
-	let end = strridx(s:ctrlrx, "\x1e")
-	if end == -1
+	if len == -1
 		return
 	endif
-	let msgs = strpart(s:ctrlrx, 0, end)
-	let s:ctrlrx = strpart(s:ctrlrx, end + 1)
+	let msgs = strpart(s:ctrlrx, 0, len)
+	let s:ctrlrx = strpart(s:ctrlrx, len + 1)
 	let msgs = map(split(msgs, "\x1e", 1), 'split(v:val, "\x1f", 1)')
 	for msg in msgs
 		if len(msg) < 2

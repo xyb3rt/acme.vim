@@ -155,18 +155,15 @@ void client(avim_strv *msg, size_t c) {
 
 void process(size_t c) {
 	struct avim_conn *conn = conns[c];
-	size_t pos = 0;
 	for (;;) {
-		avim_strv msg = avim_parse(&conn->rx, &pos);
+		avim_strv msg = avim_parse(conn);
 		if (msg == NULL) {
 			break;
 		}
 		handle(&msg, c);
 		vec_free(&msg);
 	}
-	if (pos > 0) {
-		avim_pop(&conn->rx, pos);
-	}
+	avim_pop(conn);
 }
 
 int main(int argc, char *argv[]) {
