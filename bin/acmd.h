@@ -17,10 +17,9 @@ int process(const char *cmd, msg_cb *cb) {
 	if (conn->rxfd == -1) {
 		error(EXIT_FAILURE, conn->err, "connection closed");
 	}
-	size_t pos = 0;
 	int responded = 0;
 	for (;;) {
-		avim_strv msg = avim_parse(&conn->rx, &pos);
+		avim_strv msg = avim_parse(conn);
 		if (msg == NULL) {
 			break;
 		}
@@ -33,9 +32,7 @@ int process(const char *cmd, msg_cb *cb) {
 		}
 		vec_free(&msg);
 	}
-	if (pos > 0) {
-		avim_pop(&conn->rx, pos);
-	}
+	avim_pop(conn);
 	return responded;
 }
 
