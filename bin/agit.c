@@ -12,62 +12,11 @@ enum reply {
 
 typedef void list_func(void);
 
-cmd_func cmd_add;
-cmd_func cmd_branch;
-cmd_func cmd_cd;
-cmd_func cmd_clean;
-cmd_func cmd_commit;
-cmd_func cmd_config;
-cmd_func cmd_diff;
-cmd_func cmd_fetch;
-cmd_func cmd_graph;
-cmd_func cmd_log;
-cmd_func cmd_merge;
-cmd_func cmd_pick;
-cmd_func cmd_push;
-cmd_func cmd_rebase;
-cmd_func cmd_reset;
-cmd_func cmd_restore;
-cmd_func cmd_revert;
-cmd_func cmd_rm;
-cmd_func cmd_show_branch;
-cmd_func cmd_stash;
-cmd_func cmd_submodule;
-cmd_func cmd_switch;
-cmd_func cmd_tag;
-
-struct cmd cmds[] = {
-	{"log", cmd_log},
-	{"graph", cmd_graph},
-	{"show-", cmd_show_branch},
-	{"branch", cmd_branch},
-	{"switch", cmd_switch},
-	{"tag", cmd_tag},
-	{"cd", cmd_cd},
-	{"module", cmd_submodule},
-	{"fetch", cmd_fetch},
-	{"push", cmd_push},
-	{"config", cmd_config},
-	{">\n<"},
-	{"diff", cmd_diff},
-	{"add", cmd_add},
-	{"restore", cmd_restore},
-	{"commit", cmd_commit},
-	{"stash", cmd_stash},
-	{"merge", cmd_merge},
-	{"rebase", cmd_rebase},
-	{"pick", cmd_pick},
-	{"revert", cmd_revert},
-	{"reset", cmd_reset},
-	{"clean", cmd_clean},
-	{"rm", cmd_rm},
-	{NULL}
-};
-
 struct {
 	size_t fixed;
 	avim_strv v;
 } cmd;
+struct cmd *cmds;
 int devnull;
 const char **hints;
 struct {
@@ -216,8 +165,11 @@ void status(void) {
 	}
 }
 
+void mkcmds(void);
+
 int main(int argc, char *argv[]) {
 	init(argv[0]);
+	mkcmds();
 	cmd.v = vec_new();
 	hints = vec_new();
 	devnull = open("/dev/null", O_RDWR);
@@ -530,4 +482,35 @@ void cmd_tag(void) {
 	if (add(list_tags)) {
 		run(1);
 	}
+}
+
+void mkcmds(void) {
+	static struct cmd menu[] = {
+		{"log", cmd_log},
+		{"graph", cmd_graph},
+		{"show-", cmd_show_branch},
+		{"branch", cmd_branch},
+		{"switch", cmd_switch},
+		{"tag", cmd_tag},
+		{"cd", cmd_cd},
+		{"module", cmd_submodule},
+		{"fetch", cmd_fetch},
+		{"push", cmd_push},
+		{"config", cmd_config},
+		{">\n<"},
+		{"diff", cmd_diff},
+		{"add", cmd_add},
+		{"restore", cmd_restore},
+		{"commit", cmd_commit},
+		{"stash", cmd_stash},
+		{"merge", cmd_merge},
+		{"rebase", cmd_rebase},
+		{"pick", cmd_pick},
+		{"revert", cmd_revert},
+		{"reset", cmd_reset},
+		{"clean", cmd_clean},
+		{"rm", cmd_rm},
+		{NULL}
+	};
+	cmds = menu;
 }
