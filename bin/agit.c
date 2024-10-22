@@ -198,17 +198,24 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-void list_branches(void) {
-	system("git branch --all --format='%(objectname) %(refname)' "
-		"--sort=-authordate --sort=-committerdate | awk '{"
-			"s = !l ? \"\" : $1 == l ? \" \" : \"\\n\";"
-			"l = $1;"
-			"sub(/^[^ ]* /, \"\");"
-			"sub(/^refs\\/(heads|remotes)\\//, \"\");"
-			"printf(\"%s%s\", s, $0);"
-		"} END {"
-			"printf(\"\\n\");"
+#define LIST_BRANCHES(flags, refmod) \
+	system("git branch " flags " " \
+		"--format='%(objectname) %(refname" refmod ")' " \
+		"--sort=-authordate --sort=-committerdate | awk '{" \
+			"s = !l ? \"\" : $1 == l ? \" \" : \"\\n\";" \
+			"l = $1;" \
+			"sub(/^[^ ]* /, \"\");" \
+			"printf(\"%s%s\", s, $0);" \
+		"} END {" \
+			"printf(\"\\n\");" \
 		"}'");
+
+void list_branches(void) {
+	LIST_BRANCHES("--all", ":short")
+}
+
+void list_refs(void) {
+	LIST_BRANCHES("", "")
 }
 
 void list_clean(void) {
@@ -482,6 +489,14 @@ void cmd_switch(void) {
 	}
 }
 
+void cmd_symref(void) {
+	set("git", "symbolic-ref", NULL);
+	opt("HEAD");
+	if (add(list_refs)) {
+		run(1);
+	}
+}
+
 void cmd_tag(void) {
 	set("git", "tag", NULL);
 	hint("< --annotate --delete >", NULL);
@@ -497,6 +512,7 @@ void mkcmds(void) {
 		{"show-", cmd_show_branch},
 		{"branch", cmd_branch},
 		{"switch", cmd_switch},
+		{"symref", cmd_symref},
 		{"tag", cmd_tag},
 		{"cd", cmd_cd},
 		{"module", cmd_submodule},
