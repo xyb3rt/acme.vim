@@ -225,6 +225,11 @@ void list_dirs(void) {
 		"| sort");
 }
 
+void list_files(void) {
+	const char *cmd[] = {"ls", NULL};
+	call((char **)cmd, NULL);
+}
+
 void list_local_branches(void) {
 	const char *cmd[] = {"git", "branch", "--format=%(refname:short)",
 	                     "--sort=-authordate", "--sort=-committerdate",
@@ -440,7 +445,7 @@ void cmd_revert(void) {
 void cmd_rm(void) {
 	set("git", "rm", NULL);
 	hint("< --dry-run -r >", NULL);
-	if (add(NULL)) {
+	if (add(list_files)) {
 		run(devnull);
 	}
 }
