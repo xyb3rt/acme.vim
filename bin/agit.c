@@ -212,9 +212,10 @@ void list_branches(void) {
 }
 
 void list_clean(void) {
-	vec_push(&cmd.v, "--dry-run");
+	*vec_dig(&cmd.v, 2, 1) = "--dry-run";
 	run(1);
-	vec_erase(&cmd.v, vec_len(&cmd.v) - 2, 2);
+	vec_erase(&cmd.v, 2, 1);
+	vec_erase(&cmd.v, vec_len(&cmd.v) - 1, 1);
 	prompt.l2 = -1;
 }
 
