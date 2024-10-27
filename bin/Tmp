@@ -1,0 +1,9 @@
+#!/bin/sh -e
+tmp="$(mktemp)"
+cleanup() {
+	rm -f "$tmp"
+}
+. trap.sh
+cat >"$tmp"
+echo "$tmp"
+while :; do sleep 86400; done
