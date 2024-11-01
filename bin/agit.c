@@ -226,12 +226,6 @@ void list_clean(void) {
 	prompt.l2 = -1;
 }
 
-void list_dirs(void) {
-	system("rg --files -g .git --hidden --no-ignore"
-		"| sed -n -e 's,^\\./,,' -e 's,/\\.git$,,p'"
-		"| sort");
-}
-
 void list_files(void) {
 	const char *cmd[] = {"ls", NULL};
 	call((char **)cmd, NULL);
@@ -310,22 +304,6 @@ void cmd_branch(void) {
 	hint("< --copy --delete --move --force --set-upstream-to >", NULL);
 	if (add(list_branches)) {
 		run(1);
-	}
-}
-
-void cmd_cd(void) {
-	set("cd", NULL);
-	hint(NULL);
-	show(list_dirs);
-	enum reply reply = get();
-	clear();
-	if (reply == SELECT && isdir(buf.d)) {
-		setscratch("", "");
-		free(cmd.v[1]);
-		free(cmd.v[3]);
-		cmd.v[1] = buf.d[0] == '/' ? xstrdup(buf.d) :
-		           xasprintf("%s/%s", cwd, buf.d);
-		cmd.v[3] = xstrdup(argv0);
 	}
 }
 
@@ -514,7 +492,6 @@ void mkcmds(void) {
 		{"switch", cmd_switch},
 		{"symref", cmd_symref},
 		{"tag", cmd_tag},
-		{"cd", cmd_cd},
 		{"module", cmd_submodule},
 		{"fetch", cmd_fetch},
 		{"push", cmd_push},

@@ -102,11 +102,6 @@ static char *indir(const char *path, const char *dir) {
 	return NULL;
 }
 
-static int isdir(const char *path) {
-	struct stat st;
-	return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
-}
-
 static int call(char *const argv[], int fds[3]) {
         int status = 0;
         pid_t pid = fork();
