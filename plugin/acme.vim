@@ -63,6 +63,10 @@ function s:Jobs(p)
 		\ : 'v:val.cmd =~ a:p')
 endfunc
 
+function AcmeStatusBox()
+	return &modified ? "\u2593" : "\u2591"
+endfunc
+
 function AcmeStatusTitle()
 	let b = bufnr()
 	let s = get(s:scratch, b, {})
@@ -81,7 +85,7 @@ function AcmeStatusName()
 endfunc
 
 function AcmeStatusFlags()
-	return '%h'.(&modified ? '%m' : '').'%r'
+	return '%h%r'
 endfunc
 
 function AcmeStatusJobs()
@@ -1097,8 +1101,8 @@ endif
 
 set completefunc=s:InsComplete
 
-let &statusline = "\u2592%<%{%AcmeStatusName()%}%{%AcmeStatusFlags()%}"
-	\ . "%{AcmeStatusJobs()}%=%{%AcmeStatusRuler()%}"
+let &statusline = '%{AcmeStatusBox()}%<%{%AcmeStatusName()%}' .
+	\ '%{%AcmeStatusFlags()%}%{AcmeStatusJobs()}%=%{%AcmeStatusRuler()%}'
 
 let s:ctrlexe = exepath(expand('<sfile>:p:h:h').'/bin/avim')
 let s:ctrlrx = ''
