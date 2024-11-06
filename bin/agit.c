@@ -461,7 +461,7 @@ void cmd_submodule(void) {
 
 void cmd_switch(void) {
 	set("git", "switch", NULL);
-	hint("< --create --recurse-submodules >", NULL);
+	hint("< --create --detach --recurse-submodules >", NULL);
 	if (add(list_branches)) {
 		run(devnull);
 	}
