@@ -670,7 +670,7 @@ function s:MoveWin(w, other, below)
 		let v = winsaveview()
 		let vars = getwinvar(0, '&')
 		noa exe win_id2win(a:other).'wincmd w'
-		let h = s:SplitSize(winheight(a:w), '<')
+		let h = s:SplitSize(1, '>')
 		noa exe (a:below ? 'bel' : 'abo') h.'sp'
 		noa exe 'b' winbufnr(a:w)
 		call winrestview(v)
