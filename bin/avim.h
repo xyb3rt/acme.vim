@@ -153,33 +153,35 @@ loop:	ssize_t n = write(conn->txfd, conn->tx, vec_len(&conn->tx));
 	}
 }
 
-int avim_sync(struct avim_conn **conns, size_t count, int listenfd) {
-	int nfds = 0;
+void avim_sync(struct avim_conn **conns, size_t nconn, int *fd, size_t nfd) {
+	int maxfd = 0;
 	fd_set readfds, writefds;
 	FD_ZERO(&readfds);
 	FD_ZERO(&writefds);
-	if (listenfd != -1) {
-		FD_SET(listenfd, &readfds);
-		nfds = listenfd + 1;
-	}
-	for (size_t i = 0; i < count; i++) {
+	for (size_t i = 0; i < nconn; i++) {
 		FD_SET(conns[i]->rxfd, &readfds);
-		if (nfds <= conns[i]->rxfd) {
-			nfds = conns[i]->rxfd + 1;
+		if (maxfd <= conns[i]->rxfd) {
+			maxfd = conns[i]->rxfd + 1;
 		}
 		if (vec_len(&conns[i]->tx) > 0) {
 			FD_SET(conns[i]->txfd, &writefds);
-			if (nfds <= conns[i]->txfd) {
-				nfds = conns[i]->txfd + 1;
+			if (maxfd <= conns[i]->txfd) {
+				maxfd = conns[i]->txfd + 1;
 			}
 		}
 	}
-	while (select(nfds, &readfds, &writefds, NULL, NULL) == -1) {
+	for (size_t i = 0; i < nfd; i++) {
+		FD_SET(fd[i], &readfds);
+		if (maxfd <= fd[i]) {
+			maxfd = fd[i] + 1;
+		}
+	}
+	while (select(maxfd, &readfds, &writefds, NULL, NULL) == -1) {
 		if (errno != EINTR) {
 			error(EXIT_FAILURE, errno, "select");
 		}
 	}
-	for (size_t i = 0; i < count; i++) {
+	for (size_t i = 0; i < nconn; i++) {
 		if (FD_ISSET(conns[i]->txfd, &writefds)) {
 			avim_tx(conns[i]);
 		}
@@ -187,5 +189,9 @@ int avim_sync(struct avim_conn **conns, size_t count, int listenfd) {
 			avim_rx(conns[i]);
 		}
 	}
-	return listenfd != -1 && FD_ISSET(listenfd, &readfds);
+	for (size_t i = 0; i < nfd; i++) {
+		if (!FD_ISSET(fd[i], &readfds)) {
+			fd[i] = -1;
+		}
+	}
 }

@@ -181,7 +181,9 @@ int main(int argc, char *argv[]) {
 		request(&argv[optind], argc - optind);
 	}
 	for (;;) {
-		if (avim_sync(conns, vec_len(&conns), listenfd)) {
+		int fd = listenfd;
+		avim_sync(conns, vec_len(&conns), &fd, 1);
+		if (fd != -1) {
 			acceptconn(listenfd);
 		}
 		size_t c = 0;

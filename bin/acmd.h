@@ -39,7 +39,7 @@ int process(const char *cmd, msg_cb *cb) {
 void request(const char **argv, size_t argc, msg_cb *cb) {
 	avim_send(conn, argv, argc);
 	do {
-		avim_sync(&conn, 1, -1);
+		avim_sync(&conn, 1, NULL, 0);
 	} while (!process(argv[0], cb));
 }
 
