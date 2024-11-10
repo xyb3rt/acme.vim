@@ -1,5 +1,7 @@
 #include "avim.h"
 #include <fcntl.h>
+#include <limits.h>
+#include <sys/inotify.h>
 
 struct {
 	int opt;
@@ -17,6 +19,7 @@ struct {
 struct avim_conn **conns;
 void (*handle)(avim_strv *, size_t);
 int mode;
+char *themelink;
 
 void parse(int argc, char *argv[]) {
 	avim_buf opts = vec_new();
@@ -99,6 +102,55 @@ void closeconn(size_t c) {
 	vec_erase(&conns, c, 1);
 }
 
+int watchtheme() {
+	const char *dir = getenv("XYTERMCACHE");
+	if (dir == NULL) {
+		return -1;
+	}
+	themelink = xasprintf("%s/theme", dir);
+	if (themelink == NULL) {
+		error(0, errno, "xasprintf");
+		return -1;
+	}
+	int fd = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
+	if (fd == -1) {
+		error(0, errno, "inotify_init");
+		return -1;
+	}
+	int watchfd = inotify_add_watch(fd, dir, IN_CREATE);
+	if (watchfd == -1) {
+		error(0, errno, "inotify_add_watch");
+		close(fd);
+		fd = -1;
+	}
+	return fd;
+}
+
+void settheme(int *fd) {
+	static char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
+	for (;;) {
+		if (read(*fd, buf, sizeof(buf)) == -1) {
+			if (errno == EAGAIN) {
+				break;
+			} else if (errno == EINTR) {
+				continue;
+			}
+			error(0, errno, "inotify read");
+			close(*fd);
+			*fd = -1;
+			return;
+		}
+	}
+	ssize_t n = readlink(themelink, buf, sizeof(buf) - 1);
+	if (n > 0) {
+		buf[n] = '\0';
+		if (strcmp(buf, "dark") == 0 || strcmp(buf, "light") == 0) {
+			const char *msg[] = {"", "theme", buf};
+			avim_send(conns[0], msg, ARRLEN(msg));
+		}
+	}
+}
+
 avim_strv msg(const char *cmd, char *argv[], size_t argc) {
 	avim_strv msg = vec_new();
 	char **p = vec_dig(&msg, 0, argc + 1);
@@ -170,9 +222,11 @@ int main(int argc, char *argv[]) {
 	argv0 = argv[0];
 	conns = vec_new();
 	int listenfd = -1;
+	int watchfd = -1;
 	if (argc == 1) {
 		handle = server;
 		listenfd = startlisten();
+		watchfd = watchtheme();
 		struct avim_conn *vim = newconn(0, 1);
 		sendport(vim, sockport(listenfd));
 	} else {
@@ -181,10 +235,13 @@ int main(int argc, char *argv[]) {
 		request(&argv[optind], argc - optind);
 	}
 	for (;;) {
-		int fd = listenfd;
-		avim_sync(conns, vec_len(&conns), &fd, 1);
-		if (fd != -1) {
+		int fd[2] = {listenfd, watchfd};
+		avim_sync(conns, vec_len(&conns), fd, 1 + (watchfd != -1));
+		if (fd[0] != -1) {
 			acceptconn(listenfd);
+		}
+		if (fd[1] != -1) {
+			settheme(&watchfd);
 		}
 		size_t c = 0;
 		while (c < vec_len(&conns)) {
