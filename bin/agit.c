@@ -158,11 +158,24 @@ int add(list_func *ls) {
 	return reply == CONFIRM;
 }
 
+void gitdir(void) {
+	while (access(".git", F_OK) == -1) {
+		if (strcmp(cwd, "/") == 0) {
+			error(EXIT_FAILURE, 0, "No git dir");
+		}
+		if (chdir("..") == -1) {
+			error(EXIT_FAILURE, errno, "chdir");
+		}
+		free(cwd);
+		cwd = xgetcwd();
+	}
+	const char *cmd[] = {"cwd", avimbuf, cwd};
+	request(cmd, ARRLEN(cmd), NULL);
+}
+
 void status(void) {
 	const char *cmd[] = {"git", "status", "-sb", NULL};
-	if (call((char **)cmd, NULL) != 0) {
-		exit(EXIT_FAILURE);
-	}
+	call((char **)cmd, NULL);
 }
 
 void mkcmds(void);
@@ -176,6 +189,7 @@ int main(int argc, char *argv[]) {
 	if (devnull == -1) {
 		error(EXIT_FAILURE, errno, "/dev/null");
 	}
+	gitdir();
 	for (;;) {
 		prompt.l1 = -3;
 		prompt.l2 = -1;
