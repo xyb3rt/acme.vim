@@ -111,9 +111,9 @@ void input(void) {
 
 void init(const char *av0) {
 	argv0 = av0;
-	avimbuf = getenv("ACMEVIMBUF");
+	avimbuf = getenv("ACMEVIMOUTBUF");
 	if (avimbuf == NULL || avimbuf[0] == '\0') {
-		error(EXIT_FAILURE, EINVAL, "ACMEVIMBUF");
+		error(EXIT_FAILURE, EINVAL, "ACMEVIMOUTBUF");
 	}
 	conn = avim_connect();
 	cwd = xgetcwd();

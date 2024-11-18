@@ -1,2 +1,2 @@
 #!/bin/sh
-exec avim -c 0
+exec avim -c "$ACMEVIMBUF"

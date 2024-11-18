@@ -202,9 +202,11 @@ endfunc
 function s:JobStart(cmd, outb, ctxb, opts, inp)
 	let opts = {
 		\ 'env': {
-			\ 'ACMEVIMBUF': a:outb,
+			\ 'ACMEVIMBUF': bufnr(),
 			\ 'ACMEVIMDIR': s:Dir(),
 			\ 'ACMEVIMFILE': &buftype == '' ? expand('%:t') : '',
+			\ 'ACMEVIMOUTBUF': a:outb,
+			\ 'ACMEVIMOUTDIR': get(a:opts, 'cwd', getcwd()),
 			\ 'COLUMNS': 80,
 			\ 'LINES': 24,
 		\ },
