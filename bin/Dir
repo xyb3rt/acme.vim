@@ -3,6 +3,7 @@ case "$1" in
 /*) ACMEVIMDIR="$1" ;;
 ?*) ACMEVIMDIR="$ACMEVIMDIR/$1" ;;
 esac
+[ -d "$ACMEVIMDIR" ] || ACMEVIMDIR="$(dirname "$ACMEVIMDIR")"
 [ -d "$ACMEVIMDIR" ]
 if [ "${0##*/}" = "Dir" ]; then
 	[ -n "$1" -o "$ACMEVIMFILE" = guide ] && ACMEVIMFILE=''
