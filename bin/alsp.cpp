@@ -161,7 +161,7 @@ void handle(const QJsonObject &msg) {
 		// response
 		QString error = get(msg, {"error", "message"}).toString();
 		if (!error.isEmpty()) {
-			printf("Error: %s\n", error.toUtf8().data());
+			fprintf(stderr, "Error: %s\n", error.toUtf8().data());
 		}
 		unsigned int id = msg.value("id").toInt();
 		if (requests.contains(id)) {
@@ -497,6 +497,7 @@ void spawn(char *argv[]) {
 	fcntl(rx.fd, F_SETFL, flags | O_NONBLOCK);
 	send(newreq("initialize", QJsonObject{
 		{"processId", getpid()},
+		{"rootUri", QUrl::fromLocalFile(cwd).toString()},
 		{"capabilities", capabilities()},
 	}, initialized));
 	inithandlers();
