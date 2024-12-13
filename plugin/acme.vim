@@ -899,23 +899,16 @@ function s:Edit(files, dir, cid)
 	endfor
 endfunc
 
+function s:WinInfo(w)
+	let b = winbufnr(a:w)
+	return [getbufvar(b, '&buftype', '') != '' ? '' :
+		\ fnamemodify(bufname(b), ':p'), line('.', a:w),
+		\ col('.', a:w), line("'<", a:w), line("'>", a:w)]
+endfunc
+
 function s:BufInfo()
-	let p = 0
-	let r = []
-	for i in range(1, winnr('$'))
-		let w = win_getid(i)
-		let b = winbufnr(w)
-		if getbufvar(b, '&buftype', '') == ''
-			let l = [fnamemodify(bufname(b), ':p'), line('.', w),
-				\ col('.', w), line("'<", w), line("'>", w)]
-			call extend(r, l, i == winnr() ? 0 :
-				\ i == winnr('#') ? p : len(r))
-			if i == winnr()
-				let p = len(l)
-			endif
-		endif
-	endfor
-	return r
+	let wins = [winnr()] + filter(range(1, winnr('$')), 'v:val != winnr()')
+	return flatten(map(wins, 's:WinInfo(win_getid(v:val))'))
 endfunc
 
 function s:Change(b, l1, l2, lines)
