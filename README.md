@@ -48,9 +48,9 @@ Bringing the spirit of Plan 9 acme to vim.
 
 * Manage windows with the mouse:
 
-	A window can be closed by middle-clicking its status bar. The space of
-	the closed window is put into the focused one if they are
-	in the same column.
+	A window can be closed by middle-clicking its layout box at the
+	beginning of its status bar. The space of the closed window is put into
+	the focused one if they are in the same column.
 
 	A window can be moved by dragging its status bar while holding down the
 	right mouse button. The window is moved above or below the one over
@@ -62,6 +62,8 @@ Bringing the spirit of Plan 9 acme to vim.
 	space is distributed equally among them. But each window is limited to
 	the number of lines in its buffer and any saved space is given to the
 	windows above.
+
+	A window can be moved to a new column by right-clicking its layout box.
 
 * Send text to commands:
 
@@ -107,12 +109,12 @@ Configuration
 -------------
 
 *acme.vim* supports rudimentary plumbing via the global `g:acme_plumbing`
-variable. Here is an example to get right-clickable URLs, man pages and git
-refs, that you can add to your `~/.vimrc`:
+variable. Here is an example to get right-clickable URLs, man pages, git
+refs/ranges and scripts in `$PATH`, that you can add to your `~/.vimrc`:
 
 ```
 let g:acme_plumbing = [
-	\ ['<https?\:\/\/(\f|[-.~!*();:@&=+$,/?#%]|\[|\])+', {m ->
+	\ ['<https?\:\/\/(\f|[-.~!*;:@&=+$,/?#%])+', {m ->
 		\ AcmePlumb('', 'setsid xdg-open', m[0])}],
 	\ ['(\f{-1,})\s*\((\d\a*)\)', {m ->
 		\ AcmePlumb(m[1].'('.m[2].')', 'man', m[2], m[1])}],
@@ -120,7 +122,8 @@ let g:acme_plumbing = [
 		\ AcmePlumb('git:'.m[0], 'git log -s --left-right', m[0])}],
 	\ ['(\f|[@{}~^])+', {m ->
 		\ AcmePlumb('git:'.m[0], 'git show --format=fuller -p --stat '.
-			\ '--decorate', m[0])}]]
+			\ '--decorate', m[0])}],
+	\ ['\f+', {m -> m[0] !~ '/' && AcmeOpen(exepath(m[0]), '')}]]
 ```
 
 To get simple right-clickable directory listings you have to disable vim's
