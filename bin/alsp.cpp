@@ -94,13 +94,14 @@ void printpath(const char *path) {
 
 bool parseloc(const QJsonObject &loc, struct filepos *pos) {
 	int line = get(loc, {"range", "start", "line"}).toInt(-1);
+	int col = get(loc, {"range", "start", "character"}).toInt(0);
 	auto path = QUrl(loc.value("uri").toString()).toLocalFile().toUtf8();
 	if (path.isEmpty() || line < 0) {
 		return false;
 	}
 	pos->path = path;
 	pos->line = line;
-	pos->col = 0;
+	pos->col = col;
 	return true;
 }
 
@@ -302,7 +303,9 @@ void gotomatch(const QJsonObject &msg) {
 		showmatches(msg);
 	} else if (parseloc(result.at(0).toObject(), &pos)) {
 		QByteArray line = QByteArray::number(pos.line + 1);
-		const char *cmd[] = {"open", pos.path.data(), line.data()};
+		QByteArray col = QByteArray::number(pos.col + 1);
+		QByteArray linecol = line + ":" + col;
+		const char *cmd[] = {"open", pos.path.data(), linecol.data()};
 		request(cmd, ARRLEN(cmd), NULL);
 	}
 }
