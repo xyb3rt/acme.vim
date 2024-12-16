@@ -563,8 +563,7 @@ function AcmePlumb(title, cmd, ...)
 endfunc
 
 let s:plumbing = [
-	\ ['(\f+)%(%([:](%([0-9]+)|%([/?].+)))|%(\(([0-9]+)\)))',
-		\ {m -> AcmeOpen(m[1], m[2] != '' ? m[2] : m[3])}],
+	\ ['(\f+)[:\[(]+(\d+|[/?].+)', {m -> AcmeOpen(m[1], m[2])}],
 	\ ['[Ff]ile "([^"]+)", line (\d+)', {m -> AcmeOpen(m[1], m[2])}],
 	\ ['\f+', {m -> AcmeOpen(m[0], '')}],
 	\ ['^\s*(\d+)[-:]', {m -> s:RgOpen(m[1])}]]
