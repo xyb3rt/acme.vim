@@ -470,12 +470,16 @@ function s:FileOpen(name, pos)
 	else
 		call s:New('new '.s:Name(path))
 	endif
-	if a:pos != ''
-		normal! m'
-		let m = &magic
-		set nomagic
-		silent! exe a:pos
-		let &magic = m
+	if a:pos =~ '^\v\d+([:,]\d+)?$'
+		let pos = split(a:pos, '[:,]')
+		exe 'normal!' pos[0].'G'
+		if len(pos) > 1
+			let col = strdisplaywidth(getline('.')[:pos[1]-1])
+			exe 'normal!' col.'|'
+		endif
+	elseif a:pos =~ '^[/?]'
+		exe 'normal!' (a:pos[0] == '/' ? 'gg' : 'G$')
+		call search(a:pos[1:], a:pos[0] == '?' ? 'b' : 'c')
 	endif
 endfunc
 
@@ -563,7 +567,7 @@ function AcmePlumb(title, cmd, ...)
 endfunc
 
 let s:plumbing = [
-	\ ['(\f+)[:\[(]+(\d+|[/?].+)', {m -> AcmeOpen(m[1], m[2])}],
+	\ ['(\f+)[:\[(]+(\d+%([:,]\d+)?|[/?].+)', {m -> AcmeOpen(m[1], m[2])}],
 	\ ['[Ff]ile "([^"]+)", line (\d+)', {m -> AcmeOpen(m[1], m[2])}],
 	\ ['\f+', {m -> AcmeOpen(m[0], '')}],
 	\ ['^\s*(\d+)[-:]', {m -> s:RgOpen(m[1])}]]
