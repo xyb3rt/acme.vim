@@ -1,2 +1,28 @@
-#!/bin/sh
-xdg-open "https://duckduckgo.com/?q=$1" >/dev/null 2>&1 &
+#!/bin/sh -e
+if [ -n "$1" ]; then
+	set -- "https:/duckduckgo.com/?q=$1"
+else
+	cd "$ACMEVIMDIR"
+	IFS='
+'
+	set -- $(git remote -v 2>/dev/null | awk -F '\t' '{
+		url = $2
+		if (sub(/ \(fetch\)$/, "", url)) {
+			sub(/^git+ssh:\/\//, "https://", url)
+			if (sub(/^git@/, "", url)) {
+				sub(/:/, "/", url)
+				url = "https://" url
+			}
+			if (match(url, /^https?:\/\//)) {
+				print url
+			}
+		}
+	}')
+	if [ $# -gt 1 ]; then
+		for url; do
+			echo "$url"
+		done
+		exit
+	fi
+fi
+xdg-open "$1" >/dev/null 2>&1 &
