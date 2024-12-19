@@ -23,6 +23,10 @@ void send_(struct ptybuf *buf) {
 	char *p = buf->d;
 	for (; i < n; i++) {
 		switch (p[i]) {
+		case '\b':
+			c -= c > bol;
+			eol -= eol == c + 1;
+			break;
 		case '\r':
 			eol = MAX(c, eol);
 			c = bol;
