@@ -261,9 +261,9 @@ void show_open_files(avim_strv msg) {
 		int fds[3] = {devnull, devnull, devnull};
 		if (path == NULL || call((char **)cmd, fds) != 0) {
 		} else if (strcmp(l1, "0") != 0) {
-			printf("-L%s,%s:%s\n", l1, l2, path);
+			printf("< -L%s,%s:%s >\n", l1, l2, path);
 		} else {
-			printf("%s\n", path);
+			printf("< %s >\n", path);
 		}
 	}
 	fflush(stdout);
@@ -272,6 +272,11 @@ void show_open_files(avim_strv msg) {
 void list_open_files(void) {
 	const char *cmd[] = {"bufinfo"};
 	request(cmd, ARRLEN(cmd), &show_open_files);
+}
+
+void list_open_files_and_branches(void) {
+	list_open_files();
+	list_branches();
 }
 
 void list_remotes(void) {
@@ -375,8 +380,8 @@ void cmd_log(void) {
 	set("git", "log", NULL);
 	opt("--decorate");
 	opt("--left-right");
-	hint("< -S HEAD ...@{u} >", NULL);
-	if (add(list_open_files)) {
+	hint("< --not --oneline -S HEAD ...@{u} >", NULL);
+	if (add(list_open_files_and_branches)) {
 		setscratch(cwd, "git:log");
 	}
 }
