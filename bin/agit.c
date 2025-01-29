@@ -454,14 +454,6 @@ void cmd_rm(void) {
 	}
 }
 
-void cmd_show_branch(void) {
-	set("git", "show-branch", NULL);
-	hint("< --independent --topics HEAD @{u} >", NULL);
-	if (add(list_branches)) {
-		setscratch(cwd, "git:show-branch");
-	}
-}
-
 void cmd_stash(void) {
 	set("git", "stash", NULL);
 	hint("< --include-untracked pop drop >", NULL);
@@ -504,9 +496,9 @@ void cmd_tag(void) {
 
 void mkcmds(void) {
 	static struct cmd menu[] = {
+		{"diff", cmd_diff},
 		{"log", cmd_log},
 		{"graph", cmd_graph},
-		{"show-", cmd_show_branch},
 		{"branch", cmd_branch},
 		{"switch", cmd_switch},
 		{"symref", cmd_symref},
@@ -516,7 +508,6 @@ void mkcmds(void) {
 		{"push", cmd_push},
 		{"config", cmd_config},
 		{">\n<"},
-		{"diff", cmd_diff},
 		{"add", cmd_add},
 		{"restore", cmd_restore},
 		{"commit", cmd_commit},
