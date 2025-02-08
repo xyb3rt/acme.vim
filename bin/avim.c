@@ -9,12 +9,12 @@ struct {
 } cmds[] = {
 	{0, "edit"},
 	{'c', "clear"},
-	{'d', "cwd"},
 	{'h', "help"},
 	{'k', "kill"},
 	{'l', "look"},
 	{'o', "open"},
 	{'s', "scratch"},
+	{'w', "cwd"},
 };
 struct avim_conn **conns;
 void (*handle)(avim_strv *, size_t);
