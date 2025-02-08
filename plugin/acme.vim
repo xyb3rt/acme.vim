@@ -987,6 +987,25 @@ function s:SetCwd(b, path)
 	endif
 endfunc
 
+function s:Diff(p)
+	let w = []
+	for i in range(1, winnr('$'))
+		for p in a:p
+			if s:Path(bufname(winbufnr(i))) == p
+				call add(w, i)
+			endif
+		endfor
+	endfor
+	if len(w) < 2
+		let w = []
+	endif
+	for i in range(1, winnr('$'))
+		let on = index(w, i) != -1
+		call setwinvar(i, '&diff', on)
+		call setwinvar(i, '&scrollbind', on)
+	endfor
+endfunc
+
 function s:Look(p)
 	if len(a:p) <= 2
 		silent! normal! n
@@ -1057,6 +1076,8 @@ function s:CtrlRecv(ch, data)
 			call s:Pty(s:BufNr(args[0]))
 		elseif cmd == 'cwd' && len(args) > 1
 			call s:SetCwd(s:BufNr(args[0]), args[1])
+		elseif cmd == 'diff'
+			call s:Diff(args)
 		endif
 		if resp != []
 			call s:CtrlSend([cid] + resp)

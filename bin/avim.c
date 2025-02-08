@@ -9,6 +9,7 @@ struct {
 } cmds[] = {
 	{0, "edit"},
 	{'c', "clear"},
+	{'d', "diff"},
 	{'h', "help"},
 	{'k', "kill"},
 	{'l', "look"},
