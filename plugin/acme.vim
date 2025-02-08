@@ -1078,6 +1078,8 @@ function s:CtrlRecv(ch, data)
 			call s:SetCwd(s:BufNr(args[0]), args[1])
 		elseif cmd == 'diff'
 			call s:Diff(args)
+		elseif cmd == 'exec' && len(args) > 0
+			call s:ErrorExec(args, s:Dir(), bufnr(), '')
 		endif
 		if resp != []
 			call s:CtrlSend([cid] + resp)
