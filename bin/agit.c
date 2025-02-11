@@ -401,6 +401,13 @@ void cmd_merge(void) {
 	}
 }
 
+void cmd_mergetool(void) {
+	set("git", "mergetool", "-y", NULL);
+	if (add(NULL)) {
+		run(1);
+	}
+}
+
 void cmd_pick(void) {
 	set("git", "cherry-pick", NULL);
 	hint("< --edit --no-commit >",
@@ -520,6 +527,7 @@ void mkcmds(void) {
 		{"commit", cmd_commit},
 		{"stash", cmd_stash},
 		{"merge", cmd_merge},
+		{"-tool", cmd_mergetool},
 		{"rebase", cmd_rebase},
 		{"pick", cmd_pick},
 		{"revert", cmd_revert},
