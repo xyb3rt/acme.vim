@@ -21,6 +21,7 @@ struct avim_conn **conns;
 void (*handle)(avim_strv *, size_t);
 int mode;
 char *themelink;
+char *cwd;
 
 void parse(int argc, char *argv[]) {
 	avim_buf opts = vec_new();
@@ -152,30 +153,25 @@ void settheme(int *fd) {
 	}
 }
 
-avim_strv msg(const char *cmd, char *argv[], size_t argc) {
-	avim_strv msg = vec_new();
-	char **p = vec_dig(&msg, 0, argc + 1);
-	p[0] = (char *)cmd;
-	for (size_t i = 0; i < argc; i++) {
-		p[i + 1] = argv[i];
-	}
-	return msg;
-}
-
 void request(char *argv[], size_t argc) {
 	vec_push(&conns, avim_connect());
-	avim_strv req = msg(cmds[mode].name, argv, argc);
-	char *cwd = NULL;
-	if (mode == 0 || cmds[mode].opt == 's') {
-		cwd = xgetcwd();
-		vec_insert(&req, 1, cwd);
-		if (cmds[mode].opt == 's') {
-			vec_insert(&req, 2, "");
+	avim_strv req = vec_new();
+	vec_push(&req, cmds[mode].name);
+	int cmd = cmds[mode].opt;
+	if (cmd == 's') {
+		vec_push(&req, cwd);
+		vec_push(&req, "");
+	}
+	for (size_t i = 0; i < argc; i++) {
+		char *arg = argv[i];
+		if (cmd == 0 || cmd == 'd' || (cmd == 'o' && i == 0)) {
+			if (arg[0] != '/') {
+				arg = xasprintf("%s/%s", cwd, arg);
+			}
 		}
+		vec_push(&req, arg);
 	}
 	avim_send(conns[0], (const char **)req, vec_len(&req));
-	free(cwd);
-	vec_free(&req);
 }
 
 void server(avim_strv *msg, size_t c) {
@@ -222,6 +218,7 @@ void process(size_t c) {
 int main(int argc, char *argv[]) {
 	argv0 = argv[0];
 	conns = vec_new();
+	cwd = xgetcwd();
 	int listenfd = -1;
 	int watchfd = -1;
 	if (argc == 1) {

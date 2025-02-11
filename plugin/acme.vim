@@ -890,11 +890,8 @@ function s:Clear(b)
 	endif
 endfunc
 
-function s:Edit(files, dir, cid)
+function s:Edit(files, cid)
 	for file in a:files
-		if file !~ '^\/'
-			let file = a:dir.'/'.file
-		endif
 		call s:FileOpen(file, '')
 		let b = bufnr()
 		let s:editbufs[a:cid] = get(s:editbufs, a:cid) + 1
@@ -988,6 +985,7 @@ function s:SetCwd(b, path)
 endfunc
 
 function s:Diff(p)
+	call map(a:p, {_, p -> s:Path(p)})
 	let w = []
 	for i in range(1, winnr('$'))
 		for p in a:p
@@ -1043,8 +1041,8 @@ function s:CtrlRecv(ch, data)
 			let $ACMEVIMPORT = args[0]
 		elseif cmd == 'theme' && len(args) > 0
 			silent! exe 'set bg='.args[0]
-		elseif cmd == 'edit' && len(args) > 1
-			call s:Edit(args[1:], args[0], cid)
+		elseif cmd == 'edit' && len(args) > 0
+			call s:Edit(args, cid)
 			let resp = []
 		elseif cmd == 'open' && len(args) > 0
 			call s:FileOpen(args[0], len(args) > 1 ? args[1] : '')
