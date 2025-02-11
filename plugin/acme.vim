@@ -890,12 +890,16 @@ function s:Clear(b)
 	endif
 endfunc
 
-function s:Edit(files, cid)
-	for file in a:files
-		call s:FileOpen(file, '')
-		let b = bufnr()
-		let s:editbufs[a:cid] = get(s:editbufs, a:cid) + 1
-		let s:editcids[b] = add(get(s:editcids, b, []), a:cid)
+function s:Edit(files, cid, cmd)
+	for i in range(len(a:files))
+		let new = !bufexists(s:Path(a:files[i]))
+		call s:FileOpen(a:files[i], '')
+		if new || (i + 1 == len(a:files) && !get(s:editbufs, a:cid))
+			let b = bufnr()
+			let s:editbufs[a:cid] = get(s:editbufs, a:cid) + 1
+			let s:editcids[b] = add(get(s:editcids, b, []), a:cid)
+			let s:editcmds[a:cid] = a:cmd
+		endif
 	endfor
 endfunc
 
@@ -1036,7 +1040,7 @@ function s:CtrlRecv(ch, data)
 		elseif cmd == 'theme' && len(args) > 0
 			silent! exe 'set bg='.args[0]
 		elseif cmd == 'edit' && len(args) > 0
-			call s:Edit(args, cid)
+			call s:Edit(args, cid, 'edit')
 			let resp = []
 		elseif cmd == 'open' && len(args) > 0
 			call s:FileOpen(args[0], len(args) > 1 ? args[1] : '')
@@ -1068,8 +1072,10 @@ function s:CtrlRecv(ch, data)
 			call s:Pty(s:BufNr(args[0]))
 		elseif cmd == 'cwd' && len(args) > 1
 			call s:SetCwd(s:BufNr(args[0]), args[1])
-		elseif cmd == 'diff'
+		elseif cmd == 'diff' && len(args) > 0
+			call s:Edit(args, cid, 'diff')
 			call s:Diff(args)
+			let resp = []
 		elseif cmd == 'exec' && len(args) > 0
 			call s:ErrorExec(args, s:Dir(), bufnr(), '')
 		endif
@@ -1093,8 +1099,9 @@ function s:BufWinLeave()
 		for cid in remove(s:editcids, b)
 			let s:editbufs[cid] -= 1
 			if s:editbufs[cid] <= 0
+				let cmd = remove(s:editcmds, cid)
 				call remove(s:editbufs, cid)
-				call s:CtrlSend([cid, 'resp:edit'])
+				call s:CtrlSend([cid, 'resp:'.cmd])
 			endif
 		endfor
 		call timer_start(0, {_ -> execute('silent! bdelete '.b)})
@@ -1125,6 +1132,7 @@ let s:cwd = {}
 let s:dirwidth = {}
 let s:editbufs = {}
 let s:editcids = {}
+let s:editcmds = {}
 let s:jobs = []
 let s:scratch = {}
 
