@@ -986,14 +986,8 @@ endfunc
 
 function s:Diff(p)
 	call map(a:p, {_, p -> s:Path(p)})
-	let w = []
-	for i in range(1, winnr('$'))
-		for p in a:p
-			if s:Path(bufname(winbufnr(i))) == p
-				call add(w, i)
-			endif
-		endfor
-	endfor
+	let w = filter(range(1, winnr('$')), {_, i ->
+		\ index(a:p, s:Path(bufname(winbufnr(i)))) != -1})
 	if len(w) < 2
 		let w = []
 	endif
