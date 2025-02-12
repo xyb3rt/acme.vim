@@ -1076,8 +1076,6 @@ function s:CtrlRecv(ch, data)
 			call s:Edit(args, cid, 'diff')
 			call s:Diff(args)
 			let resp = []
-		elseif cmd == 'exec' && len(args) > 0
-			call s:ErrorExec(args, s:Dir(), bufnr(), '')
 		endif
 		if resp != []
 			call s:CtrlSend([cid] + resp)

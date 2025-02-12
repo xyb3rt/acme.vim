@@ -359,9 +359,10 @@ void cmd_diff(void) {
 }
 
 void cmd_edit_index(void) {
-	clear();
-	const char *cmd[] = {"exec", "git-edit-index"};
-	request(cmd, ARRLEN(cmd), NULL);
+	set("git-edit-index", NULL);
+	if (add(NULL)) {
+		run(1);
+	}
 }
 
 void cmd_fetch(void) {
@@ -520,10 +521,11 @@ void mkcmds(void) {
 		{"fetch", cmd_fetch},
 		{"push", cmd_push},
 		{"config", cmd_config},
+		{"clean", cmd_clean},
 		{">\n<"},
 		{"add", cmd_add},
 		{"restore", cmd_restore},
-		{"edi", cmd_edit_index},
+		{"index", cmd_edit_index},
 		{"commit", cmd_commit},
 		{"stash", cmd_stash},
 		{"merge", cmd_merge},
@@ -532,7 +534,6 @@ void mkcmds(void) {
 		{"pick", cmd_pick},
 		{"revert", cmd_revert},
 		{"reset", cmd_reset},
-		{"clean", cmd_clean},
 		{"rm", cmd_rm},
 		{NULL}
 	};
