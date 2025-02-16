@@ -22,7 +22,7 @@ Bringing the spirit of Plan 9 acme to vim.
 	more carefully by dragging the mouse while holding down the middle
 	button or by selecting it and then middle-clicking the selection.
 
-	Commands are run in the directory containing the current file (useful
+	Commands are run in the directory containing the clicked file (useful
 	for `guide` files).
 
 	By default the output of commands is put into a `+Errors` buffer. Each
@@ -109,8 +109,7 @@ Configuration
 -------------
 
 *acme.vim* supports rudimentary plumbing via the global `g:acme_plumbing`
-variable. Here is an example to get right-clickable URLs, man pages, git
-refs/ranges and scripts in `$PATH`, that you can add to your `~/.vimrc`:
+variable. Here is an example to get right-clickable URLs, man pages, scripts in `$PATH` and git refs/ranges, that you can add to your `~/.vimrc`:
 
 ```
 let g:acme_plumbing = [
@@ -118,14 +117,14 @@ let g:acme_plumbing = [
 		\ AcmePlumb('', 'setsid xdg-open', m[0])}],
 	\ ['(\f{-1,})\s*\((\d\a*)\)', {m ->
 		\ AcmePlumb(m[1].'('.m[2].')', 'man', m[2], m[1])}],
-	\ ['(\f|[@{}~^])*\.\.\.?(\f|[@{}~^])*', {m ->
-		\ AcmePlumb('git:'.m[0], 'git log -s --left-right', m[0])}],
-	\ ['(\f|[@{}~^])+', {m ->
-		\ AcmePlumb('git:'.m[0], 'git show --decorate '.
-			\ '--format=fuller -p --stat ', m[0])}],
 	\ ['\f+', {m -> m[0] !~ '/' &&
-		\ AcmeOpen(exepath(m[0]), '')}]]
+		\ AcmeOpen(exepath(m[0]), '')}],
+	\ ['(\f|[@{}~^.])+', {m ->
+		\ AcmePlumb('git:'.m[0], 'git-plumb', m[0])}]]
 ```
+
+(The helper `git-plumb` can be found
+[here](https://github.com/xyb3rt/bin/blob/main/git-plumb))
 
 To get simple right-clickable directory listings you have to disable vim's
 builtin netrw plugin by adding the following line to your `~/.vimrc`:
