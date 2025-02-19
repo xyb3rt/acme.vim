@@ -5,9 +5,9 @@ else
 	cd "$ACMEVIMDIR"
 	IFS='
 '
-	set -- $(git remote -v 2>/dev/null | awk -F '\t' '{
-		url = $2
-		if (sub(/ \(fetch\)$/, "", url)) {
+	set -- $(git remote -v 2>/dev/null | awk '
+		$3 == "(fetch)" {
+			url = $2
 			sub(/^git+ssh:\/\//, "https://", url)
 			if (sub(/^git@/, "", url)) {
 				sub(/:/, "/", url)
@@ -16,8 +16,7 @@ else
 			if (match(url, /^https?:\/\//)) {
 				print url
 			}
-		}
-	}')
+		}')
 	if [ $# -gt 1 ]; then
 		for url; do
 			echo "$url"
