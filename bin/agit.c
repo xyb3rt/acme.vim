@@ -360,6 +360,7 @@ void cmd_diff(void) {
 
 void cmd_edit_index(void) {
 	set("git-edit-index", NULL);
+	hint(NULL);
 	if (add(NULL)) {
 		run(1);
 	}
@@ -404,6 +405,7 @@ void cmd_merge(void) {
 
 void cmd_mergetool(void) {
 	set("git", "mergetool", "-y", NULL);
+	hint(NULL);
 	if (add(NULL)) {
 		run(1);
 	}
