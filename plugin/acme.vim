@@ -1036,8 +1036,6 @@ function s:CtrlRecv(ch, data)
 		let resp = ["resp:" . cmd]
 		if cmd == 'port' && len(args) > 0
 			let $ACMEVIMPORT = args[0]
-		elseif cmd == 'theme' && len(args) > 0
-			silent! exe 'set bg='.args[0]
 		elseif cmd == 'edit' && len(args) > 0
 			call s:Edit(args, cid, 'edit')
 			let resp = []
