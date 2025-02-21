@@ -968,7 +968,6 @@ endfunc
 function s:PtyMap()
 	inoremap <silent> <buffer> <C-c> <C-o>:call <SID>Signal("int")<CR>
 	inoremap <silent> <buffer> <C-d> <C-o>:call <SID>Signal("hup")<CR>
-	imap <silent> <buffer> <C-i> <C-f>
 	inoremap <silent> <buffer> <C-m> <C-o>:call <SID>PtyEnter()<CR>
 	inoremap <silent> <buffer> <C-z> <C-o>:call <SID>PtyPw()<CR>
 endfunc
