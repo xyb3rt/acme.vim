@@ -152,12 +152,28 @@ function s:Expand(s)
 		\ '\=repeat(" ", len(submatch(0)) * 8)', '')
 endfunc
 
+function s:TextToSend(inp, b)
+	let f = s:Path(isabsolutepath(a:inp) ? a:inp : s:Dir() . '/' . a:inp)
+	if a:b != bufnr() && a:inp != '' && (isdirectory(f) || filereadable(f))
+		let dir = get(s:cwd, a:b, fnamemodify(bufname(a:b), ':p:h'))
+		let n = len(dir)
+		if f[:n-1] != dir
+		elseif len(f) == n
+			let f = '.'
+		elseif f[n] == '/'
+			let f = f[n+1:]
+		endif
+		return f
+	endif
+	return a:inp
+endfunc
+
 function s:Send(w, inp)
 	let b = winbufnr(a:w)
 	if !s:Receiver(b)
 		return
 	endif
-	let inp = a:inp
+	let inp = s:TextToSend(a:inp, b)
 	let pty = get(s:scratch[b], 'pty')
 	if pty
 		let [n, l, p] = [0, getbufoneline(b, '$'), s:scratch[b].prompt]
