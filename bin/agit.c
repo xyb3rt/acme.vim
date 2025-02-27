@@ -494,14 +494,6 @@ void cmd_switch(void) {
 	}
 }
 
-void cmd_symref(void) {
-	set("git", "symbolic-ref", NULL);
-	opt("HEAD");
-	if (add(list_refs)) {
-		run(1);
-	}
-}
-
 void cmd_tag(void) {
 	set("git", "tag", NULL);
 	hint("< --annotate --delete >", NULL);
@@ -517,7 +509,6 @@ void mkcmds(void) {
 		{"graph", cmd_graph},
 		{"branch", cmd_branch},
 		{"switch", cmd_switch},
-		{"symref", cmd_symref},
 		{"tag", cmd_tag},
 		{"module", cmd_submodule},
 		{"fetch", cmd_fetch},
