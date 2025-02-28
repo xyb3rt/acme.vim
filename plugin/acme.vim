@@ -722,22 +722,27 @@ function s:Scroll(topline)
 	call winrestview(v)
 endfunc
 
-function s:Fit(w, h, ...)
-	if fnamemodify(bufname(winbufnr(a:w)), ':t') == 'guide' &&
-		\ (a:0 == 0 || a:w != a:1 || winheight(a:w) > 1)
-		call win_execute(a:w, 'normal! gg')
-		return 1
-	endif
-	let b = winbufnr(a:w)
+function s:FitHeight(w, l)
+	" Only works without fold, number & sign columns and just with
+	" line wrapping, e.g. 'nobreakindent', 'nolinebreak' & 'nolist'
+	let lw = !getwinvar(a:w, '&wrap') ? 1 :
+		\ strdisplaywidth(getbufoneline(winbufnr(a:w), a:l))
 	let ww = winwidth(a:w)
-	let wrap = getwinvar(a:w, '&wrap')
+	return (max([lw, 1]) + ww - 1) / ww
+endfunc
+
+function s:Fit(w, h, ...)
+	if fnamemodify(bufname(winbufnr(a:w)), ':t') == 'guide'
+		let h = s:FitHeight(a:w, 1)
+		if a:0 == 0 || a:w != a:1 || h != winheight(a:w)
+			call win_execute(a:w, 'normal! gg')
+			return h
+		endif
+	endif
 	let h = 0
 	let top = line('$', a:w) + 1
 	while top > 1
-		" Only works without fold, number & sign columns and just with
-		" line wrapping, e.g. 'nobreakindent', 'nolinebreak' & 'nolist'
-		let l = wrap ? strdisplaywidth(getbufoneline(b, top - 1)) : 1
-		let h += (max([l, 1]) + ww - 1) / ww
+		let h += s:FitHeight(a:w, top - 1)
 		if h > a:h
 			break
 		endif
