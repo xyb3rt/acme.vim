@@ -368,12 +368,7 @@ void cmd_edit_index(void) {
 
 void cmd_fetch(void) {
 	clear();
-	set("git", "fetch", "--all", "--prune", "--tags",
-	    "--no-recurse-submodules", NULL);
-	run(1);
-	set("git", "submodule", "-q", "foreach", "--recursive", "indir", "--",
-	    "git", "fetch", "--all", "--prune", "--tags",
-	    "--no-recurse-submodules", NULL);
+	set("git-fetch-all", NULL);
 	run(1);
 }
 
