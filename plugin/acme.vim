@@ -533,6 +533,18 @@ function s:Dirs()
 			endif
 		endif
 	endif
+	let path = expand('%:p')
+	if path =~ '/\.git/'
+		let owd = chdir(dirs[0])
+		let d = trim(system('git rev-parse --show-toplevel'), "\r\n")
+		if owd != ''
+			call chdir(owd)
+		endif
+		if !isdirectory(d)
+			let d = substitute(path, '/\.git/.*', '', '')
+		endif
+		call add(dirs, d)
+	endif
 	return dirs
 endfunc
 
