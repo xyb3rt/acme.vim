@@ -1,9 +1,6 @@
 #!/bin/sh -e
 tmp="$(mktemp)"
-cleanup() {
-	rm -f "$tmp"
-}
-. trap.sh
+CLEANUP="rm -f '$tmp'" . trap.sh
 cat >"$tmp"
 cd "$ACMEVIMDIR"
 avim -s cat "$tmp"
