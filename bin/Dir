@@ -4,13 +4,12 @@ case "$1" in
 ?*) ACMEVIMDIR="$ACMEVIMDIR/$1" ;;
 esac
 [ -d "$ACMEVIMDIR" ] || ACMEVIMDIR="$(dirname "$ACMEVIMDIR")"
-[ -d "$ACMEVIMDIR" ]
+cd -- "$ACMEVIMDIR"
 if [ "${0##*/}" = "Dir" ]; then
 	[ -n "$1" -o "$ACMEVIMFILE" = guide ] && ACMEVIMFILE=''
 	[ -n "$ACMEVIMFILE" ] && avim -l '\<' "${ACMEVIMFILE%.*}" '\>'
-	exec avim -o "$ACMEVIMDIR"
+	exec avim -o .
 else
-	cd "$ACMEVIMDIR"
 	[ $# -gt 0 ] && shift
 	exec avim -s "$(echo "a${0##*/}" | tr '[[:upper:]]' '[[:lower:]]')" "$@"
 fi
