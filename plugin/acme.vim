@@ -1148,6 +1148,7 @@ au BufEnter * call s:ListDir()
 au BufWinLeave * call s:BufWinLeave()
 au TextChanged,TextChangedI guide setl nomodified
 au VimEnter * call s:ReloadDirs(winnr())
+au VimResized * call s:ReloadDirs(0)
 au WinResized * call s:ReloadDirs(0)
 augroup END
 
