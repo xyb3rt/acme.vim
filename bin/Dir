@@ -6,6 +6,7 @@ esac
 [ -d "$ACMEVIMDIR" ] || ACMEVIMDIR="$(dirname "$ACMEVIMDIR")"
 cd -- "$ACMEVIMDIR"
 if [ "${0##*/}" = "Dir" ]; then
+	[ -z "$1" -a "$ACMEVIMFILE" = . ] && exec fned
 	[ -n "$1" -o "$ACMEVIMFILE" = guide ] && ACMEVIMFILE=''
 	[ -n "$ACMEVIMFILE" ] && avim -l '\<' "${ACMEVIMFILE%.*}" '\>'
 	exec avim -o .

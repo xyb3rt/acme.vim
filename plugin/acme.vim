@@ -220,7 +220,8 @@ function s:JobStart(cmd, outb, ctxb, opts, inp)
 		\ 'env': {
 			\ 'ACMEVIMBUF': bufnr(),
 			\ 'ACMEVIMDIR': s:Dir(),
-			\ 'ACMEVIMFILE': &buftype == '' ? expand('%:t') : '',
+			\ 'ACMEVIMFILE': isdirectory(expand('%')) ? '.' :
+				\ &buftype == '' ? expand('%:t') : '',
 			\ 'ACMEVIMOUTBUF': a:outb,
 			\ 'ACMEVIMOUTDIR': get(a:opts, 'cwd', getcwd()),
 			\ 'COLUMNS': 80,
