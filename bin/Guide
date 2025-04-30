@@ -1,0 +1,6 @@
+#!/bin/sh
+set --
+for e in .local .vim *; do
+	[ -d "$e" ] && set -- "$@" "$e"
+done
+exec rg --files -g guide --max-depth 5 --sort path -- "$@"
