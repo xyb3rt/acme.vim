@@ -12,21 +12,6 @@ function s:FileWin(name)
 		\ 's:Path(bufname(winbufnr(v:val))) == path'), 0)
 endfunc
 
-function s:GuideWin(name)
-	let [w, match] = [0, 0]
-	let dir = fnamemodify(s:Path(a:name), ':h')
-	for i in range(1, winnr('$'))
-		let f = s:Path(bufname(winbufnr(i)))
-		let [d, f] = [fnamemodify(f, ':h'), fnamemodify(f, ':t')]
-		let n = len(d)
-		if f == 'guide' && n >= match && n <= len(dir) &&
-			\ dir[:n-1] == d && dir[n:] =~ '\v^(/|$)'
-			let [w, match] = [i, n]
-		endif
-	endfor
-	return w
-endfunc
-
 function s:Sel()
 	let text = getreg('"')
 	let type = getregtype('"')
@@ -195,14 +180,14 @@ function s:Receiver(b)
 	return has_key(s:scratch, a:b) && s:Jobs(a:b) != []
 endfunc
 
-function s:SplitSize(n, mode)
+function s:SplitSize(n, rel)
 	let min = &winminheight > 0 ? 2 * &winminheight + 1 : 2
 	if winheight(0) < min
 		exe min.'wincmd _'
 	endif
 	let h = winheight(0)
 	let stat = 1 + (winnr('$') == 1 && &laststatus == 1)
-	return a:mode == '=' ? a:n : a:mode == '<'
+	return a:rel == '=' ? a:n : a:rel == '<'
 		\ ? min([abs(a:n), h - stat - max([&winminheight, 1])])
 		\ : max([a:n, h - s:Fit(win_getid(), (h - stat) / 2) - stat])
 endfunc
@@ -245,6 +230,25 @@ function s:JobStart(cmd, outb, ctxb, opts, inp)
 	endif
 endfunc
 
+function s:ErrorSplitPos(name)
+	let [w, match, mod, rel] = [0, 0, '', '']
+	let dir = fnamemodify(s:Path(a:name), ':h')
+	for i in reverse(range(1, winnr('$')))
+		let b = winbufnr(i)
+		let p = get(s:cwd, b, s:Path(bufname(b)))
+		let isdir = isdirectory(p)
+		let d = isdir ? p : fnamemodify(p, ':h')
+		let f = isdir ? '' : fnamemodify(p, ':t')
+		let n = len(d)
+		if n > match && dir[:n-1] == d && dir[n:] =~ '\v^(/|$)'
+			let [w, match] = [i, n]
+			let [mod, rel] = f == 'guide' || f == '+Errors'
+				\ ? ['abo', '>'] : ['bel', '=']
+		endif
+	endfor
+	return w != 0 ? [w, mod, rel] : [winnr('$'), 'bel', '=']
+endfunc
+
 function s:ErrorLoad(name)
 	let b = bufadd(s:Name(s:Path(a:name)))
 	if !bufloaded(b)
@@ -262,10 +266,7 @@ function s:ErrorOpen(name, ...)
 	if w != 0
 		exe w.'wincmd w'
 	else
-		let w = s:GuideWin(a:name)
-		let [w, mode, d] = w != 0
-			\ ? [w, '', '>']
-			\ : [winnr('$'), 'bel', '=']
+		let [w, mod, rel] = s:ErrorSplitPos(a:name)
 		exe w.'wincmd w'
 		let b = s:ErrorLoad(a:name)
 		for job in s:jobs
@@ -273,7 +274,7 @@ function s:ErrorOpen(name, ...)
 				let job.buf = b
 			endif
 		endfor
-		exe mode s:SplitSize(10, d).'sp | b '.b
+		exe mod s:SplitSize(10, rel).'sp | b '.b
 	endif
 	if a:0 == 0
 	elseif line('$') == 1 && getline(1) == ''
