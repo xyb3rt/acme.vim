@@ -138,8 +138,9 @@ function s:Expand(s)
 endfunc
 
 function s:TextToSend(inp, b)
-	let f = s:Path(isabsolutepath(a:inp) ? a:inp : s:Dir() . '/' . a:inp)
-	if a:b != bufnr() && a:inp != '' && (isdirectory(f) || filereadable(f))
+	let inp = trim(a:inp, "\r\n", 2)
+	let f = s:Path(isabsolutepath(inp) ? inp : s:Dir() . '/' . inp)
+	if a:b != bufnr() && inp != '' && (isdirectory(f) || filereadable(f))
 		let dir = get(s:cwd, a:b, fnamemodify(bufname(a:b), ':p:h'))
 		let n = len(dir)
 		if f[:n-1] != dir
@@ -150,7 +151,7 @@ function s:TextToSend(inp, b)
 		endif
 		return f
 	endif
-	return a:inp
+	return inp
 endfunc
 
 function s:Send(w, inp)
