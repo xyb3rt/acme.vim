@@ -1,0 +1,8 @@
+#!/bin/sh
+while IFS= read -r path; do
+	case "$path" in
+	/*) ;;
+	?*) path="${ACMEVIMDIR:-$PWD}/$path" ;;
+	esac
+	echo "$path"
+done
