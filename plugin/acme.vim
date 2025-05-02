@@ -226,7 +226,7 @@ function s:JobStart(cmd, outb, ctxb, opts, inp)
 	endif
 	call s:Started(job, s:BufWin(a:outb) != 0 ? a:outb : a:ctxb, a:cmd)
 	if a:inp != ''
-		call ch_sendraw(job, a:inp)
+		call ch_sendraw(job, a:inp . (a:inp[-1:] != "\n" ? "\n" : ''))
 		call ch_close_in(job)
 	endif
 endfunc
@@ -309,11 +309,11 @@ endfunc
 
 function s:System(cmd, dir, inp)
 	let cwd = a:dir != '' ? chdir(a:dir) : ''
-	let out = system(a:cmd, a:inp)
+	let out = system(a:cmd, a:inp . (a:inp[-1:] != "\n" ? "\n" : ''))
 	if cwd != ''
 		call chdir(cwd)
 	endif
-	return out
+	return a:inp[-1:] != "\n" ? trim(out, "\r\n", 2) : out
 endfunc
 
 function s:Filter(cmd, dir, inp)
