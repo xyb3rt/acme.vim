@@ -767,10 +767,8 @@ function s:Fit(w, h, ...)
 		endif
 		let top -= 1
 	endwhile
-	if top < getwininfo(a:w)[0].topline
-		call timer_start(0, {_ ->
-			\ win_execute(a:w, 'noa call s:Scroll('.top.')')})
-	endif
+	call timer_start(0, {_ ->
+		\ win_execute(a:w, 'noa call s:Scroll('.top.')')})
 	return min([h, a:h])
 endfunc
 
