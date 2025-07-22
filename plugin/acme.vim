@@ -478,16 +478,7 @@ function s:ReloadDirs(...)
 	endfor
 endfunc
 
-function s:FileOpen(name, pos)
-	let path = s:Path(a:name)
-	let w = s:FileWin(resolve(path))
-	if w != 0
-		exe w.'wincmd w'
-	elseif isdirectory(expand('%')) && isdirectory(path)
-		exe 'edit' s:Name(path)
-	else
-		call s:New('new '.s:Name(path))
-	endif
+function s:Goto(pos)
 	if a:pos =~ '^\v\d+([:,]\d+)?$'
 		let pos = split(a:pos, '[:,]')
 		exe 'normal!' pos[0].'G'
@@ -499,6 +490,19 @@ function s:FileOpen(name, pos)
 		exe 'normal!' (a:pos[0] == '/' ? 'gg' : 'G$')
 		call search(a:pos[1:], a:pos[0] == '?' ? 'b' : 'c')
 	endif
+endfunc
+
+function s:FileOpen(name, pos)
+	let path = s:Path(a:name)
+	let w = s:FileWin(resolve(path))
+	if w != 0
+		exe w.'wincmd w'
+	elseif isdirectory(expand('%')) && isdirectory(path)
+		exe 'edit' s:Name(path)
+	else
+		call s:New('new '.s:Name(path))
+	endif
+	call s:Goto(a:pos)
 endfunc
 
 function s:Match(text, click, pat)
@@ -605,7 +609,9 @@ let s:plumbing = [
 	\ ['(\f+)[:\[(]+(\d+%([:,]\d+)?|[/?].+)', {m -> AcmeOpen(m[1], m[2])}],
 	\ ['[Ff]ile "([^"]+)", line (\d+)', {m -> AcmeOpen(m[1], m[2])}],
 	\ ['\f+', {m -> AcmeOpen(m[0], '')}],
-	\ ['^\s*(\d+)[-:]', {m -> s:RgOpen(m[1])}]]
+	\ ['^\s*(\d+)[-:]', {m -> s:RgOpen(m[1])}],
+	\ ['\d+%([:,]\d+)?', {m -> s:Goto(m[0])}],
+\ ]
 
 function s:Open(text, click, dirs, win)
 	let s:plumbclick = a:click
