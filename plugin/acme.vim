@@ -611,6 +611,7 @@ let s:plumbing = [
 	\ ['\f+', {m -> AcmeOpen(m[0], '')}],
 	\ ['^\s*(\d+)[-:]', {m -> s:RgOpen(m[1])}],
 	\ [],
+	\ ['\f+', {m -> m[0] !~ '/' && AcmeOpen(exepath(m[0]), '')}],
 	\ ['\d+%([:,]\d+)?', {m -> s:Goto(m[0])}],
 \ ]
 
