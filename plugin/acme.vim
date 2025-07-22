@@ -610,6 +610,7 @@ let s:plumbing = [
 	\ ['[Ff]ile "([^"]+)", line (\d+)', {m -> AcmeOpen(m[1], m[2])}],
 	\ ['\f+', {m -> AcmeOpen(m[0], '')}],
 	\ ['^\s*(\d+)[-:]', {m -> s:RgOpen(m[1])}],
+	\ [],
 	\ ['\d+%([:,]\d+)?', {m -> s:Goto(m[0])}],
 \ ]
 
@@ -617,7 +618,9 @@ function s:Open(text, click, dirs, win)
 	let s:plumbclick = a:click
 	let s:plumbdirs = a:dirs
 	let s:plumbwin = a:win
-	for [pat, Handler] in s:plumbing + get(g:, 'acme_plumbing', [])
+	let rc = index(s:plumbing, [])
+	for [pat, Handler] in s:plumbing[0:rc-1] +
+		\ get(g:, 'acme_plumbing', []) + s:plumbing[rc+1:]
 		let m = s:Match(a:text, a:click, pat)
 		if m != [] && call(Handler, [m])
 			return 1
