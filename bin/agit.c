@@ -457,14 +457,6 @@ void cmd_revert(void) {
 	}
 }
 
-void cmd_rm(void) {
-	set("git", "rm", NULL);
-	hint("< --dry-run -r >", NULL);
-	if (add(list_files)) {
-		run(devnull);
-	}
-}
-
 void cmd_stash(void) {
 	set("git", "stash", NULL);
 	hint("< --include-untracked pop drop >", NULL);
@@ -522,7 +514,6 @@ void mkcmds(void) {
 		{"pick", cmd_pick},
 		{"revert", cmd_revert},
 		{"reset", cmd_reset},
-		{"rm", cmd_rm},
 		{NULL}
 	};
 	cmds = menu;
