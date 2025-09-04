@@ -2,5 +2,4 @@
 tmp="$(mktemp)"
 CLEANUP="rm -f '$tmp'" . trap.sh
 cat >"$tmp"
-echo "$tmp"
-while :; do sleep 86400; done
+avim "$tmp"
