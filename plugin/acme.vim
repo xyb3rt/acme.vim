@@ -940,7 +940,7 @@ endfunc
 
 function s:Edit(files, cid, cmd)
 	for i in range(len(a:files))
-		let new = !bufexists(s:Path(a:files[i]))
+		let new = !s:FileWin(a:files[i])
 		call s:FileOpen(a:files[i], '')
 		if new || (i + 1 == len(a:files) && !get(s:editbufs, a:cid))
 			let b = bufnr()
