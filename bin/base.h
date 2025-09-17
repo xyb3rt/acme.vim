@@ -95,9 +95,7 @@ static char *indir(const char *path, const char *dir) {
 	size_t n = strlen(dir);
 	if (strncmp(path, dir, n) == 0 && path[n] == '/') {
 		for (path = &path[n + 1]; path[0] == '/'; path++);
-		if (access(path, F_OK) == 0) {
-			return (char *)path;
-		}
+		return (char *)path;
 	}
 	return NULL;
 }
