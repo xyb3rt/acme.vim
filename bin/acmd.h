@@ -13,7 +13,7 @@ struct { char *d; size_t len, size; } buf;
 struct avim_conn *conn;
 char *cwd;
 
-int process(const char *cmd, msg_cb *cb) {
+static int process(const char *cmd, msg_cb *cb) {
 	if (conn->rxfd == -1) {
 		error(EXIT_FAILURE, conn->err, "connection closed");
 	}
@@ -36,24 +36,24 @@ int process(const char *cmd, msg_cb *cb) {
 	return responded;
 }
 
-void request(const char **argv, size_t argc, msg_cb *cb) {
+static void request(const char **argv, size_t argc, msg_cb *cb) {
 	avim_send(conn, argv, argc);
 	do {
 		avim_sync(&conn, 1, NULL, 0);
 	} while (!process(argv[0], cb));
 }
 
-void clear(void) {
+static void clear(void) {
 	const char *cmd[] = {"clear", avimbuf};
 	request(cmd, ARRLEN(cmd), NULL);
 }
 
-void nl(void) {
+static void nl(void) {
 	putchar('\n');
 	fflush(stdout);
 }
 
-void menu(struct cmd cmds[]) {
+static void menu(struct cmd cmds[]) {
 	printf("<");
 	for (size_t i = 0; cmds[i].name != NULL; i++) {
 		printf(" %s", cmds[i].name);
@@ -62,7 +62,7 @@ void menu(struct cmd cmds[]) {
 	nl();
 }
 
-struct cmd *match(struct cmd cmds[]) {
+static struct cmd *match(struct cmd cmds[]) {
 	for (size_t i = 0; cmds[i].name != NULL; i++) {
 		if (strcmp(buf.d, cmds[i].name) == 0) {
 			return &cmds[i];
@@ -71,7 +71,7 @@ struct cmd *match(struct cmd cmds[]) {
 	return NULL;
 }
 
-int block(int fd) {
+static int block(int fd) {
 	int nfds = (fd > conn->rxfd ? fd : conn->rxfd) + 1;
 	fd_set readfds;
 	for (;;) {
@@ -99,7 +99,7 @@ int block(int fd) {
 	}
 }
 
-void input(void) {
+static void input(void) {
 	buf.len = getline(&buf.d, &buf.size, stdin);
 	if (buf.len == -1) {
 		exit(0);
@@ -109,7 +109,7 @@ void input(void) {
 	}
 }
 
-void init(const char *av0) {
+static void init(const char *av0) {
 	argv0 = av0;
 	avimbuf = getenv("ACMEVIMOUTBUF");
 	if (avimbuf == NULL || avimbuf[0] == '\0') {

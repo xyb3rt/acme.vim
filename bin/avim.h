@@ -18,7 +18,7 @@ struct avim_conn {
 	size_t rxend, rxpos;
 };
 
-avim_strv avim_parse(struct avim_conn *conn) {
+static avim_strv avim_parse(struct avim_conn *conn) {
 	int field = 1;
 	avim_strv msg = (avim_strv)vec_new();
 	for (size_t i = conn->rxpos; i < conn->rxend; i++) {
@@ -39,7 +39,7 @@ avim_strv avim_parse(struct avim_conn *conn) {
 	return NULL;
 }
 
-void avim_pop(struct avim_conn *conn) {
+static void avim_pop(struct avim_conn *conn) {
 	if (conn->rxpos > 0) {
 		vec_erase(&conn->rx, 0, conn->rxpos);
 		conn->rxend -= conn->rxpos;
@@ -47,16 +47,16 @@ void avim_pop(struct avim_conn *conn) {
 	}
 }
 
-void avim_pushn(avim_buf *buf, const char *s, size_t len) {
+static void avim_pushn(avim_buf *buf, const char *s, size_t len) {
 	char *p = vec_dig(buf, -1, len);
 	memcpy(p, s, len);
 }
 
-void avim_push(avim_buf *buf, const char *s) {
+static void avim_push(avim_buf *buf, const char *s) {
 	avim_pushn(buf, s, strlen(s));
 }
 
-void avim_send(struct avim_conn *conn, const char **argv, size_t argc) {
+static void avim_send(struct avim_conn *conn, const char **argv, size_t argc) {
 	for (size_t i = 0; i < argc; i++) {
 		if (i > 0) {
 			avim_push(&conn->tx, "\x1f");
@@ -66,7 +66,7 @@ void avim_send(struct avim_conn *conn, const char **argv, size_t argc) {
 	avim_push(&conn->tx, "\x1e");
 }
 
-struct avim_conn *avim_create(int rxfd, int txfd) {
+static struct avim_conn *avim_create(int rxfd, int txfd) {
 	struct avim_conn *conn;
 	conn = (struct avim_conn *)xrealloc(NULL, sizeof(*conn));
 	conn->id = xasprintf("%zu", (uintptr_t)conn);
@@ -80,7 +80,7 @@ struct avim_conn *avim_create(int rxfd, int txfd) {
 	return conn;
 }
 
-struct avim_conn *avim_connect(void) {
+static struct avim_conn *avim_connect(void) {
 	const char *avimport = getenv("ACMEVIMPORT");
 	if (avimport == NULL) {
 		error(EXIT_FAILURE, EINVAL, "ACMEVIMPORT");
@@ -105,14 +105,14 @@ struct avim_conn *avim_connect(void) {
 	return avim_create(sockfd, sockfd);
 }
 
-void avim_destroy(struct avim_conn *conn) {
+static void avim_destroy(struct avim_conn *conn) {
 	free(conn->id);
 	vec_free(&conn->rx);
 	vec_free(&conn->tx);
 	free(conn);
 }
 
-void avim_close(struct avim_conn *conn, int errnum) {
+static void avim_close(struct avim_conn *conn, int errnum) {
 	if (conn->rxfd != conn->txfd) {
 		close(conn->rxfd);
 	}
@@ -122,7 +122,7 @@ void avim_close(struct avim_conn *conn, int errnum) {
 	conn->err = errnum;
 }
 
-void avim_rx(struct avim_conn *conn) {
+static void avim_rx(struct avim_conn *conn) {
 	static char buf[1024];
 loop:	ssize_t n = read(conn->rxfd, buf, ARRLEN(buf));
 	if (n == -1 && errno == EINTR) {
@@ -141,7 +141,7 @@ loop:	ssize_t n = read(conn->rxfd, buf, ARRLEN(buf));
 	}
 }
 
-void avim_tx(struct avim_conn *conn) {
+static void avim_tx(struct avim_conn *conn) {
 loop:	ssize_t n = write(conn->txfd, conn->tx, vec_len(&conn->tx));
 	if (n == -1 && errno == EINTR) {
 		goto loop;
@@ -153,7 +153,8 @@ loop:	ssize_t n = write(conn->txfd, conn->tx, vec_len(&conn->tx));
 	}
 }
 
-void avim_sync(struct avim_conn **conns, size_t nconn, int *fd, size_t nfd) {
+static void avim_sync(struct avim_conn **conns, size_t nconn, int *fd,
+                      size_t nfd) {
 	int maxfd = 0;
 	fd_set readfds, writefds;
 	FD_ZERO(&readfds);
