@@ -1,3 +1,6 @@
+#ifndef AVIM_H
+#define AVIM_H
+
 #include "base.h"
 #include "vec.h"
 #include <arpa/inet.h>
@@ -196,3 +199,5 @@ static void avim_sync(struct avim_conn **conns, size_t nconn, int *fd,
 		}
 	}
 }
+
+#endif /* AVIM_H */

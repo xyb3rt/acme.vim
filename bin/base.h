@@ -1,3 +1,6 @@
+#ifndef BASE_H
+#define BASE_H
+
 #include <errno.h>
 #include <limits.h>
 #include <stdarg.h>
@@ -127,3 +130,5 @@ static int call(char *const argv[], int fds[3]) {
         }
         return status;
 }
+
+#endif /* BASE_H */

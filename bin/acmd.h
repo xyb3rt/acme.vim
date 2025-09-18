@@ -1,3 +1,6 @@
+#ifndef ACMD_H
+#define ACMD_H
+
 #include "avim.h"
 
 typedef void msg_cb(avim_strv);
@@ -119,3 +122,5 @@ static void init(const char *av0) {
 	cwd = xgetcwd();
 	clear();
 }
+
+#endif /* ACMD_H */

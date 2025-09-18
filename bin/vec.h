@@ -1,3 +1,6 @@
+#ifndef VEC_H
+#define VEC_H
+
 #define container_of(ptr, type, member) \
 	((type *)((char *)(ptr) - offsetof(type, member)))
 
@@ -86,3 +89,5 @@ static void _vec_erase(void **d, size_t i, size_t n, size_t sz) {
 	vec->len -= n;
 	memmove(&vec->d[i * sz], &vec->d[(i + n) * sz], (vec->len - i) * sz);
 }
+
+#endif /* VEC_H */
