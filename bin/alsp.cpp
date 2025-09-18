@@ -2,8 +2,8 @@
  * alsp: Simple LSP client in acme.vim scratch buffer
  */
 #include "acmd.h"
+#include "io.h"
 #include <fcntl.h>
-#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -274,26 +274,30 @@ void showcompls(const QJsonObject &msg) {
 }
 
 void showmatches(const QJsonObject &msg) {
+	avim_buf data = NULL;
+	avim_strv lines = NULL;
 	QByteArray path;
-	QList<QByteArray> lines;
 	for (const QJsonValue &i : msg.value("result").toArray()) {
 		struct filepos pos;
 		if (parseloc(i.toObject(), &pos)) {
 			if (path != pos.path) {
 				path = pos.path;
 				printpath(path.data());
-				QFile file(path);
-				lines.clear();
-				if (file.open(QIODevice::ReadOnly)) {
-					lines = file.readAll().split('\n');
+				vec_free(&lines);
+				vec_free(&data);
+				data = readfile(path.data());
+				if (data != NULL) {
+					lines = splitlines(data);
 				}
 			}
-			if (pos.line < lines.size()) {
+			if (lines != NULL && pos.line < vec_len(&lines)) {
 				printf("%6u: %s\n", pos.line + 1,
-				       lines.at(pos.line).data());
+				       lines[pos.line]);
 			}
 		}
 	}
+	vec_free(&lines);
+	vec_free(&data);
 }
 
 void gotomatch(const QJsonObject &msg) {
@@ -402,17 +406,21 @@ void handletypes(const QJsonObject &msg) {
 }
 
 bool txtdocopen(const QByteArray &path) {
-	QFile file(path);
-	if (!indir(path.data(), cwd) || !file.open(QIODevice::ReadOnly)) {
+	if (!indir(path.data(), cwd)) {
+		return false;
+	}
+	avim_buf data = readfile(path.data());
+	if (data == NULL) {
 		return false;
 	}
 	send(newmsg("textDocument/didOpen", QJsonObject{
 		{"textDocument", QJsonObject{
 			{"uri", QUrl::fromLocalFile(path).toString()},
 			{"languageId", ""},
-			{"text", QString(file.readAll())},
+			{"text", QString(data)},
 		}}
 	}));
+	vec_free(&data);
 	docs.insert(path);
 	return true;
 }
