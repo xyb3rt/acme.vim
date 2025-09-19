@@ -3,11 +3,11 @@
  */
 #include "acmd.h"
 #include "io.h"
+#include <ctype.h>
 #include <fcntl.h>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QUrl>
 
 struct chan {
 	int fd;
@@ -82,6 +82,68 @@ QJsonValue get(QJsonValue v, const QStringList &keys) {
 	return v;
 }
 
+avim_buf uridecode(const char *s) {
+	avim_buf out = (avim_buf)vec_new();
+	for (size_t i = 0; s[i] != '\0'; i++) {
+		char c = s[i];
+		if (c == '+') {
+			c = ' ';
+		} else if (c == '%') {
+			if (!isxdigit(s[i + 1]) || !isxdigit(s[i + 2])) {
+				vec_free(&out);
+				return NULL;
+			}
+			unsigned int n;
+			sscanf(&s[i + 1], "%2x", &n);
+			c = n;
+			i += 2;
+		}
+		vec_push(&out, c);
+	}
+	vec_push(&out, '\0');
+	return out;
+}
+
+avim_buf uriencode(const char *s) {
+	avim_buf out = (avim_buf)vec_new();
+	for (size_t i = 0; s[i] != '\0'; i++) {
+		char c = s[i];
+		if (isalnum(c) || strchr("./-_~", c) != NULL) {
+			vec_push(&out, c);
+		} else {
+			char buf[4];
+			snprintf(buf, sizeof buf, "%%%02X", c);
+			char *p = vec_dig(&out, -1, 3);
+			memcpy(p, buf, 3);
+		}
+	}
+	vec_push(&out, '\0');
+	return out;
+}
+
+avim_buf uri2path(const char *s) {
+	avim_buf path = uridecode(s);
+	if (path != NULL) {
+		if (strncmp(path, "file://localhost/", 17) == 0) {
+			vec_erase(&path, 0, 16);
+		} else if (strncmp(path, "file:///", 8) == 0) {
+			vec_erase(&path, 0, 7);
+		} else if (strncmp(path, "file:", 5) == 0) {
+			vec_erase(&path, 0, 5);
+		}
+	}
+	return path;
+}
+
+avim_buf path2uri(const char *s) {
+	avim_buf uri = uriencode(s);
+	const char *prefix = s[0] == '/' ? "file://" : "file:";
+	size_t len = strlen(prefix);
+	char *p = vec_dig(&uri, 0, len);
+	memcpy(p, prefix, len);
+	return uri;
+}
+
 QByteArray indent(int level) {
 	return QByteArray(level > 0 ? "> " : "< ").repeated(abs(level));
 }
@@ -95,14 +157,16 @@ void printpath(const char *path) {
 bool parseloc(const QJsonObject &loc, struct filepos *pos) {
 	int line = get(loc, {"range", "start", "line"}).toInt(-1);
 	int col = get(loc, {"range", "start", "character"}).toInt(0);
-	auto path = QUrl(loc.value("uri").toString()).toLocalFile().toUtf8();
-	if (path.isEmpty() || line < 0) {
-		return false;
+	avim_buf path = uri2path(loc.value("uri").toString().toUtf8().data());
+	bool ok = false;
+	if (path != NULL && path[0] != '\0' && line >= 0) {
+		ok = true;
+		pos->path = path;
+		pos->line = line;
+		pos->col = col;
 	}
-	pos->path = path;
-	pos->line = line;
-	pos->col = col;
-	return true;
+	vec_free(&path);
+	return ok;
 }
 
 QJsonObject capabilities(void) {
@@ -129,15 +193,18 @@ QJsonObject capabilities(void) {
 }
 
 QJsonObject txtpos() {
-	return QJsonObject{
+	avim_buf uri = path2uri(filepos.path.data());
+	auto obj = QJsonObject{
 		{"textDocument", QJsonObject{
-			{"uri", QUrl::fromLocalFile(filepos.path).toString()},
+			{"uri", QString(uri)},
 		}},
 		{"position", QJsonObject{
 			{"line", (qint64)filepos.line},
 			{"character", (qint64)filepos.col},
 		}},
 	};
+	vec_free(&uri);
+	return obj;
 }
 
 QJsonObject newmsg(const QString &method, const QJsonValue &params) {
@@ -413,13 +480,15 @@ bool txtdocopen(const QByteArray &path) {
 	if (data == NULL) {
 		return false;
 	}
+	avim_buf uri = path2uri(path.data());
 	send(newmsg("textDocument/didOpen", QJsonObject{
 		{"textDocument", QJsonObject{
-			{"uri", QUrl::fromLocalFile(path).toString()},
+			{"uri", QString(uri)},
 			{"languageId", ""},
 			{"text", QString(data)},
 		}}
 	}));
+	vec_free(&uri);
 	vec_free(&data);
 	docs.insert(path);
 	return true;
@@ -506,11 +575,13 @@ void spawn(char *argv[]) {
 	tx.fd = fd1[1];
 	int flags = fcntl(rx.fd, F_GETFL, 0);
 	fcntl(rx.fd, F_SETFL, flags | O_NONBLOCK);
+	avim_buf uri = path2uri(cwd);
 	send(newreq("initialize", QJsonObject{
 		{"processId", getpid()},
-		{"rootUri", QUrl::fromLocalFile(cwd).toString()},
+		{"rootUri", QString(uri)},
 		{"capabilities", capabilities()},
 	}, initialized));
+	vec_free(&uri);
 	inithandlers();
 	server = strbsnm(argv[0]);
 }
