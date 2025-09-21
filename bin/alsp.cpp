@@ -11,7 +11,7 @@
 
 struct chan {
 	int fd;
-	QByteArray buf;
+	avim_buf buf;
 };
 
 struct filepos {
@@ -248,27 +248,26 @@ void handle(const QJsonObject &msg) {
 	}
 }
 
-bool nextmsg(const QByteArray &d, qsizetype *i, qsizetype *n) {
-	qsizetype len = 0;
-	qsizetype pos = *i;
+bool nextmsg(const char *buf, size_t buflen, size_t *i, size_t *n) {
+	size_t len = 0;
+	size_t pos = *i;
 	for (;;) {
-		qsizetype end = d.indexOf("\r\n", pos);
-		if (end == -1) {
+		char *end = (char *)memmem(buf + pos, buflen - pos, "\r\n", 2);
+		if (end == NULL) {
 			break;
-		} else if (end == pos) {
-			if (pos + 2 + len > d.size()) {
+		} else if (end - buf == pos) {
+			if (pos + 2 + len > buflen) {
 				return false;
 			}
 			*i = pos + 2;
 			*n = len;
 			return true;
 		}
-		const char *header = d.constData() + pos;
 		unsigned long long l;
-		if (sscanf(header, "Content-Length: %llu", &l) == 1) {
+		if (sscanf(buf + pos, "Content-Length: %llu", &l) == 1) {
 			len = l;
 		}
-		pos = end + 2;
+		pos = end - buf + 2;
 	}
 	return false;
 }
@@ -285,11 +284,13 @@ void receive(void) {
 			}
 			error(EXIT_FAILURE, errno, "read");
 		}
-		rx.buf.append(buf, n);
+		char *p = vec_dig(&rx.buf, -1, n);
+		memcpy(p, buf, n);
 	}
-	qsizetype i = 0, n;
-	while (nextmsg(rx.buf, &i, &n)) {
-		auto doc = QJsonDocument::fromJson(rx.buf.mid(i, n));
+	size_t i = 0, n;
+	while (nextmsg(rx.buf, vec_len(&rx.buf), &i, &n)) {
+		auto data = QByteArray::fromRawData(rx.buf + i, n);
+		auto doc = QJsonDocument::fromJson(data);
 		i += n;
 		if (doc.isObject()) {
 			handle(doc.object());
@@ -299,9 +300,7 @@ void receive(void) {
 			}
 		}
 	}
-	if (i > 0) {
-		rx.buf = rx.buf.mid(i);
-	}
+	vec_erase(&rx.buf, 0, i);
 }
 
 void send(const QJsonObject &msg) {
@@ -626,6 +625,7 @@ void guessinvocation(void) {
 int main(int argc, char *argv[]) {
 	init(argv[0]);
 	cmds = (struct cmd *)vec_new();
+	rx.buf = (avim_buf)vec_new();
 	if (argc > 1) {
 		spawn(&argv[1]);
 	} else {
