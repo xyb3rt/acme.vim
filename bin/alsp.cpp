@@ -40,7 +40,7 @@ const char *symkind[] = {
 	"type-param"
 };
 
-QVector<struct cmd> cmds;
+struct cmd *cmds;
 QSet<QByteArray> docs;
 struct filepos filepos;
 QHash<QByteArray, msghandler *> handler;
@@ -618,6 +618,7 @@ void guessinvocation(void) {
 
 int main(int argc, char *argv[]) {
 	init(argv[0]);
+	cmds = (struct cmd *)vec_new();
 	if (argc > 1) {
 		spawn(&argv[1]);
 	} else {
@@ -631,12 +632,12 @@ int main(int argc, char *argv[]) {
 				dumptypes();
 			}
 			printf("%s ", server);
-			menu(cmds.data());
+			menu(cmds);
 			dirty = false;
 		}
 		if (block(rx.fd) == 0) {
 			input();
-			struct cmd *cmd = match(cmds.data());
+			struct cmd *cmd = match(cmds);
 			if (cmd != NULL && requests.isEmpty()) {
 				clear();
 				cmd->func();
@@ -692,7 +693,8 @@ void cmd_syms(void) {
 void addcmd(const char *name, cmd_func *func, const QJsonObject &capabilities,
             const char *capability) {
 	if (capabilities.contains(capability)) {
-		cmds.append({name, func});
+		struct cmd cmd = {name, func};
+		vec_push(&cmds, cmd);
 	}
 }
 
@@ -706,5 +708,6 @@ void initmenu(const QJsonObject &cap) {
 	addcmd("typedef", cmd_typedef, cap, "typeDefinitionProvider");
 	addcmd("typehy", cmd_typehy, cap, "typeHierarchyProvider");
 	addcmd("syms", cmd_syms, cap, "documentSymbolProvider");
-	cmds.append({NULL, NULL});
+	struct cmd end = {NULL, NULL};
+	vec_push(&cmds, end);
 }
