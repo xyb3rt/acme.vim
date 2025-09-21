@@ -63,17 +63,17 @@ void setpos(avim_strv msg) {
 	}
 }
 
-bool getpos() {
+int getpos() {
 	free(filepos.path);
 	filepos.path = NULL;
 	const char *argv[] = {"bufinfo"};
 	request(argv, ARRLEN(argv), setpos);
 	if (filepos.path == NULL) {
-		return false;
+		return 0;
 	}
 	argv[0] = "save";
 	request(argv, ARRLEN(argv), NULL);
-	return true;
+	return 1;
 }
 
 QJsonValue get(QJsonValue v, const QStringList &keys) {
@@ -155,13 +155,13 @@ void printpath(const char *path) {
 	printf("%s%s\n", p[0] == '/' ? "" : "./", p);
 }
 
-bool parseloc(const QJsonObject &loc, struct filepos *pos) {
+int parseloc(const QJsonObject &loc, struct filepos *pos) {
 	int line = get(loc, {"range", "start", "line"}).toInt(-1);
 	int col = get(loc, {"range", "start", "character"}).toInt(0);
 	avim_buf path = uri2path(loc.value("uri").toString().toUtf8().data());
-	bool ok = false;
+	int ok = 0;
 	if (path != NULL && path[0] != '\0' && line >= 0) {
-		ok = true;
+		ok = 1;
 		pos->path = xstrdup(path);
 		pos->line = line;
 		pos->col = col;
@@ -248,7 +248,7 @@ void handle(const QJsonObject &msg) {
 	}
 }
 
-bool nextmsg(const char *buf, size_t buflen, size_t *i, size_t *n) {
+int nextmsg(const char *buf, size_t buflen, size_t *i, size_t *n) {
 	size_t len = 0;
 	size_t pos = *i;
 	for (;;) {
@@ -261,7 +261,7 @@ bool nextmsg(const char *buf, size_t buflen, size_t *i, size_t *n) {
 			}
 			*i = pos + 2;
 			*n = len;
-			return true;
+			return 1;
 		}
 		unsigned long long l;
 		if (sscanf(buf + pos, "Content-Length: %llu", &l) == 1) {
@@ -269,7 +269,7 @@ bool nextmsg(const char *buf, size_t buflen, size_t *i, size_t *n) {
 		}
 		pos = end - buf + 2;
 	}
-	return false;
+	return 0;
 }
 
 void receive(void) {
@@ -478,13 +478,13 @@ void handletypes(const QJsonObject &msg) {
 	}
 }
 
-bool txtdocopen(const char *path) {
+int txtdocopen(const char *path) {
 	if (!indir(path, cwd)) {
-		return false;
+		return 0;
 	}
 	avim_buf data = readfile(path);
 	if (data == NULL) {
-		return false;
+		return 0;
 	}
 	avim_buf uri = path2uri(path);
 	send(newmsg("textDocument/didOpen", QJsonObject{
@@ -497,7 +497,7 @@ bool txtdocopen(const char *path) {
 	vec_free(&uri);
 	vec_free(&data);
 	vec_push(&docs, xstrdup(path));
-	return true;
+	return 1;
 }
 
 void txtdocclose(const char *path) {
@@ -644,7 +644,7 @@ int main(int argc, char *argv[]) {
 	} else {
 		guessinvocation();
 	}
-	bool dirty = true;
+	int dirty = 1;
 	for (;;) {
 		if (dirty && requests.isEmpty()) {
 			closeall();
@@ -653,7 +653,7 @@ int main(int argc, char *argv[]) {
 			}
 			printf("%s ", server);
 			menu(cmds);
-			dirty = false;
+			dirty = 0;
 		}
 		if (block(rx.fd) == 0) {
 			input();
@@ -661,7 +661,7 @@ int main(int argc, char *argv[]) {
 			if (cmd != NULL && requests.isEmpty()) {
 				clear();
 				cmd->func();
-				dirty = true;
+				dirty = 1;
 			}
 		} else {
 			receive();
