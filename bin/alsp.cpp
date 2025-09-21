@@ -170,42 +170,117 @@ int parseloc(const QJsonObject &loc, struct filepos *pos) {
 	return ok;
 }
 
-QJsonObject capabilities(void) {
-	return QJsonObject{
-		{"general", QJsonObject{
-			{"positionEncodings", QJsonArray{"utf-8"}},
-		}},
-		{"offsetEncoding", QJsonArray{"utf-8"}},
-		{"textDocument", QJsonObject{
-			{"completion", QJsonObject{
-				{"contextSupport", true},
-			}},
-			{"declaration", QJsonObject{}},
-			{"definition", QJsonObject{}},
-			{"implementation", QJsonObject{}},
-			{"references", QJsonObject{}},
-			{"typeDefinition", QJsonObject{}},
-			{"typeHierarchy", QJsonObject{}},
-			{"documentSymbol", QJsonObject{
-				{"hierarchicalDocumentSymbolSupport", true}
-			}},
-		}},
-	};
+void showmessage(const QJsonObject &msg) {
+	int type = get(msg, {"params", "type"}).toInt();
+	QString message = get(msg, {"params", "message"}).toString();
+	if (type > 0 && type < 4 && !message.isEmpty()) {
+		printf("%s: %s", msgtype[type], message.toUtf8().data());
+		nl();
+	}
 }
 
-QJsonObject txtpos() {
-	avim_buf uri = path2uri(filepos.path);
-	auto obj = QJsonObject{
-		{"textDocument", QJsonObject{
-			{"uri", QString(uri)},
-		}},
-		{"position", QJsonObject{
-			{"line", (qint64)filepos.line},
-			{"character", (qint64)filepos.col},
-		}},
-	};
-	vec_free(&uri);
-	return obj;
+void showcompls(const QJsonObject &msg) {
+	auto result = msg.value("result").toObject();
+	for (const QJsonValue &i : result.value("items").toArray()) {
+		auto txt = get(i, {"textEdit", "newText"}).toString().toUtf8();
+		auto detail = get(i, {"detail"}).toString().toUtf8();
+		if (!txt.isEmpty()) {
+			printf("%s %s\n", txt.data(), detail.data());
+		}
+	}
+}
+
+void showmatches(const QJsonObject &msg) {
+	avim_buf data = NULL;
+	avim_strv lines = NULL;
+	char *path = NULL;
+	for (const QJsonValue &i : msg.value("result").toArray()) {
+		struct filepos pos;
+		if (parseloc(i.toObject(), &pos)) {
+			if (path == NULL || strcmp(path, pos.path) != 0) {
+				free(path);
+				path = xstrdup(pos.path);
+				printpath(path);
+				vec_free(&lines);
+				vec_free(&data);
+				data = readfile(path);
+				if (data != NULL) {
+					lines = splitlines(data);
+				}
+			}
+			if (lines != NULL && pos.line < vec_len(&lines)) {
+				printf("%6u: %s\n", pos.line + 1,
+				       lines[pos.line]);
+			}
+			free(pos.path);
+		}
+	}
+	free(path);
+	vec_free(&lines);
+	vec_free(&data);
+}
+
+void gotomatch(const QJsonObject &msg) {
+	struct filepos pos;
+	QJsonArray result = msg.value("result").toArray();
+	if (result.size() != 1) {
+		showmatches(msg);
+	} else if (parseloc(result.at(0).toObject(), &pos)) {
+		QByteArray line = QByteArray::number(pos.line + 1);
+		QByteArray col = QByteArray::number(pos.col + 1);
+		QByteArray linecol = line + ":" + col;
+		const char *cmd[] = {"open", pos.path, linecol.data()};
+		request(cmd, ARRLEN(cmd), NULL);
+		free(pos.path);
+	}
+}
+
+void showsym(const QJsonObject &sym, int level) {
+	QByteArray name = sym.value("name").toString().toUtf8();
+	QStringList linePath = {"range", "start", "line"};
+	if (sym.contains("location")) {
+		linePath.insert(0, "location");
+	}
+	int line = get(sym, linePath).toInt(-1);
+	size_t k = sym.value("kind").toInt();
+	const char *kind = k < ARRLEN(symkind) ? symkind[k] : "";
+	if (!name.isEmpty() && line >= 0) {
+		printf("%6u: %s%s%s%s\n", line + 1, indent(level).data(),
+		       kind, kind[0] != '\0' ? " " : "", name.data());
+	}
+	for (const QJsonValue &i : sym.value("children").toArray()) {
+		showsym(i.toObject(), level + 1);
+	}
+}
+
+void showsyms(const QJsonObject &msg) {
+	printpath(filepos.path);
+	for (const QJsonValue &i : msg.value("result").toArray()) {
+		showsym(i.toObject(), 0);
+	}
+}
+
+void dumptypes(void) {
+	char *path = NULL;
+	qsizetype i = 0;
+	while (i >= 0 && i < types.size()) {
+		const typeinfo &t = types[i];
+		struct filepos pos;
+		QByteArray name = t.obj.value("name").toString().toUtf8();
+		if (!name.isEmpty() && parseloc(t.obj, &pos)) {
+			if (path == NULL || strcmp(path, pos.path) != 0) {
+				free(path);
+				path = xstrdup(pos.path);
+				printpath(path);
+			}
+			printf("%6u: %s%s\n", pos.line + 1,
+			       indent(t.level).data(), name.data());
+		}
+		i = t.next;
+	}
+	free(path);
+	types.clear();
+	parenttype.clear();
 }
 
 QJsonObject newmsg(const QString &method, const QJsonValue &params) {
@@ -320,119 +395,6 @@ void send(const QJsonObject &msg) {
 	}
 }
 
-void showmessage(const QJsonObject &msg) {
-	int type = get(msg, {"params", "type"}).toInt();
-	QString message = get(msg, {"params", "message"}).toString();
-	if (type > 0 && type < 4 && !message.isEmpty()) {
-		printf("%s: %s", msgtype[type], message.toUtf8().data());
-		nl();
-	}
-}
-
-void showcompls(const QJsonObject &msg) {
-	auto result = msg.value("result").toObject();
-	for (const QJsonValue &i : result.value("items").toArray()) {
-		auto txt = get(i, {"textEdit", "newText"}).toString().toUtf8();
-		auto detail = get(i, {"detail"}).toString().toUtf8();
-		if (!txt.isEmpty()) {
-			printf("%s %s\n", txt.data(), detail.data());
-		}
-	}
-}
-
-void showmatches(const QJsonObject &msg) {
-	avim_buf data = NULL;
-	avim_strv lines = NULL;
-	char *path = NULL;
-	for (const QJsonValue &i : msg.value("result").toArray()) {
-		struct filepos pos;
-		if (parseloc(i.toObject(), &pos)) {
-			if (path == NULL || strcmp(path, pos.path) != 0) {
-				free(path);
-				path = xstrdup(pos.path);
-				printpath(path);
-				vec_free(&lines);
-				vec_free(&data);
-				data = readfile(path);
-				if (data != NULL) {
-					lines = splitlines(data);
-				}
-			}
-			if (lines != NULL && pos.line < vec_len(&lines)) {
-				printf("%6u: %s\n", pos.line + 1,
-				       lines[pos.line]);
-			}
-			free(pos.path);
-		}
-	}
-	free(path);
-	vec_free(&lines);
-	vec_free(&data);
-}
-
-void gotomatch(const QJsonObject &msg) {
-	struct filepos pos;
-	QJsonArray result = msg.value("result").toArray();
-	if (result.size() != 1) {
-		showmatches(msg);
-	} else if (parseloc(result.at(0).toObject(), &pos)) {
-		QByteArray line = QByteArray::number(pos.line + 1);
-		QByteArray col = QByteArray::number(pos.col + 1);
-		QByteArray linecol = line + ":" + col;
-		const char *cmd[] = {"open", pos.path, linecol.data()};
-		request(cmd, ARRLEN(cmd), NULL);
-		free(pos.path);
-	}
-}
-
-void showsym(const QJsonObject &sym, int level) {
-	QByteArray name = sym.value("name").toString().toUtf8();
-	QStringList linePath = {"range", "start", "line"};
-	if (sym.contains("location")) {
-		linePath.insert(0, "location");
-	}
-	int line = get(sym, linePath).toInt(-1);
-	size_t k = sym.value("kind").toInt();
-	const char *kind = k < ARRLEN(symkind) ? symkind[k] : "";
-	if (!name.isEmpty() && line >= 0) {
-		printf("%6u: %s%s%s%s\n", line + 1, indent(level).data(),
-		       kind, kind[0] != '\0' ? " " : "", name.data());
-	}
-	for (const QJsonValue &i : sym.value("children").toArray()) {
-		showsym(i.toObject(), level + 1);
-	}
-}
-
-void showsyms(const QJsonObject &msg) {
-	printpath(filepos.path);
-	for (const QJsonValue &i : msg.value("result").toArray()) {
-		showsym(i.toObject(), 0);
-	}
-}
-
-void dumptypes(void) {
-	char *path = NULL;
-	qsizetype i = 0;
-	while (i >= 0 && i < types.size()) {
-		const typeinfo &t = types[i];
-		struct filepos pos;
-		QByteArray name = t.obj.value("name").toString().toUtf8();
-		if (!name.isEmpty() && parseloc(t.obj, &pos)) {
-			if (path == NULL || strcmp(path, pos.path) != 0) {
-				free(path);
-				path = xstrdup(pos.path);
-				printpath(path);
-			}
-			printf("%6u: %s%s\n", pos.line + 1,
-			       indent(t.level).data(), name.data());
-		}
-		i = t.next;
-	}
-	free(path);
-	types.clear();
-	parenttype.clear();
-}
-
 qsizetype addtype(const QJsonObject &t, int level, qsizetype p) {
 	qsizetype i = types.size();
 	types.append({t, level, -1});
@@ -510,6 +472,21 @@ void txtdocclose(const char *path) {
 	vec_free(&uri);
 }
 
+QJsonObject txtpos() {
+	avim_buf uri = path2uri(filepos.path);
+	auto obj = QJsonObject{
+		{"textDocument", QJsonObject{
+			{"uri", QString(uri)},
+		}},
+		{"position", QJsonObject{
+			{"line", (qint64)filepos.line},
+			{"character", (qint64)filepos.col},
+		}},
+	};
+	vec_free(&uri);
+	return obj;
+}
+
 void txtdoc(const char *method, msghandler *handler,
             const QJsonObject &extra = QJsonObject()) {
 	if (!getpos() || !txtdocopen(filepos.path)) {
@@ -549,6 +526,29 @@ void closeall(void) {
 		free(docs[i]);
 	}
 	vec_clear(&docs);
+}
+
+QJsonObject capabilities(void) {
+	return QJsonObject{
+		{"general", QJsonObject{
+			{"positionEncodings", QJsonArray{"utf-8"}},
+		}},
+		{"offsetEncoding", QJsonArray{"utf-8"}},
+		{"textDocument", QJsonObject{
+			{"completion", QJsonObject{
+				{"contextSupport", true},
+			}},
+			{"declaration", QJsonObject{}},
+			{"definition", QJsonObject{}},
+			{"implementation", QJsonObject{}},
+			{"references", QJsonObject{}},
+			{"typeDefinition", QJsonObject{}},
+			{"typeHierarchy", QJsonObject{}},
+			{"documentSymbol", QJsonObject{
+				{"hierarchicalDocumentSymbolSupport", true}
+			}},
+		}},
+	};
 }
 
 void initmenu(const QJsonObject &);
