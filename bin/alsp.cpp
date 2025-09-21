@@ -5,9 +5,7 @@
 #include "io.h"
 #include <ctype.h>
 #include <fcntl.h>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
+#include <jansson.h>
 
 struct chan {
 	int fd;
@@ -21,12 +19,17 @@ struct filepos {
 };
 
 struct typeinfo {
-	QJsonObject obj;
+	json_t *obj;
 	int level;
-	qsizetype next;
+	size_t next;
 };
 
-typedef void msghandler(const QJsonObject &);
+struct typeparent {
+	unsigned int id;
+	size_t parent;
+};
+
+typedef void msghandler(json_t *);
 
 struct req {
 	unsigned int id;
@@ -49,10 +52,10 @@ struct cmd *cmds;
 avim_strv docs;
 struct filepos filepos;
 struct req *requests;
-chan rx;
+struct chan rx;
 FILE *tx;
-QList<typeinfo> types;
-QHash<unsigned int, qsizetype> parenttype;
+struct typeinfo *types;
+struct typeparent *typeparent;
 const char *server;
 
 void setpos(avim_strv msg) {
@@ -81,10 +84,16 @@ int getpos() {
 	return 1;
 }
 
-QJsonValue get(QJsonValue v, const QStringList &keys) {
-	for (const auto &key : keys) {
-		v = v.toObject().value(key);
+#define GET(...) get(__VA_ARGS__, NULL)
+json_t *get(json_t *, const char *, ...) __attribute__((sentinel));
+json_t *get(json_t *v, const char *key, ...) {
+	va_list ap;
+	va_start(ap, key);
+	while (v != NULL && key != NULL) {
+		v = json_object_get(v, key);
+		key = va_arg(ap, const char *);
 	}
+	va_end(ap);
 	return v;
 }
 
@@ -162,13 +171,13 @@ void printpath(const char *path) {
 	printf("%s%s\n", p[0] == '/' ? "" : "./", p);
 }
 
-int parseloc(const QJsonObject &loc, struct filepos *pos) {
-	int line = get(loc, {"range", "start", "line"}).toInt(-1);
-	int col = get(loc, {"range", "start", "character"}).toInt(0);
-	avim_buf path = uri2path(loc.value("uri").toString().toUtf8().data());
-	int ok = 0;
-	if (path != NULL && path[0] != '\0' && line >= 0) {
-		ok = 1;
+int parseloc(json_t *loc, struct filepos *pos) {
+	int line = json_integer_value(GET(loc, "range", "start", "line"));
+	int col = json_integer_value(GET(loc, "range", "start", "character"));
+	const char *uri = json_string_value(GET(loc, "uri"));
+	avim_buf path = uri != NULL ? uri2path(uri) : NULL;
+	int ok = path != NULL && path[0] != '\0';
+	if (ok) {
 		pos->path = xstrdup(path);
 		pos->line = line;
 		pos->col = col;
@@ -177,33 +186,36 @@ int parseloc(const QJsonObject &loc, struct filepos *pos) {
 	return ok;
 }
 
-void showmessage(const QJsonObject &msg) {
-	int type = get(msg, {"params", "type"}).toInt();
-	QString message = get(msg, {"params", "message"}).toString();
-	if (type > 0 && type < 4 && !message.isEmpty()) {
-		printf("%s: %s", msgtype[type], message.toUtf8().data());
+void showmessage(json_t *msg) {
+	int type = json_integer_value(GET(msg, "params", "type"));
+	const char *text = json_string_value(GET(msg, "params", "message"));
+	if (type > 0 && type < 4 && text != NULL && text[0] != '\0') {
+		printf("%s: %s", msgtype[type], text);
 		nl();
 	}
 }
 
-void showcompls(const QJsonObject &msg) {
-	auto result = msg.value("result").toObject();
-	for (const QJsonValue &i : result.value("items").toArray()) {
-		auto txt = get(i, {"textEdit", "newText"}).toString().toUtf8();
-		auto detail = get(i, {"detail"}).toString().toUtf8();
-		if (!txt.isEmpty()) {
-			printf("%s %s\n", txt.data(), detail.data());
+void showcompls(json_t *msg) {
+	json_t *items = GET(msg, "result", "items");
+	for (size_t i = 0, n = json_array_size(items); i < n; i++) {
+		json_t *item = json_array_get(items, i);
+		json_t *str = GET(item, "textEdit", "newText");
+		const char *text = json_string_value(str);
+		const char *detail = json_string_value(GET(item, "detail"));
+		if (text != NULL && text[0] != '\0') {
+			printf("%s %s\n", text, detail != NULL ? detail : "");
 		}
 	}
 }
 
-void showmatches(const QJsonObject &msg) {
+void showmatches(json_t *msg) {
 	avim_buf data = NULL;
 	avim_strv lines = NULL;
 	char *path = NULL;
-	for (const QJsonValue &i : msg.value("result").toArray()) {
+	json_t *res = GET(msg, "result");
+	for (size_t i = 0, n = json_array_size(res); i < n; i++) {
 		struct filepos pos;
-		if (parseloc(i.toObject(), &pos)) {
+		if (parseloc(json_array_get(res, i), &pos)) {
 			if (path == NULL || strcmp(path, pos.path) != 0) {
 				free(path);
 				path = xstrdup(pos.path);
@@ -227,12 +239,12 @@ void showmatches(const QJsonObject &msg) {
 	vec_free(&data);
 }
 
-void gotomatch(const QJsonObject &msg) {
+void gotomatch(json_t *msg) {
 	struct filepos pos;
-	QJsonArray result = msg.value("result").toArray();
-	if (result.size() != 1) {
+	json_t *res = GET(msg, "result");
+	if (json_array_size(res) != 1) {
 		showmatches(msg);
-	} else if (parseloc(result.at(0).toObject(), &pos)) {
+	} else if (parseloc(json_array_get(res, 0), &pos)) {
 		char *linecol = xasprintf("%d:%d", pos.line + 1, pos.col + 1);
 		const char *cmd[] = {"open", pos.path, linecol};
 		request(cmd, ARRLEN(cmd), NULL);
@@ -241,73 +253,123 @@ void gotomatch(const QJsonObject &msg) {
 	}
 }
 
-void showsym(const QJsonObject &sym, int level) {
-	QByteArray name = sym.value("name").toString().toUtf8();
-	QStringList linePath = {"range", "start", "line"};
-	if (sym.contains("location")) {
-		linePath.insert(0, "location");
-	}
-	int line = get(sym, linePath).toInt(-1);
-	size_t k = sym.value("kind").toInt();
-	const char *kind = k < ARRLEN(symkind) ? symkind[k] : "";
-	if (!name.isEmpty() && line >= 0) {
-		printf("%6u: ", line + 1);
+void showsym(json_t *sym, int level) {
+	const char *name = json_string_value(GET(sym, "name"));
+	json_t *loc = GET(sym, "location");
+	json_t *line = GET(loc ? loc : sym, "range", "start", "line");
+	if (name != NULL && name[0] != '\0' && line != NULL) {
+		size_t k = json_integer_value(GET(sym, "kind"));
+		const char *kind = k < ARRLEN(symkind) ? symkind[k] : "";
+		printf("%6u: ", json_integer_value(line) + 1);
 		printindent(level);
-		printf("%s%s%s\n", kind, kind[0] != '\0' ? " " : "",
-		       name.data());
+		printf("%s%s%s\n", kind, kind[0] != '\0' ? " " : "", name);
 	}
-	for (const QJsonValue &i : sym.value("children").toArray()) {
-		showsym(i.toObject(), level + 1);
+	json_t *children = GET(sym, "children");
+	for (size_t i = 0, n = json_array_size(children); i < n; i++) {
+		showsym(json_array_get(children, i), level + 1);
 	}
 }
 
-void showsyms(const QJsonObject &msg) {
-	printpath(filepos.path);
-	for (const QJsonValue &i : msg.value("result").toArray()) {
-		showsym(i.toObject(), 0);
+void showsyms(json_t *msg) {
+	json_t *res = GET(msg, "result");
+	for (size_t i = 0, n = json_array_size(res); i < n; i++) {
+		if (i == 0) {
+			printpath(filepos.path);
+		}
+		showsym(json_array_get(res, i), 0);
 	}
 }
 
 void dumptypes(void) {
 	char *path = NULL;
-	qsizetype i = 0;
-	while (i >= 0 && i < types.size()) {
-		const typeinfo &t = types[i];
+	size_t i = 0;
+	while (i < vec_len(&types)) {
+		const struct typeinfo *t = &types[i];
+		const char *name = json_string_value(GET(t->obj, "name"));
 		struct filepos pos;
-		QByteArray name = t.obj.value("name").toString().toUtf8();
-		if (!name.isEmpty() && parseloc(t.obj, &pos)) {
+		if (name != NULL && name[0] != '\0' && parseloc(t->obj, &pos)) {
 			if (path == NULL || strcmp(path, pos.path) != 0) {
 				free(path);
 				path = xstrdup(pos.path);
 				printpath(path);
 			}
 			printf("%6u: ", pos.line + 1);
-			printindent(t.level);
-			printf("%s\n", name.data());
+			printindent(t->level);
+			printf("%s\n", name);
 		}
-		i = t.next;
+		i = t->next;
 	}
 	free(path);
-	types.clear();
-	parenttype.clear();
+	for (size_t i = 0, n = vec_len(&types); i < n; i++) {
+		json_decref(types[i].obj);
+	}
+	vec_clear(&types);
+	vec_clear(&typeparent);
 }
 
-QJsonObject newmsg(const QString &method, const QJsonValue &params) {
-	return QJsonObject{
-		{"jsonrpc", "2.0"},
-		{"method", method},
-		{"params", params},
-	};
+#define JSON(type, ...) jsonref(json_ ## type(__VA_ARGS__), #type)
+json_t *jsonref(json_t *ref, const char *type) {
+	if (ref == NULL) {
+		error(EXIT_FAILURE, 0, "json %s error", type);
+	}
+	return ref;
 }
 
-QJsonObject newreq(const QString &method, const QJsonValue &params,
-                   msghandler *handler) {
+#define ARR(...) arr(__VA_ARGS__, NULL)
+json_t *arr(json_t *, ...) __attribute__((sentinel));
+json_t *arr(json_t *val, ...) {
+	json_t *arr = JSON(array);
+	va_list ap;
+	va_start(ap, val);
+	while (val != NULL) {
+		if (json_array_append_new(arr, val) == -1) {
+			error(EXIT_FAILURE, 0, "json array error");
+		}
+		val = va_arg(ap, json_t *);
+	}
+	va_end(ap);
+	return arr;
+}
+
+void objset(json_t *obj, const char *key, json_t *val) {
+	if (json_object_set_new(obj, key, val) == -1) {
+		error(EXIT_FAILURE, 0, "json object error");
+	}
+}
+
+#define OBJ(...) obj(__VA_ARGS__, NULL)
+json_t *obj(const char *, json_t *, ...) __attribute__((sentinel));
+json_t *obj(const char *key, json_t *val, ...) {
+	va_list ap;
+	va_start(ap, val);
+	json_t *obj = JSON(object);
+	for (;;) {
+		objset(obj, key, val);
+		key = va_arg(ap, const char *);
+		if (key == NULL) {
+			break;
+		}
+		val = va_arg(ap, json_t *);
+	}
+	va_end(ap);
+	return obj;
+}
+
+json_t *msg(const char *method, json_t *params) {
+	return OBJ(
+		"jsonrpc", JSON(string, "2.0"),
+		"method", JSON(string, method),
+		"params", params);
+}
+
+json_t *req(const char *method, msghandler *handler, json_t *params) {
 	static unsigned int id;
-	QJsonObject msg = newmsg(method, params);
-	msg["id"] = (qint64)++id;
-	struct req req = {id, handler};
-	vec_push(&requests, req);
-	return msg;
+	json_t *m = msg(method, params);
+	id++;
+	objset(m, "id", JSON(integer, id));
+	struct req r = {id, handler};
+	vec_push(&requests, r);
+	return m;
 }
 
 size_t findreq(unsigned int id) {
@@ -319,26 +381,27 @@ size_t findreq(unsigned int id) {
 	return -1;
 }
 
-void handle(const QJsonObject &msg) {
-	if (msg.contains("result") || msg.contains("error")) {
+void handle(json_t *msg) {
+	if (GET(msg, "result") != NULL || GET(msg, "error") != NULL) {
 		// response
-		QString error = get(msg, {"error", "message"}).toString();
-		if (!error.isEmpty()) {
-			fprintf(stderr, "Error: %s\n", error.toUtf8().data());
+		json_t *err = GET(msg, "error", "message");
+		if (err != NULL) {
+			fprintf(stderr, "Error: %s\n", json_string_value(err));
 		}
-		unsigned int id = msg.value("id").toInt();
+		unsigned int id = json_integer_value(GET(msg, "id"));
 		size_t req = findreq(id);
 		if (req != -1) {
 			msghandler *handler = requests[req].handler;
 			vec_erase(&requests, req, 1);
-			if (error.isEmpty()) {
+			if (err == NULL) {
 				handler(msg);
 			}
 		}
 	} else {
 		// request or notification
-		QByteArray method = msg.value("method").toString().toUtf8();
-		if (method == "window/showMessage") {
+		const char *method = json_string_value(GET(msg, "method"));
+		if (method == NULL) {
+		} else if (strcmp(method, "window/showMessage") == 0) {
 			showmessage(msg);
 		}
 	}
@@ -385,75 +448,99 @@ void receive(void) {
 	}
 	size_t i = 0, n;
 	while (nextmsg(rx.buf, vec_len(&rx.buf), &i, &n)) {
-		auto data = QByteArray::fromRawData(rx.buf + i, n);
-		auto doc = QJsonDocument::fromJson(data);
+		struct json_error_t err;
+		json_t *msg = json_loadb(rx.buf + i, n, 0, &err);
 		i += n;
-		if (doc.isObject()) {
-			handle(doc.object());
-		} else if (doc.isArray()) {
-			for (const QJsonValue &i : doc.array()) {
-				handle(i.toObject());
-			}
+		if (json_is_object(msg)) {
+			handle(msg);
+		} else for (size_t i = 0, n = json_array_size(msg);
+		            i < n; i++) {
+			handle(json_array_get(msg, i));
 		}
+		json_decref(msg);
 	}
 	vec_erase(&rx.buf, 0, i);
 }
 
-void send(const QJsonObject &msg) {
-	QByteArray d = QJsonDocument(msg).toJson(QJsonDocument::Compact);
-	fprintf(tx, "Content-Length: %zu\r\n\r\n", (size_t)d.size());
+void transmit(json_t *msg) {
+	char *data = json_dumps(msg, JSON_COMPACT);
+	if (data == NULL) {
+		error(EXIT_FAILURE, ENOMEM, "json_dumps");
+	}
+	size_t len = strlen(data);
+	fprintf(tx, "Content-Length: %zu\r\n\r\n", len);
 	if (ferror(tx)) {
 		error(EXIT_FAILURE, errno, "write");
 	}
-	fwrite(d.data(), 1, d.size(), tx);
+	fwrite(data, 1, len, tx);
 	if (ferror(tx)) {
 		error(EXIT_FAILURE, errno, "write");
 	}
+	free(data);
+	json_decref(msg);
 	fflush(tx);
 }
 
-qsizetype addtype(const QJsonObject &t, int level, qsizetype p) {
-	qsizetype i = types.size();
-	types.append({t, level, -1});
-	if (p != -1) {
-		qsizetype n = types[p].next;
-		types[p].next = i;
+size_t addtype(json_t *obj, int level, size_t parent) {
+	size_t i = vec_len(&types);
+	struct typeinfo t = {json_incref(obj), level, (size_t)-1};
+	vec_push(&types, t);
+	if (parent != -1) {
+		size_t n = types[parent].next;
+		types[parent].next = i;
 		types[i].next = n;
 	}
 	return i;
 }
 
-void querytypes(const char *method, qsizetype p, msghandler *handler) {
-	auto params = QJsonObject{{"item", types[p].obj}};
-	auto req = newreq(QString("typeHierarchy/") + method, params, handler);
-	parenttype[req.value("id").toInt()] = p;
-	send(req);
+void querytypes(const char *method, size_t parent, msghandler *handler) {
+	json_t *params = OBJ("item", json_incref(types[parent].obj));
+	json_t *msg = req(method, handler, params);
+	unsigned int id = json_integer_value(GET(msg, "id"));
+	struct typeparent tp = {id, parent};
+	vec_push(&typeparent, tp);
+	transmit(msg);
 }
 
-void handletypes(const QJsonObject &msg) {
+size_t findparent(unsigned int id) {
+	for (size_t i = 0, n = vec_len(&typeparent); i < n; i++) {
+		if (typeparent[i].id == id) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+void handletypes(json_t *msg) {
 	static int dir;
-	qsizetype p = -1;
-	if (types.isEmpty()) {
+	static const char *method[] = {
+		"typeHierarchy/subtypes",
+		"typeHierarchy/supertypes"
+	};
+	size_t parent = -1;
+	if (vec_len(&types) == 0) {
 		dir = -1;
 	} else {
-		unsigned int id = msg.value("id").toInt();
-		if (!parenttype.contains(id)) {
+		unsigned int id = json_integer_value(GET(msg, "id"));
+		size_t p = findparent(id);
+		if (p == -1) {
 			return;
 		}
-		p = parenttype.take(id);
+		parent = typeparent[p].parent;
+		vec_erase(&typeparent, p, 1);
 	}
-	int level = p != -1 ? types[p].level + dir : 0;
-	for (const QJsonValue &i : msg.value("result").toArray()) {
-		QJsonObject t = i.toObject();
-		if (!t.isEmpty()) {
-			p = addtype(t, level, p);
-			querytypes(dir < 0 ? "subtypes" : "supertypes", p,
-			           handletypes);
+	int level = parent != -1 ? types[parent].level + dir : 0;
+	json_t *res = GET(msg, "result");
+	for (size_t i = 0, n = json_array_size(res); i < n; i++) {
+		json_t *obj = json_array_get(res, i);
+		if (json_object_size(obj) > 0) {
+			parent = addtype(obj, level, parent);
+			querytypes(method[dir > 0], parent, handletypes);
 		}
 	}
-	if (vec_len(&requests) == 0 && !types.isEmpty() && dir < 0) {
+	if (vec_len(&requests) == 0 && vec_len(&types) > 0 && dir < 0) {
 		dir = 1;
-		querytypes("supertypes", 0, handletypes);
+		querytypes(method[1], 0, handletypes);
 	}
 }
 
@@ -466,13 +553,11 @@ int txtdocopen(const char *path) {
 		return 0;
 	}
 	avim_buf uri = path2uri(path);
-	send(newmsg("textDocument/didOpen", QJsonObject{
-		{"textDocument", QJsonObject{
-			{"uri", QString(uri)},
-			{"languageId", ""},
-			{"text", QString(data)},
-		}}
-	}));
+	transmit(msg("textDocument/didOpen", OBJ(
+		"textDocument", OBJ(
+			"uri", JSON(string, uri),
+			"languageId", JSON(string, ""),
+			"text", JSON(string, data)))));
 	vec_free(&uri);
 	vec_free(&data);
 	vec_push(&docs, xstrdup(path));
@@ -481,42 +566,27 @@ int txtdocopen(const char *path) {
 
 void txtdocclose(const char *path) {
 	avim_buf uri = path2uri(path);
-	send(newmsg("textDocument/didClose", QJsonObject{
-		{"textDocument", QJsonObject{
-			{"uri", QString(uri)},
-		}}
-	}));
+	transmit(msg("textDocument/didClose", OBJ(
+		"textDocument", OBJ(
+			"uri", JSON(string, uri)))));
 	vec_free(&uri);
 }
 
-QJsonObject txtpos() {
-	avim_buf uri = path2uri(filepos.path);
-	auto obj = QJsonObject{
-		{"textDocument", QJsonObject{
-			{"uri", QString(uri)},
-		}},
-		{"position", QJsonObject{
-			{"line", (qint64)filepos.line},
-			{"character", (qint64)filepos.col},
-		}},
-	};
-	vec_free(&uri);
-	return obj;
-}
-
-void txtdoc(const char *method, msghandler *handler,
-            const QJsonObject &extra = QJsonObject()) {
+void txtdoc(const char *method, msghandler *handler, json_t *params) {
 	if (!getpos() || !txtdocopen(filepos.path)) {
+		json_decref(params);
 		return;
 	}
-	if (strcmp(method, "completion") == 0) {
+	if (strcmp(method, "textDocument/completion") == 0) {
 		filepos.col++;
 	}
-	QJsonObject params = txtpos();
-	for (auto i = extra.begin(), end = extra.end(); i != end; i++) {
-		params[i.key()] = i.value();
-	}
-	send(newreq(QString("textDocument/") + method, params, handler));
+	avim_buf uri = path2uri(filepos.path);
+	objset(params, "textDocument", OBJ(
+		"uri", JSON(string, uri)));
+	objset(params, "position", OBJ(
+		"line", JSON(integer, filepos.line),
+		"character", JSON(integer, filepos.col)));
+	transmit(req(method, handler, params));
 }
 
 size_t finddoc(const char *path) {
@@ -545,34 +615,32 @@ void closeall(void) {
 	vec_clear(&docs);
 }
 
-QJsonObject capabilities(void) {
-	return QJsonObject{
-		{"general", QJsonObject{
-			{"positionEncodings", QJsonArray{"utf-8"}},
-		}},
-		{"offsetEncoding", QJsonArray{"utf-8"}},
-		{"textDocument", QJsonObject{
-			{"completion", QJsonObject{
-				{"contextSupport", true},
-			}},
-			{"declaration", QJsonObject{}},
-			{"definition", QJsonObject{}},
-			{"implementation", QJsonObject{}},
-			{"references", QJsonObject{}},
-			{"typeDefinition", QJsonObject{}},
-			{"typeHierarchy", QJsonObject{}},
-			{"documentSymbol", QJsonObject{
-				{"hierarchicalDocumentSymbolSupport", true}
-			}},
-		}},
-	};
+json_t *capabilities(void) {
+	return OBJ(
+		"general", OBJ(
+			"positionEncodings", ARR(
+				JSON(string, "utf-8"))),
+		"offsetEncoding", ARR(
+			JSON(string, "utf-8")),
+		"textDocument", OBJ(
+			"completion", OBJ(
+				"contextSupport", JSON(true)),
+			"declaration", JSON(object),
+			"definition", JSON(object),
+			"documentSymbol", OBJ(
+				"hierarchicalDocumentSymbolSupport",
+					JSON(true)),
+			"implementation", JSON(object),
+			"references", JSON(object),
+			"typeDefinition", JSON(object),
+			"typeHierarchy", JSON(object)));
 }
 
-void initmenu(const QJsonObject &);
+void initmenu(json_t *);
 
-void initialized(const QJsonObject &msg) {
-	initmenu(get(msg, {"result", "capabilities"}).toObject());
-	send(newmsg("initialized", QJsonObject()));
+void initialized(json_t *resp) {
+	initmenu(GET(resp, "result", "capabilities"));
+	transmit(msg("initialized", JSON(object)));
 	const char *cmd[] = {"bufinfo"};
 	request(cmd, ARRLEN(cmd), openall);
 }
@@ -610,11 +678,10 @@ void spawn(char *argv[]) {
 	int flags = fcntl(rx.fd, F_GETFL, 0);
 	fcntl(rx.fd, F_SETFL, flags | O_NONBLOCK);
 	avim_buf uri = path2uri(cwd);
-	send(newreq("initialize", QJsonObject{
-		{"processId", getpid()},
-		{"rootUri", QString(uri)},
-		{"capabilities", capabilities()},
-	}, initialized));
+	transmit(req("initialize", initialized, OBJ(
+		"processId", JSON(integer, getpid()),
+		"rootUri", JSON(string, uri),
+		"capabilities", capabilities())));
 	vec_free(&uri);
 	server = strbsnm(argv[0]);
 }
@@ -661,6 +728,8 @@ int main(int argc, char *argv[]) {
 	docs = (avim_strv)vec_new();
 	requests = (struct req *)vec_new();
 	rx.buf = (avim_buf)vec_new();
+	types = (struct typeinfo *)vec_new();
+	typeparent = (struct typeparent *)vec_new();
 	if (argc > 1) {
 		spawn(&argv[1]);
 	} else {
@@ -670,7 +739,7 @@ int main(int argc, char *argv[]) {
 	for (;;) {
 		if (dirty && vec_len(&requests) == 0) {
 			closeall();
-			if (!types.isEmpty()) {
+			if (vec_len(&types) > 0) {
 				dumptypes();
 			}
 			printf("%s ", server);
@@ -693,54 +762,55 @@ int main(int argc, char *argv[]) {
 }
 
 void cmd_compl(void) {
-	txtdoc("completion", showcompls, QJsonObject{
-		{"context", QJsonObject{{"triggerKind", 1}}}
-	});
+	txtdoc("textDocument/completion", showcompls, OBJ(
+		"context", OBJ(
+			"triggerKind", JSON(integer, 1))));
 }
 
 void cmd_decl(void) {
-	txtdoc("declaration", gotomatch);
+	txtdoc("textDocument/declaration", gotomatch, JSON(object));
 }
 
 void cmd_def(void) {
-	txtdoc("definition", gotomatch);
+	txtdoc("textDocument/definition", gotomatch, JSON(object));
 }
 
 void cmd_impl(void) {
-	txtdoc("implementation", gotomatch);
+	txtdoc("textDocument/implementation", gotomatch, JSON(object));
 }
 
 void cmd_all_refs(void) {
-	txtdoc("references", showmatches, QJsonObject{
-		{"context", QJsonObject{{"includeDeclaration", true}}}
-	});
+	txtdoc("textDocument/references", showmatches, OBJ(
+		"context", OBJ(
+			"includeDeclaration", JSON(true))));
 }
 
 void cmd_refs(void) {
-	txtdoc("references", showmatches);
+	txtdoc("textDocument/references", showmatches, JSON(object));
 }
 
 void cmd_typedef(void) {
-	txtdoc("typeDefinition", gotomatch);
+	txtdoc("textDocument/typeDefinition", gotomatch, JSON(object));
 }
 
 void cmd_typehy(void) {
-	txtdoc("prepareTypeHierarchy", handletypes);
+	txtdoc("textDocument/prepareTypeHierarchy", handletypes,
+	       JSON(object));
 }
 
 void cmd_syms(void) {
-	txtdoc("documentSymbol", showsyms);
+	txtdoc("textDocument/documentSymbol", showsyms, JSON(object));
 }
 
-void addcmd(const char *name, cmd_func *func, const QJsonObject &capabilities,
+void addcmd(const char *name, cmd_func *func, json_t *capabilities,
             const char *capability) {
-	if (capabilities.contains(capability)) {
+	if (GET(capabilities, capability) != NULL) {
 		struct cmd cmd = {name, func};
 		vec_push(&cmds, cmd);
 	}
 }
 
-void initmenu(const QJsonObject &cap) {
+void initmenu(json_t *cap) {
 	addcmd("compl", cmd_compl, cap, "completionProvider");
 	addcmd("decl", cmd_decl, cap, "declarationProvider");
 	addcmd("def", cmd_def, cap, "definitionProvider");
