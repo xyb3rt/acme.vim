@@ -44,7 +44,8 @@ struct cmd *cmds;
 avim_strv docs;
 struct filepos filepos;
 QHash<unsigned int, msghandler *> requests;
-chan rx, tx;
+chan rx;
+FILE *tx;
 QList<typeinfo> types;
 QHash<unsigned int, qsizetype> parenttype;
 const char *server;
@@ -383,19 +384,15 @@ void receive(void) {
 
 void send(const QJsonObject &msg) {
 	QByteArray d = QJsonDocument(msg).toJson(QJsonDocument::Compact);
-	d.prepend(QString::asprintf("Content-Length: %zu\r\n\r\n",
-	                            (size_t)d.size()).toUtf8());
-	size_t n = d.size(), w = 0;
-	while (w < n) {
-		ssize_t r = write(tx.fd, d.data() + w, n - w);
-		if (r == -1) {
-			if (errno == EINTR) {
-				continue;
-			}
-			error(EXIT_FAILURE, errno, "write");
-		}
-		w += r;
+	fprintf(tx, "Content-Length: %zu\r\n\r\n", (size_t)d.size());
+	if (ferror(tx)) {
+		error(EXIT_FAILURE, errno, "write");
 	}
+	fwrite(d.data(), 1, d.size(), tx);
+	if (ferror(tx)) {
+		error(EXIT_FAILURE, errno, "write");
+	}
+	fflush(tx);
 }
 
 qsizetype addtype(const QJsonObject &t, int level, qsizetype p) {
@@ -589,7 +586,10 @@ void spawn(char *argv[]) {
 	close(fd0[1]);
 	close(fd1[0]);
 	rx.fd = fd0[0];
-	tx.fd = fd1[1];
+	tx = fdopen(fd1[1], "w");
+	if (tx == NULL) {
+		error(EXIT_FAILURE, errno, "fdopen");
+	}
 	int flags = fcntl(rx.fd, F_GETFL, 0);
 	fcntl(rx.fd, F_SETFL, flags | O_NONBLOCK);
 	avim_buf uri = path2uri(cwd);
