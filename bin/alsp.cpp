@@ -28,6 +28,11 @@ struct typeinfo {
 
 typedef void msghandler(const QJsonObject &);
 
+struct req {
+	unsigned int id;
+	msghandler *handler;
+};
+
 const char *msgtype[] = {
 	"", "Error", "Warning", "Info", "Log", "Debug"
 };
@@ -43,7 +48,7 @@ const char *symkind[] = {
 struct cmd *cmds;
 avim_strv docs;
 struct filepos filepos;
-QHash<unsigned int, msghandler *> requests;
+struct req *requests;
 chan rx;
 FILE *tx;
 QList<typeinfo> types;
@@ -300,8 +305,18 @@ QJsonObject newreq(const QString &method, const QJsonValue &params,
 	static unsigned int id;
 	QJsonObject msg = newmsg(method, params);
 	msg["id"] = (qint64)++id;
-	requests[id] = handler;
+	struct req req = {id, handler};
+	vec_push(&requests, req);
 	return msg;
+}
+
+size_t findreq(unsigned int id) {
+	for (size_t i = 0, n = vec_len(&requests); i < n; i++) {
+		if (requests[i].id == id) {
+			return i;
+		}
+	}
+	return -1;
 }
 
 void handle(const QJsonObject &msg) {
@@ -312,8 +327,10 @@ void handle(const QJsonObject &msg) {
 			fprintf(stderr, "Error: %s\n", error.toUtf8().data());
 		}
 		unsigned int id = msg.value("id").toInt();
-		if (requests.contains(id)) {
-			msghandler *handler = requests.take(id);
+		size_t req = findreq(id);
+		if (req != -1) {
+			msghandler *handler = requests[req].handler;
+			vec_erase(&requests, req, 1);
 			if (error.isEmpty()) {
 				handler(msg);
 			}
@@ -434,7 +451,7 @@ void handletypes(const QJsonObject &msg) {
 			           handletypes);
 		}
 	}
-	if (requests.isEmpty() && !types.isEmpty() && dir < 0) {
+	if (vec_len(&requests) == 0 && !types.isEmpty() && dir < 0) {
 		dir = 1;
 		querytypes("supertypes", 0, handletypes);
 	}
@@ -642,6 +659,7 @@ int main(int argc, char *argv[]) {
 	init(argv[0]);
 	cmds = (struct cmd *)vec_new();
 	docs = (avim_strv)vec_new();
+	requests = (struct req *)vec_new();
 	rx.buf = (avim_buf)vec_new();
 	if (argc > 1) {
 		spawn(&argv[1]);
@@ -650,7 +668,7 @@ int main(int argc, char *argv[]) {
 	}
 	int dirty = 1;
 	for (;;) {
-		if (dirty && requests.isEmpty()) {
+		if (dirty && vec_len(&requests) == 0) {
 			closeall();
 			if (!types.isEmpty()) {
 				dumptypes();
@@ -662,7 +680,7 @@ int main(int argc, char *argv[]) {
 		if (block(rx.fd) == 0) {
 			input();
 			struct cmd *cmd = match(cmds);
-			if (cmd != NULL && requests.isEmpty()) {
+			if (cmd != NULL && vec_len(&requests) == 0) {
 				clear();
 				cmd->func();
 				dirty = 1;
