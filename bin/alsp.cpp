@@ -144,8 +144,10 @@ avim_buf path2uri(const char *s) {
 	return uri;
 }
 
-QByteArray indent(int level) {
-	return QByteArray(level > 0 ? "> " : "< ").repeated(abs(level));
+void printindent(int level) {
+	for (size_t i = 0, n = abs(level); i < n ; i++) {
+		printf("%c ", level > 0 ? '>' : '<');
+	}
 }
 
 void printpath(const char *path) {
@@ -225,11 +227,10 @@ void gotomatch(const QJsonObject &msg) {
 	if (result.size() != 1) {
 		showmatches(msg);
 	} else if (parseloc(result.at(0).toObject(), &pos)) {
-		QByteArray line = QByteArray::number(pos.line + 1);
-		QByteArray col = QByteArray::number(pos.col + 1);
-		QByteArray linecol = line + ":" + col;
-		const char *cmd[] = {"open", pos.path, linecol.data()};
+		char *linecol = xasprintf("%d:%d", pos.line + 1, pos.col + 1);
+		const char *cmd[] = {"open", pos.path, linecol};
 		request(cmd, ARRLEN(cmd), NULL);
+		free(linecol);
 		free(pos.path);
 	}
 }
@@ -244,8 +245,10 @@ void showsym(const QJsonObject &sym, int level) {
 	size_t k = sym.value("kind").toInt();
 	const char *kind = k < ARRLEN(symkind) ? symkind[k] : "";
 	if (!name.isEmpty() && line >= 0) {
-		printf("%6u: %s%s%s%s\n", line + 1, indent(level).data(),
-		       kind, kind[0] != '\0' ? " " : "", name.data());
+		printf("%6u: ", line + 1);
+		printindent(level);
+		printf("%s%s%s\n", kind, kind[0] != '\0' ? " " : "",
+		       name.data());
 	}
 	for (const QJsonValue &i : sym.value("children").toArray()) {
 		showsym(i.toObject(), level + 1);
@@ -272,8 +275,9 @@ void dumptypes(void) {
 				path = xstrdup(pos.path);
 				printpath(path);
 			}
-			printf("%6u: %s%s\n", pos.line + 1,
-			       indent(t.level).data(), name.data());
+			printf("%6u: ", pos.line + 1);
+			printindent(t.level);
+			printf("%s\n", name.data());
 		}
 		i = t.next;
 	}
@@ -598,21 +602,27 @@ void spawn(char *argv[]) {
 	server = strbsnm(argv[0]);
 }
 
-QByteArray ext(const char *path) {
+char *fileext(const char *path) {
 	const char *p = strrchr(path, '.');
-	return QString(p ? &p[1] : "").toLower().toUtf8();
+	return p ? (char *)&p[1] : NULL;
 }
 
 void detectserver(avim_strv msg) {
-	QHash<QByteArray, const char *> srv{
-		{"c", "clangd"}, {"h", "clangd"},
-		{"cc", "clangd"}, {"cpp", "clangd"}, {"hpp", "clangd"},
-		{"go", "gopls"},
-	};
 	for (size_t i = 1; i + 4 < vec_len(&msg); i += 5) {
-		const char *path = msg[i], *s = srv.value(ext(path));
-		if (indir(path, cwd) && s != NULL) {
-			server = s;
+		char *path = msg[i], *ext = fileext(path);
+		if (!indir(path, cwd) || ext == NULL) {
+			continue;
+		}
+		if (strcasecmp(ext, "c") == 0 ||
+		    strcasecmp(ext, "h") == 0 ||
+		    strcasecmp(ext, "cc") == 0 ||
+		    strcasecmp(ext, "cpp") == 0 ||
+		    strcasecmp(ext, "hpp") == 0) {
+			server = "clangd";
+			return;
+		}
+		if (strcasecmp(ext, "go") == 0) {
+			server = "gopls";
 			return;
 		}
 	}
