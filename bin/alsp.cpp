@@ -43,7 +43,6 @@ const char *symkind[] = {
 struct cmd *cmds;
 avim_strv docs;
 struct filepos filepos;
-QHash<QByteArray, msghandler *> handler;
 QHash<unsigned int, msghandler *> requests;
 chan rx, tx;
 QList<typeinfo> types;
@@ -317,8 +316,8 @@ void handle(const QJsonObject &msg) {
 	} else {
 		// request or notification
 		QByteArray method = msg.value("method").toString().toUtf8();
-		if (handler.contains(method)) {
-			handler.value(method)(msg);
+		if (method == "window/showMessage") {
+			showmessage(msg);
 		}
 	}
 }
@@ -560,10 +559,6 @@ void initialized(const QJsonObject &msg) {
 	request(cmd, ARRLEN(cmd), openall);
 }
 
-void inithandlers(void) {
-	handler["window/showMessage"] = showmessage;
-}
-
 void spawn(char *argv[]) {
 	int fd0[2], fd1[2];
 	if (pipe(fd0) == -1 || pipe(fd1) == -1) {
@@ -600,7 +595,6 @@ void spawn(char *argv[]) {
 		{"capabilities", capabilities()},
 	}, initialized));
 	vec_free(&uri);
-	inithandlers();
 	server = strbsnm(argv[0]);
 }
 
