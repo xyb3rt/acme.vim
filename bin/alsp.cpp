@@ -15,7 +15,7 @@ struct chan {
 };
 
 struct filepos {
-	QByteArray path;
+	char *path;
 	unsigned int line;
 	unsigned int col;
 };
@@ -51,13 +51,12 @@ QHash<unsigned int, qsizetype> parenttype;
 const char *server;
 
 void setpos(avim_strv msg) {
-	filepos.path.clear();
 	if (vec_len(&msg) > 3) {
 		const char *path = msg[1];
 		int line = atoi(msg[2]);
 		int col = atoi(msg[3]);
 		if (line > 0 && col > 0) {
-			filepos.path = path;
+			filepos.path = xstrdup(path);
 			filepos.line = line - 1;
 			filepos.col = col - 1;
 		}
@@ -65,9 +64,11 @@ void setpos(avim_strv msg) {
 }
 
 bool getpos() {
+	free(filepos.path);
+	filepos.path = NULL;
 	const char *argv[] = {"bufinfo"};
 	request(argv, ARRLEN(argv), setpos);
-	if (filepos.path.isEmpty()) {
+	if (filepos.path == NULL) {
 		return false;
 	}
 	argv[0] = "save";
@@ -161,7 +162,7 @@ bool parseloc(const QJsonObject &loc, struct filepos *pos) {
 	bool ok = false;
 	if (path != NULL && path[0] != '\0' && line >= 0) {
 		ok = true;
-		pos->path = path;
+		pos->path = xstrdup(path);
 		pos->line = line;
 		pos->col = col;
 	}
@@ -193,7 +194,7 @@ QJsonObject capabilities(void) {
 }
 
 QJsonObject txtpos() {
-	avim_buf uri = path2uri(filepos.path.data());
+	avim_buf uri = path2uri(filepos.path);
 	auto obj = QJsonObject{
 		{"textDocument", QJsonObject{
 			{"uri", QString(uri)},
@@ -343,16 +344,17 @@ void showcompls(const QJsonObject &msg) {
 void showmatches(const QJsonObject &msg) {
 	avim_buf data = NULL;
 	avim_strv lines = NULL;
-	QByteArray path;
+	char *path = NULL;
 	for (const QJsonValue &i : msg.value("result").toArray()) {
 		struct filepos pos;
 		if (parseloc(i.toObject(), &pos)) {
-			if (path != pos.path) {
-				path = pos.path;
-				printpath(path.data());
+			if (path == NULL || strcmp(path, pos.path) != 0) {
+				free(path);
+				path = xstrdup(pos.path);
+				printpath(path);
 				vec_free(&lines);
 				vec_free(&data);
-				data = readfile(path.data());
+				data = readfile(path);
 				if (data != NULL) {
 					lines = splitlines(data);
 				}
@@ -361,8 +363,10 @@ void showmatches(const QJsonObject &msg) {
 				printf("%6u: %s\n", pos.line + 1,
 				       lines[pos.line]);
 			}
+			free(pos.path);
 		}
 	}
+	free(path);
 	vec_free(&lines);
 	vec_free(&data);
 }
@@ -376,8 +380,9 @@ void gotomatch(const QJsonObject &msg) {
 		QByteArray line = QByteArray::number(pos.line + 1);
 		QByteArray col = QByteArray::number(pos.col + 1);
 		QByteArray linecol = line + ":" + col;
-		const char *cmd[] = {"open", pos.path.data(), linecol.data()};
+		const char *cmd[] = {"open", pos.path, linecol.data()};
 		request(cmd, ARRLEN(cmd), NULL);
+		free(pos.path);
 	}
 }
 
@@ -400,29 +405,31 @@ void showsym(const QJsonObject &sym, int level) {
 }
 
 void showsyms(const QJsonObject &msg) {
-	printpath(filepos.path.data());
+	printpath(filepos.path);
 	for (const QJsonValue &i : msg.value("result").toArray()) {
 		showsym(i.toObject(), 0);
 	}
 }
 
 void dumptypes(void) {
-	QByteArray path;
+	char *path = NULL;
 	qsizetype i = 0;
 	while (i >= 0 && i < types.size()) {
 		const typeinfo &t = types[i];
 		struct filepos pos;
 		QByteArray name = t.obj.value("name").toString().toUtf8();
 		if (!name.isEmpty() && parseloc(t.obj, &pos)) {
-			if (path != pos.path) {
-				path = pos.path;
-				printpath(path.data());
+			if (path == NULL || strcmp(path, pos.path) != 0) {
+				free(path);
+				path = xstrdup(pos.path);
+				printpath(path);
 			}
 			printf("%6u: %s%s\n", pos.line + 1,
 			       indent(t.level).data(), name.data());
 		}
 		i = t.next;
 	}
+	free(path);
 	types.clear();
 	parenttype.clear();
 }
