@@ -41,7 +41,7 @@ const char *symkind[] = {
 };
 
 struct cmd *cmds;
-QSet<QByteArray> docs;
+avim_strv docs;
 struct filepos filepos;
 QHash<QByteArray, msghandler *> handler;
 QHash<unsigned int, msghandler *> requests;
@@ -478,15 +478,15 @@ void handletypes(const QJsonObject &msg) {
 	}
 }
 
-bool txtdocopen(const QByteArray &path) {
-	if (!indir(path.data(), cwd)) {
+bool txtdocopen(const char *path) {
+	if (!indir(path, cwd)) {
 		return false;
 	}
-	avim_buf data = readfile(path.data());
+	avim_buf data = readfile(path);
 	if (data == NULL) {
 		return false;
 	}
-	avim_buf uri = path2uri(path.data());
+	avim_buf uri = path2uri(path);
 	send(newmsg("textDocument/didOpen", QJsonObject{
 		{"textDocument", QJsonObject{
 			{"uri", QString(uri)},
@@ -496,16 +496,18 @@ bool txtdocopen(const QByteArray &path) {
 	}));
 	vec_free(&uri);
 	vec_free(&data);
-	docs.insert(path);
+	vec_push(&docs, xstrdup(path));
 	return true;
 }
 
-void txtdocclose(const QByteArray &path) {
+void txtdocclose(const char *path) {
+	avim_buf uri = path2uri(path);
 	send(newmsg("textDocument/didClose", QJsonObject{
 		{"textDocument", QJsonObject{
-			{"uri", QString("file://") + path},
+			{"uri", QString(uri)},
 		}}
 	}));
+	vec_free(&uri);
 }
 
 void txtdoc(const char *method, msghandler *handler,
@@ -523,20 +525,30 @@ void txtdoc(const char *method, msghandler *handler,
 	send(newreq(QString("textDocument/") + method, params, handler));
 }
 
+size_t finddoc(const char *path) {
+	for (size_t i = 0, n = vec_len(&docs); i < n; i++) {
+		if (strcmp(docs[i], path) == 0) {
+			return i;
+		}
+	}
+	return -1;
+}
+
 void openall(avim_strv msg) {
 	for (size_t i = 1; i + 4 < vec_len(&msg); i += 5) {
 		char *path = msg[i];
-		if (!docs.contains(path)) {
+		if (finddoc(path) == -1) {
 			txtdocopen(path);
 		}
 	}
 }
 
 void closeall(void) {
-	for (const auto &path : docs) {
-		txtdocclose(path);
+	for (size_t i = 0, n = vec_len(&docs); i < n; i++) {
+		txtdocclose(docs[i]);
+		free(docs[i]);
 	}
-	docs.clear();
+	vec_clear(&docs);
 }
 
 void initmenu(const QJsonObject &);
@@ -625,6 +637,7 @@ void guessinvocation(void) {
 int main(int argc, char *argv[]) {
 	init(argv[0]);
 	cmds = (struct cmd *)vec_new();
+	docs = (avim_strv)vec_new();
 	rx.buf = (avim_buf)vec_new();
 	if (argc > 1) {
 		spawn(&argv[1]);
