@@ -372,15 +372,6 @@ json_t *req(const char *method, msghandler *handler, json_t *params) {
 	return m;
 }
 
-size_t findreq(unsigned int id) {
-	for (size_t i = 0, n = vec_len(&requests); i < n; i++) {
-		if (requests[i].id == id) {
-			return i;
-		}
-	}
-	return -1;
-}
-
 void handle(json_t *msg) {
 	if (GET(msg, "result") != NULL || GET(msg, "error") != NULL) {
 		// response
@@ -389,7 +380,7 @@ void handle(json_t *msg) {
 			fprintf(stderr, "Error: %s\n", json_string_value(err));
 		}
 		unsigned int id = json_integer_value(GET(msg, "id"));
-		size_t req = findreq(id);
+		size_t req = vec_findi(&requests, id);
 		if (req != -1) {
 			msghandler *handler = requests[req].handler;
 			vec_erase(&requests, req, 1);
@@ -502,15 +493,6 @@ void querytypes(const char *method, size_t parent, msghandler *handler) {
 	transmit(msg);
 }
 
-size_t findparent(unsigned int id) {
-	for (size_t i = 0, n = vec_len(&typeparent); i < n; i++) {
-		if (typeparent[i].id == id) {
-			return i;
-		}
-	}
-	return -1;
-}
-
 void handletypes(json_t *msg) {
 	static int dir;
 	static const char *method[] = {
@@ -522,7 +504,7 @@ void handletypes(json_t *msg) {
 		dir = -1;
 	} else {
 		unsigned int id = json_integer_value(GET(msg, "id"));
-		size_t p = findparent(id);
+		size_t p = vec_findi(&typeparent, id);
 		if (p == -1) {
 			return;
 		}
@@ -589,19 +571,10 @@ void txtdoc(const char *method, msghandler *handler, json_t *params) {
 	transmit(req(method, handler, params));
 }
 
-size_t finddoc(const char *path) {
-	for (size_t i = 0, n = vec_len(&docs); i < n; i++) {
-		if (strcmp(docs[i], path) == 0) {
-			return i;
-		}
-	}
-	return -1;
-}
-
 void openall(avim_strv msg) {
 	for (size_t i = 1; i + 4 < vec_len(&msg); i += 5) {
 		char *path = msg[i];
-		if (finddoc(path) == -1) {
+		if (vec_finds(&docs, path) == -1) {
 			txtdocopen(path);
 		}
 	}

@@ -18,6 +18,10 @@
 	(*vec_dig((v), -1, 1) = (val))
 #define vec_erase(v, i, n) \
 	_vec_erase((void **)(v), (i), (n), sizeof(**(v)))
+#define vec_find(v, val, cmp) \
+	_vec_find((void **)(v), (val), sizeof(**(v)), (cmp))
+#define vec_findi(v, val) vec_find((v), (val), vec_cmpint)
+#define vec_finds(v, val) vec_find((v), (intptr_t)(val), vec_cmpstr)
 
 struct vec {
 	size_t cap;
@@ -88,6 +92,25 @@ static void _vec_erase(void **d, size_t i, size_t n, size_t sz) {
 	}
 	vec->len -= n;
 	memmove(&vec->d[i * sz], &vec->d[(i + n) * sz], (vec->len - i) * sz);
+}
+
+static size_t _vec_find(void **d, intptr_t val, size_t sz,
+                        int (*cmp)(void *, intptr_t)) {
+	struct vec *vec = container_of(*d, struct vec, d);
+	for (size_t i = 0; i < vec->len; i++) {
+		if (cmp(&vec->d[i * sz], val) == 0) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+static int vec_cmpint(void *elem, intptr_t val) {
+	return *(unsigned int *)elem - val;
+}
+
+static int vec_cmpstr(void *elem, intptr_t val) {
+	return strcmp(*(const char **)elem, (const char *)val);
 }
 
 #endif /* VEC_H */
