@@ -29,7 +29,9 @@ void opt(const char *arg) {
 	vec_push(&cmd.v, xstrdup(arg));
 }
 
-void set(const char *arg, ...) {
+#define set(...) set_(__VA_ARGS__, NULL)
+void set_(const char *, ...) __attribute__((sentinel));
+void set_(const char *arg, ...) {
 	va_list ap;
 	va_start(ap, arg);
 	for (size_t i = 0, n = vec_len(&cmd.v); i < n; i++) {
@@ -82,7 +84,9 @@ void changed(avim_strv msg) {
 	}
 }
 
-void hint(const char *hint, ...) {
+#define hint(...) hint_(__VA_ARGS__, NULL)
+void hint_(const char *, ...) __attribute__((sentinel));
+void hint_(const char *hint, ...) {
 	va_list ap;
 	va_start(ap, hint);
 	vec_clear(&hints);
@@ -311,24 +315,24 @@ void list_tags(void) {
 }
 
 void cmd_add(void) {
-	set("git", "add", NULL);
-	hint("< --all --edit --update ./ >", NULL);
+	set("git", "add");
+	hint("< --all --edit --update ./ >");
 	if (add(NULL)) {
 		run(devnull);
 	}
 }
 
 void cmd_branch(void) {
-	set("git", "branch", NULL);
-	hint("< --copy --delete --move --force --set-upstream-to >", NULL);
+	set("git", "branch");
+	hint("< --copy --delete --move --force --set-upstream-to >");
 	if (add(list_branches)) {
 		run(1);
 	}
 }
 
 void cmd_clean(void) {
-	set("git", "clean", NULL);
-	hint("< -d -x -X ./ >", NULL);
+	set("git", "clean");
+	hint("< -d -x -X ./ >");
 	if (add(list_clean)) {
 		vec_push(&cmd.v, xstrdup("--force"));
 		run(1);
@@ -336,9 +340,9 @@ void cmd_clean(void) {
 }
 
 void cmd_commit(void) {
-	set("git", "commit", NULL);
+	set("git", "commit");
 	opt("-v");
-	hint("< --all --amend --no-edit --fixup >", NULL);
+	hint("< --all --amend --no-edit --fixup >");
 	if (add(NULL)) {
 		run(1);
 	}
@@ -346,20 +350,20 @@ void cmd_commit(void) {
 
 void cmd_config(void) {
 	clear();
-	set("git", "config", "-e", NULL);
+	set("git", "config", "-e");
 	run(devnull);
 }
 
 void cmd_diff(void) {
-	set("git", "diff", NULL);
-	hint("< --cached -p --stat --submodule=diff HEAD @{u} -- >", NULL);
+	set("git", "diff");
+	hint("< --cached -p --stat --submodule=diff HEAD @{u} -- >");
 	if (add(NULL)) {
 		setscratch(cwd, "git:diff");
 	}
 }
 
 void cmd_edit_index(void) {
-	set("git-edit-index", NULL);
+	set("git-edit-index");
 	hint(NULL);
 	if (add(NULL)) {
 		run(1);
@@ -368,38 +372,38 @@ void cmd_edit_index(void) {
 
 void cmd_fetch(void) {
 	clear();
-	set("git-fetch-all", NULL);
+	set("git-fetch-all");
 	run(1);
 }
 
 void cmd_graph(void) {
 	clear();
 	set("git", "log", "--graph", "--oneline", "--decorate", "--all",
-	    "--date-order", NULL);
+	    "--date-order");
 	setscratch(cwd, "git:graph");
 }
 
 void cmd_log(void) {
-	set("git", "log", NULL);
+	set("git", "log");
 	opt("--decorate");
 	opt("--left-right");
-	hint("< --not --oneline -S HEAD ...@{u} >", NULL);
+	hint("< --not --oneline -S HEAD ...@{u} >");
 	if (add(list_open_files_and_branches)) {
 		setscratch(cwd, "git:log");
 	}
 }
 
 void cmd_merge(void) {
-	set("git", "merge", NULL);
+	set("git", "merge");
 	hint("< --ff-only --no-ff --squash @{u} >",
-	     "< --abort --continue --quit >", NULL);
+	     "< --abort --continue --quit >");
 	if (add(list_branches)) {
 		run(1);
 	}
 }
 
 void cmd_mergetool(void) {
-	set("git", "mergetool", "-y", NULL);
+	set("git", "mergetool", "-y");
 	hint(NULL);
 	if (add(NULL)) {
 		run(1);
@@ -407,83 +411,82 @@ void cmd_mergetool(void) {
 }
 
 void cmd_pick(void) {
-	set("git", "cherry-pick", NULL);
+	set("git", "cherry-pick");
 	hint("< --edit --no-commit >",
-	     "< --abort --continue --quit --skip", NULL);
+	     "< --abort --continue --quit --skip");
 	if (add(NULL)) {
 		run(1);
 	}
 }
 
 void cmd_push(void) {
-	set("git", "push", NULL);
-	hint("< --all --delete --dry-run --force --set-upstream --tags >",
-	     NULL);
+	set("git", "push");
+	hint("< --all --delete --dry-run --force --set-upstream --tags >");
 	if (add(list_remotes_and_branches)) {
 		run(1);
 	}
 }
 
 void cmd_rebase(void) {
-	set("git", "rebase", NULL);
+	set("git", "rebase");
 	hint("< --autosquash --interactive --onto --root --update-refs @{u} >",
-	     "< --abort --continue --quit --skip >", NULL);
+	     "< --abort --continue --quit --skip >");
 	if (add(list_branches)) {
 		run(1);
 	}
 }
 
 void cmd_reset(void) {
-	set("git", "reset", NULL);
-	hint("< --soft --mixed --hard @{u} >", NULL);
+	set("git", "reset");
+	hint("< --soft --mixed --hard @{u} >");
 	if (add(NULL)) {
 		run(devnull);
 	}
 }
 
 void cmd_restore(void) {
-	set("git", "restore", NULL);
-	hint("< --source= --staged --worktree -- ./ >", NULL);
+	set("git", "restore");
+	hint("< --source= --staged --worktree -- ./ >");
 	if (add(NULL)) {
 		run(devnull);
 	}
 }
 
 void cmd_revert(void) {
-	set("git", "revert", NULL);
-	hint("< --abort --continue --quit --skip >", NULL);
+	set("git", "revert");
+	hint("< --abort --continue --quit --skip >");
 	if (add(NULL)) {
 		run(1);
 	}
 }
 
 void cmd_stash(void) {
-	set("git", "stash", NULL);
-	hint("< --include-untracked pop drop >", NULL);
+	set("git", "stash");
+	hint("< --include-untracked pop drop >");
 	if (add(list_stashes)) {
 		run(devnull);
 	}
 }
 
 void cmd_submodule(void) {
-	set("git", "submodule", NULL);
-	hint("< deinit init update --init --recursive >", NULL);
+	set("git", "submodule");
+	hint("< deinit init update --init --recursive >");
 	if (add(list_submodules)) {
 		run(1);
 	}
 }
 
 void cmd_switch(void) {
-	set("git", "switch", NULL);
-	hint("< --create --detach --recurse-submodules >", NULL);
+	set("git", "switch");
+	hint("< --create --detach --recurse-submodules >");
 	if (add(list_branches)) {
 		run(devnull);
 	}
 }
 
 void cmd_tag(void) {
-	set("git", "tag", NULL);
-	hint("< --annotate --delete >", NULL);
+	set("git", "tag");
+	hint("< --annotate --delete >");
 	if (add(list_tags)) {
 		run(1);
 	}
