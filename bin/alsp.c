@@ -484,7 +484,7 @@ size_t addtype(json_t *obj, int level, size_t parent) {
 	return i;
 }
 
-void querytypes(const char *method, size_t parent, msghandler *handler) {
+void querytype(const char *method, size_t parent, msghandler *handler) {
 	json_t *params = OBJ("item", json_incref(types[parent].obj));
 	json_t *msg = req(method, handler, params);
 	unsigned int id = json_integer_value(GET(msg, "id"));
@@ -517,12 +517,16 @@ void handletypes(json_t *msg) {
 		json_t *obj = json_array_get(res, i);
 		if (json_object_size(obj) > 0) {
 			parent = addtype(obj, level, parent);
-			querytypes(method[dir > 0], parent, handletypes);
+			querytype(method[dir > 0], parent, handletypes);
 		}
 	}
-	if (vec_len(&requests) == 0 && vec_len(&types) > 0 && dir < 0) {
-		dir = 1;
-		querytypes(method[1], 0, handletypes);
+	if (vec_len(&requests) == 0 && vec_len(&types) > 0) {
+		if (dir < 0) {
+			dir = 1;
+			querytype(method[1], 0, handletypes);
+		} else {
+			dumptypes();
+		}
 	}
 }
 
@@ -712,9 +716,6 @@ int main(int argc, char *argv[]) {
 	for (;;) {
 		if (dirty && vec_len(&requests) == 0) {
 			closeall();
-			if (vec_len(&types) > 0) {
-				dumptypes();
-			}
 			printf("%s ", server);
 			menu(cmds);
 			dirty = 0;
