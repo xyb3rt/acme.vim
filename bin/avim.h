@@ -23,7 +23,7 @@ struct avim_conn {
 
 static avim_strv avim_parse(struct avim_conn *conn) {
 	int field = 1;
-	avim_strv msg = (avim_strv)vec_new();
+	avim_strv msg = vec_new();
 	for (size_t i = conn->rxpos; i < conn->rxend; i++) {
 		if (field) {
 			vec_push(&msg, &conn->rx[i]);
@@ -71,13 +71,13 @@ static void avim_send(struct avim_conn *conn, const char **argv, size_t argc) {
 
 static struct avim_conn *avim_create(int rxfd, int txfd) {
 	struct avim_conn *conn;
-	conn = (struct avim_conn *)xrealloc(NULL, sizeof(*conn));
+	conn = xrealloc(NULL, sizeof(*conn));
 	conn->id = xasprintf("%zu", (uintptr_t)conn);
 	conn->err = 0;
 	conn->rxfd = rxfd;
 	conn->txfd = txfd;
-	conn->rx = (avim_buf)vec_new();
-	conn->tx = (avim_buf)vec_new();
+	conn->rx = vec_new();
+	conn->tx = vec_new();
 	conn->rxend = 0;
 	conn->rxpos = 0;
 	return conn;

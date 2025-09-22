@@ -98,7 +98,7 @@ json_t *get(json_t *v, const char *key, ...) {
 }
 
 avim_buf uridecode(const char *s) {
-	avim_buf out = (avim_buf)vec_new();
+	avim_buf out = vec_new();
 	for (size_t i = 0; s[i] != '\0'; i++) {
 		char c = s[i];
 		if (c == '+') {
@@ -120,7 +120,7 @@ avim_buf uridecode(const char *s) {
 }
 
 avim_buf uriencode(const char *s) {
-	avim_buf out = (avim_buf)vec_new();
+	avim_buf out = vec_new();
 	for (size_t i = 0; s[i] != '\0'; i++) {
 		char c = s[i];
 		if (isalnum(c) || strchr("./-_~", c) != NULL) {
@@ -724,12 +724,12 @@ void guessinvocation(void) {
 
 int main(int argc, char *argv[]) {
 	init(argv[0]);
-	cmds = (struct cmd *)vec_new();
-	docs = (avim_strv)vec_new();
-	requests = (struct req *)vec_new();
-	rx.buf = (avim_buf)vec_new();
-	types = (struct typeinfo *)vec_new();
-	typeparent = (struct typeparent *)vec_new();
+	cmds = vec_new();
+	docs = vec_new();
+	requests = vec_new();
+	rx.buf = vec_new();
+	types = vec_new();
+	typeparent = vec_new();
 	if (argc > 1) {
 		spawn(&argv[1]);
 	} else {

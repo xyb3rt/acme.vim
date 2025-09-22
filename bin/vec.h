@@ -26,7 +26,7 @@ struct vec {
 };
 
 static void *vec_new(void) {
-	struct vec *vec = (struct vec *)malloc(sizeof(*vec));
+	struct vec *vec = malloc(sizeof(*vec));
 	if (vec == NULL) {
 		error(EXIT_FAILURE, errno, "vec_new");
 	}

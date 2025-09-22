@@ -9,7 +9,7 @@ typedef char **strvec;
 
 static str readall(FILE *f) {
 	char buf[1024];
-	str data = (str)vec_new();
+	str data = vec_new();
 	while (!feof(f)) {
 		size_t n = fread(buf, 1, sizeof buf, f);
 		if (ferror(f)) {
@@ -50,7 +50,7 @@ static str xreadfile(const char *path) {
 }
 
 static strvec splitlines(char *s) {
-	strvec lines = (strvec)vec_new();
+	strvec lines = vec_new();
 	size_t bol = 0, i = 0;
 	for (; s[i] != '\0'; i++) {
 		if (s[i] == '\n') {

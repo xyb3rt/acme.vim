@@ -72,7 +72,7 @@ static char *xasprintf(const char *fmt, ...) {
 	if (n < 0 || n == INT_MAX) {
 		error(EXIT_FAILURE, errno, "xasprintf");
 	}
-	char *s = (char *)xmalloc(n + 1);
+	char *s = xmalloc(n + 1);
 	va_start(ap, fmt);
 	vsnprintf(s, n + 1, fmt, ap);
 	va_end(ap);
@@ -83,7 +83,7 @@ static char *xgetcwd(void) {
         char *buf = NULL;
         size_t size = 1024;
         for (;;) {
-                buf = (char *)xmalloc(size);
+                buf = xmalloc(size);
                 if (getcwd(buf, size) != NULL) {
                         break;
                 } else if (errno != ERANGE) {
