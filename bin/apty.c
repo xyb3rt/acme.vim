@@ -1,5 +1,6 @@
 #include "acmd.h"
 #include <pty.h>
+#include <regex.h>
 
 struct ptybuf {
 	char *d;
@@ -10,13 +11,29 @@ int chld;
 pid_t pid;
 int pty;
 
+const char *ctrlregex = "\e\\[(\\?)?([0-9]*;*)*[A-Za-z]";
+regex_t ctrlreg;
+
+size_t ctrlseq(const char *s) {
+	const char *func[] = {"m", "hl"};
+	regmatch_t m[4];
+	if (regexec(&ctrlreg, s, 4, m, 0) == 0) {
+	    	char f = s[m[0].rm_eo - 1];
+	    	int q = m[1].rm_so != -1;
+	    	if (strchr(func[q], f) != NULL) {
+	    		return m[0].rm_eo;
+	    	}
+	}
+	return 0;
+}
+
 void send_(struct ptybuf *buf) {
 	const char **cmd = vec_new();
 	vec_push(&cmd, "change");
 	vec_push(&cmd, avimbuf);
 	vec_push(&cmd, "-2");
 	vec_push(&cmd, "-1");
-	size_t bol = 0, eol = 0;
+	size_t bol = 0, eol = 0, len;
 	size_t c = buf->c, i = buf->i;
 	size_t n = vec_len(&buf->d);
 	vec_push(&buf->d, '\0');
@@ -36,6 +53,13 @@ void send_(struct ptybuf *buf) {
 			vec_push(&cmd, &p[bol]);
 			bol = c = i + 1;
 			break;
+		case '\e':
+			len = ctrlseq(&p[i]);
+			if (len != 0) {
+				i += len - 1;
+				break;
+			}
+			/* FALLTHROUGH */
 		default:
 			p[c++] = p[i];
 		}
@@ -96,6 +120,9 @@ void sigint(int sig) {
 
 int main(int argc, char *argv[]) {
 	init(argv[0]);
+	if (regcomp(&ctrlreg, ctrlregex, REG_EXTENDED) != 0) {
+		error(EXIT_FAILURE, errno, "regcomp");
+	}
 	const char *cmd[] = {"pty", avimbuf};
 	request(cmd, ARRLEN(cmd), NULL);
 	struct winsize ws = {.ws_col = 80, .ws_row = 24};
