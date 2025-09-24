@@ -669,7 +669,7 @@ char *fileext(const char *path) {
 }
 
 void detectserver(avim_strv msg) {
-	for (size_t i = 1; i + 4 < vec_len(&msg); i += 5) {
+	for (size_t i = 1; server == NULL && i + 4 < vec_len(&msg); i += 5) {
 		char *path = msg[i], *ext = fileext(path);
 		if (!indir(path, cwd) || ext == NULL) {
 			continue;
@@ -680,11 +680,12 @@ void detectserver(avim_strv msg) {
 		    strcasecmp(ext, "cpp") == 0 ||
 		    strcasecmp(ext, "hpp") == 0) {
 			server = "clangd";
-			return;
 		}
 		if (strcasecmp(ext, "go") == 0) {
 			server = "gopls";
-			return;
+		}
+		if (strcasecmp(ext, "java") == 0) {
+			server = "jdtls";
 		}
 	}
 }
