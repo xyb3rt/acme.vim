@@ -426,13 +426,11 @@ endfunc
 function s:Columnate(words, width)
 	let space = 2
 	let wordw = map(copy(a:words), 'strwidth(v:val)')
-	let ncol = min([len(a:words), a:width / (space + 1)])
+	let ncol = min([len(a:words), a:width / max([5, min(wordw[1:])])])
 	while ncol > 1
-		let colw = repeat([0], ncol)
 		let nrow = (len(a:words) + ncol - 1) / ncol
-		for i in range(len(wordw))
-			let colw[i / nrow] = max([colw[i / nrow], wordw[i]])
-		endfor
+		let colw = map(range(ncol), {i, _ ->
+			\ max(slice(wordw, i * nrow, (i + 1) * nrow))})
 		let width = reduce(colw, {n, v -> n + v}, (ncol - 1) * space)
 		if width > a:width
 			let ncol -= 1
