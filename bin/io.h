@@ -3,6 +3,7 @@
 
 #include "base.h"
 #include "vec.h"
+#include <dirent.h>
 
 typedef char *str;
 typedef char **strvec;
@@ -82,4 +83,38 @@ static void xwritefile(const char *path, const strvec lines) {
 		error(EXIT_FAILURE, errno, "%s", path);
 	}
 }
+
+int fncmp(const void *a, const void *b) {
+	return strcoll(*(const char **)a, *(const char **)b);
+}
+
+strvec ls(const char *path) {
+	int dot = strcmp(path, ".") == 0;
+	strvec entries = vec_new();
+	DIR *d = opendir(path);
+	if (d == NULL) {
+		error(EXIT_FAILURE, errno, "%s", path);
+	}
+	for (;;) {
+		errno = 0;
+		struct dirent *e = readdir(d);
+		if (e == NULL) {
+			if (errno != 0) {
+				error(EXIT_FAILURE, errno, "%s", path);
+			}
+			break;
+		}
+		if (strcmp(e->d_name, ".") != 0 &&
+		    strcmp(e->d_name, "..") != 0) {
+			char *name = dot ?
+				xstrdup(e->d_name) :
+			        xasprintf("%s/%s", path, e->d_name);
+			vec_push(&entries, name);
+		}
+	}
+	closedir(d);
+	qsort(entries, vec_len(&entries), sizeof(entries[0]), fncmp);
+	return entries;
+}
+
 #endif /* IO_H */
