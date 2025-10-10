@@ -2,6 +2,7 @@
  * agit: Simple git UI in acme.vim scratch buffer
  */
 #include "acmd.h"
+#include "io.h"
 #include <fcntl.h>
 
 enum reply {
@@ -244,9 +245,26 @@ void list_clean(void) {
 	prompt.l2 = -1;
 }
 
+void show_dir_listing(avim_strv msg) {
+	const char *dir = cwd;
+	if (vec_len(&msg) > 1) {
+		if (indir(msg[1], cwd)) {
+			dir = msg[1];
+		}
+	}
+	avim_strv entries = ls(dir);
+	for (size_t i = 0, n = vec_len(&entries); i < n; i++) {
+		char *name = indir(entries[i], cwd);
+		printf("%s\n", name ? name : entries[i]);
+		free(entries[i]);
+	}
+	fflush(stdout);
+	vec_free(&entries);
+}
+
 void list_files(void) {
-	const char *cmd[] = {"ls", NULL};
-	call((char **)cmd, NULL);
+	const char *cmd[] = {"cwd"};
+	request(cmd, ARRLEN(cmd), &show_dir_listing);
 }
 
 void list_local_branches(void) {

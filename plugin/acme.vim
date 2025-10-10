@@ -1113,8 +1113,12 @@ function s:CtrlRecv(ch, data)
 			silent! exe 'help' args[0]
 		elseif cmd == 'pty' && len(args) > 0
 			call s:Pty(s:BufNr(args[0]))
-		elseif cmd == 'cwd' && len(args) > 1
-			call s:SetCwd(s:BufNr(args[0]), args[1])
+		elseif cmd == 'cwd'
+			if len(args) > 1
+				call s:SetCwd(s:BufNr(args[0]), args[1])
+			else
+				call add(resp, s:Dir())
+			endif
 		elseif cmd == 'diff' && len(args) > 0
 			call s:Edit(args, cid, 'diff')
 			call s:Diff(args)
