@@ -360,7 +360,7 @@ void cmd_clean(void) {
 void cmd_commit(void) {
 	set("git", "commit");
 	opt("-v");
-	hint("< --all --amend --no-edit --fixup >");
+	hint("< --all --amend --no-edit --fixup -mWIP >");
 	if (add(NULL)) {
 		run(1);
 	}
@@ -456,7 +456,7 @@ void cmd_rebase(void) {
 
 void cmd_reset(void) {
 	set("git", "reset");
-	hint("< --soft --mixed --hard @{u} >");
+	hint("< --soft --mixed --hard @{u} HEAD~1 >");
 	if (add(NULL)) {
 		run(devnull);
 	}
@@ -480,7 +480,7 @@ void cmd_revert(void) {
 
 void cmd_rm(void) {
 	set("git", "rm", NULL);
-	hint("< --dry-run -r >", NULL);
+	hint("< --dry-run --force -r >", NULL);
 	if (add(list_files)) {
 		run(devnull);
 	}
