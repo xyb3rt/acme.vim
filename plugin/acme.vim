@@ -228,6 +228,11 @@ function s:JobStart(cmd, outb, ctxb, opts, inp)
 	endif
 endfunc
 
+function s:InDir(path, dir)
+	let n = len(a:dir)
+	return a:path[:n-1] == a:dir && a:path[n:] =~ '\v^(/|$)' ? n : 0
+endfunc
+
 function s:ErrorSplitPos(name)
 	let [w, match, mod, rel] = [0, 0, '', '']
 	let dir = fnamemodify(s:Path(a:name), ':h')
@@ -237,8 +242,8 @@ function s:ErrorSplitPos(name)
 		let isdir = isdirectory(p)
 		let d = isdir ? p : fnamemodify(p, ':h')
 		let f = isdir ? '' : fnamemodify(p, ':t')
-		let n = len(d)
-		if n > match && dir[:n-1] == d && dir[n:] =~ '\v^(/|$)'
+		let n = max([s:InDir(d, dir), s:InDir(dir, d)])
+		if n > match
 			let [w, match] = [i, n]
 			let [mod, rel] = f == 'guide' || f == '+Errors'
 				\ ? ['abo', '>'] : ['bel', '=']
