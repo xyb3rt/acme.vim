@@ -484,6 +484,9 @@ endfunc
 function s:Goto(pos)
 	if a:pos =~ '^\v\d+([:,]\d+)?$'
 		let pos = split(a:pos, '[:,]')
+		if pos[0] > line('$')
+			return
+		endif
 		exe 'normal!' pos[0].'G'
 		if len(pos) > 1
 			let col = strdisplaywidth(getline('.')[:pos[1]-1])
