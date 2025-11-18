@@ -1165,6 +1165,7 @@ augroup acme_vim
 au!
 au BufEnter * call s:ListDir()
 au BufWinLeave * call s:BufWinLeave()
+au FocusGained * call s:ReloadDirs()
 au TextChanged,TextChangedI guide setl nomodified
 au VimEnter * call s:ReloadDirs(winnr())
 au VimResized * call s:ReloadDirs(0)
