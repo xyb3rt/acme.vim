@@ -591,7 +591,7 @@ function s:RgOpen(pos)
 	endif
 endfunc
 
-function AcmePlumb(title, cmd, ...)
+function AcmeExec(title, cmd, ...)
 	let cmd = a:cmd
 	for arg in a:000
 		let cmd .= ' '.shellescape(arg)

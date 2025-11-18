@@ -115,11 +115,11 @@ refs/ranges, that you can add to your `~/.vimrc`:
 ```
 let g:acme_plumbing = [
 	\ ['<https?\:\/\/(\f|[-.~!*;:@&=+$,/?#%])+', {m ->
-		\ AcmePlumb('', 'setsid xdg-open', m[0])}],
+		\ AcmeExec('', 'setsid xdg-open', m[0])}],
 	\ ['(\f{-1,})\s*\((\d\a*)\)', {m ->
-		\ AcmePlumb(m[1].'('.m[2].')', 'man', m[2], m[1])}],
+		\ AcmeExec(m[1].'('.m[2].')', 'man', m[2], m[1])}],
 	\ ['(\f|[@{}~^.])+', {m ->
-		\ AcmePlumb('git:'.m[0], 'git-plumb', m[0])}]]
+		\ AcmeExec('git:'.m[0], 'git-plumb', m[0])}]]
 ```
 
 (The helper `git-plumb` can be found
