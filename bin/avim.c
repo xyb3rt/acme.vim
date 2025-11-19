@@ -12,6 +12,7 @@ struct {
 	{'k', "kill"},
 	{'l', "look"},
 	{'o', "open"},
+	{'p', "plumb"},
 	{'s', "scratch"},
 	{'w', "cwd"},
 };
@@ -106,9 +107,11 @@ void request(char *argv[], size_t argc) {
 	avim_strv req = vec_new();
 	vec_push(&req, cmds[mode].name);
 	int cmd = cmds[mode].opt;
-	if (cmd == 's') {
+	if (cmd == 'p' || cmd == 's') {
 		vec_push(&req, cwd);
-		vec_push(&req, "");
+		if (cmd == 's') {
+			vec_push(&req, "");
+		}
 	}
 	for (size_t i = 0; i < argc; i++) {
 		char *arg = argv[i];

@@ -583,6 +583,9 @@ function AcmeOpen(name, pos)
 endfunc
 
 function s:RgOpen(pos)
+	if s:plumbclick <= 0
+		return 0
+	endif
 	call win_execute(s:plumbwin,
 		\ 'let s:l = search("\\v^(\\s*(\\d+[-:]|\\-\\-$))@!", "bnW")')
 	let f = getbufoneline(winbufnr(s:plumbwin), s:l)
@@ -1131,6 +1134,8 @@ function s:CtrlRecv(ch, data)
 			call s:Edit(args, cid, 'diff')
 			call s:Diff(args)
 			let resp = []
+		elseif cmd == 'plumb' && len(args) > 1
+			call s:Open(args[1], 0, [args[0]], 0)
 		endif
 		if resp != []
 			call s:CtrlSend([cid] + resp)
