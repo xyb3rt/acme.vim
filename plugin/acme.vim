@@ -532,32 +532,32 @@ function s:Dir()
 endfunc
 
 function s:Dirs()
-	let dirs = [s:Dir()]
+	let dir = s:Dir()
+	let ctx = []
 	if &buftype != ''
 		let [t, q] = ['ing directory:? ', "[`'\"]"]
 		let l = searchpair('\vEnter'.t.q, '', '\vLeav'.t.q, 'nW',
 			\ '', 0, 50)
 		let m = matchlist(getline(l), '\vLeav'.t.q.'(.+)'.q)
 		if m != []
-			let d = m[1][0] == '/' ? m[1] : dirs[0].'/'.m[1]
+			let d = m[1][0] == '/' ? m[1] : dir.'/'.m[1]
 			if isdirectory(d)
-				let dirs[0] = d
+				call add(ctx, d)
 			endif
 		endif
 	endif
-	let path = expand('%:p')
-	if path =~ '/\.git/'
-		let owd = chdir(dirs[0])
+	if dir =~ '/\.git/'
+		let owd = chdir(dir)
 		let d = trim(system('git rev-parse --show-toplevel'), "\r\n")
 		if owd != ''
 			call chdir(owd)
 		endif
 		if !isdirectory(d)
-			let d = substitute(path, '/\.git/.*', '', '')
+			let d = substitute(dir, '/\.git/.*', '', '')
 		endif
-		call add(dirs, d)
+		call add(ctx, d)
 	endif
-	return dirs
+	return ctx + [dir]
 endfunc
 
 function AcmeOpen(name, pos)
