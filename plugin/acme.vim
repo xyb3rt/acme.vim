@@ -515,10 +515,10 @@ function s:Match(text, click, pat)
 	let isf = &isfname
 	if a:click <= 0
 		set isfname=1-255
-		let p = '\v^'.a:pat.'$'
+		let p = '\v^%('.a:pat.')$'
 	else
 		set isfname+=^:,^=
-		let p = '\v%<'.(a:click+1).'c'.a:pat.'%>'.a:click.'c'
+		let p = '\v%<'.(a:click+1).'c%('.a:pat.')%>'.a:click.'c'
 	endif
 	let m = matchlist(a:text, p)
 	let &isfname = isf
