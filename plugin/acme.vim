@@ -543,14 +543,14 @@ function s:CtxDir()
 			let dir = isdirectory(d) ? d : dir
 		endif
 	endif
-	if dir =~ '/\.git/'
+	if dir =~ '\v/\.git(/|$)'
 		let owd = chdir(dir)
 		let d = trim(system('git rev-parse --show-toplevel'), "\r\n")
 		if owd != ''
 			call chdir(owd)
 		endif
 		if !isdirectory(d)
-			let d = substitute(dir, '/\.git/.*', '', '')
+			let d = substitute(dir, '\v/\.git(/.*)?', '', '')
 		endif
 		let dir = d
 	endif
