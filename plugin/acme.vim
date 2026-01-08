@@ -592,8 +592,8 @@ function s:ListDir()
 	if !isdirectory(dir) || !&modifiable
 		return
 	endif
-	let lst = ['..'] + readdir(dir, 1, {'sort': 'collate'})
-	call map(lst, 'isdirectory(dir."/ ".v:val) ? v:val."/" : v:val')
+	let lst = ['..'] + readdir(dir, 1)
+	call map(lst, 'isdirectory(dir."/".v:val) ? v:val."/" : v:val')
 	let width = s:BufWidth(bufnr())
 	let lst = s:Columnate(lst, width)
 	call setline(1, lst)
