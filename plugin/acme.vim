@@ -194,6 +194,24 @@ function s:JobStop(job)
 	endif
 endfunc
 
+function s:JobKill(job, sig)
+	if has('nvim')
+		let sig = a:sig
+		if type(sig) == type("")
+			let map = {
+				\ 'int': 2,
+				\ 'hup': 1,
+				\ 'term': 15,
+				\ 'kill': 9
+			\ }
+			let sig = get(map, sig, 15)
+		endif
+		silent! call luaeval("vim.loop.kill(vim.fn.jobpid(_A), _B)", [a:job, sig])
+	else
+		call job_stop(a:job, a:sig)
+	endif
+endfunc
+
 function s:ChanSend(job, data)
 	if has('nvim')
 		call chansend(a:job, a:data)
@@ -870,7 +888,7 @@ endfunc
 
 function s:Scroll(topline)
 	let v = winsaveview()
-	let v.topline = a:topline
+	v.topline = a:topline
 	call winrestview(v)
 endfunc
 
@@ -938,7 +956,7 @@ function s:RestVisual(vis)
 	call setpos("'>", a:vis[1])
 	if a:vis[0][1] != 0
 		let v = winsaveview()
-		silent! exe "normal! `<".a:vis[2]."`>\<Esc>"
+		silent! exe "normal! `<".a:vis[2]."	\<Esc>"
 		call winrestview(v)
 	endif
 endfunc
@@ -1020,37 +1038,6 @@ function s:RightRelease(click)
 	call s:Open(cmd, a:click, dir, w)
 endfunc
 
-for m in ['', 'i']
-	for n in ['', '2-', '3-', '4-']
-		for c in ['Mouse', 'Drag', 'Release']
-			exe m.'noremap <'.n.'Middle'.c.'> <Nop>'
-			exe m.'noremap <'.n.'Right'.c.'> <Nop>'
-		endfor
-	endfor
-	exe m.'noremap <silent> <MiddleDrag> <LeftDrag>'
-	exe m.'noremap <silent> <RightDrag> <LeftDrag>'
-endfor
-for n in ['', '2-', '3-', '4-']
-	exe 'nnoremap <silent> <'.n.'MiddleMouse>'
-		\ ':call <SID>MousePress("")<CR>'
-	exe 'vnoremap <silent> <'.n.'MiddleMouse>'
-		\ ':<C-u>call <SID>MousePress("v")<CR>'
-	exe 'nnoremap <silent> <'.n.'MiddleRelease>'
-		\ ':call <SID>MiddleRelease(col("."))<CR>'
-	exe 'nnoremap <silent> <'.n.'RightMouse>'
-		\ ':call <SID>MousePress("")<CR>'
-	exe 'vnoremap <silent> <'.n.'RightMouse>'
-		\ ':<C-u>call <SID>MousePress("v")<CR>'
-	exe 'nnoremap <silent> <'.n.'RightRelease>'
-		\ ':call <SID>RightRelease(col("."))<CR>'
-endfor
-inoremap <silent> <MiddleMouse> <C-o>:call <SID>MousePress('')<CR>
-inoremap <silent> <MiddleRelease> <C-o>:call <SID>MiddleRelease(col('.'))<CR>
-vnoremap <silent> <MiddleRelease> :<C-u>call <SID>MiddleRelease(-1)<CR>
-inoremap <silent> <RightMouse> <C-o>:call <SID>MousePress('')<CR>
-inoremap <silent> <RightRelease> <C-o>:call <SID>RightRelease(col('.'))<CR>
-vnoremap <silent> <RightRelease> :<C-u>call <SID>RightRelease(-1)<CR>
-
 function s:Clear(b)
 	call deletebufline(a:b, 1, "$")
 	if has_key(s:scratch, a:b)
@@ -1117,7 +1104,7 @@ endfunc
 
 function s:Signal(sig)
 	for job in s:Jobs(bufnr())
-		call job_stop(job.h, a:sig)
+		call s:JobKill(job.h, a:sig)
 	endfor
 endfunc
 
@@ -1297,8 +1284,8 @@ endif
 
 set completefunc=s:InsComplete
 
-let &statusline = '%{AcmeStatusBox()}%<%{%AcmeStatusName()%}' . 
-	\ '.%{%AcmeStatusFlags()%}%{AcmeStatusJobs()}%=%{%AcmeStatusRuler()%}'
+let &statusline = '%{AcmeStatusBox()}%<%{%AcmeStatusName()%}' .
+	\ '%{%AcmeStatusFlags()%}%{AcmeStatusJobs()}%=%{%AcmeStatusRuler()%}'
 
 let s:ctrlexe = exepath(expand('<sfile>:p:h:h').'/bin/avim')
 let s:ctrlrx = ''
