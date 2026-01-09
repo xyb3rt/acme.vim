@@ -19,8 +19,8 @@ function s:FileWin(name)
 endfunc
 
 function s:Sel()
-	let text = getreg("'")
-	let type = getregtype("'")
+	let text = getreg('"')
+	let type = getregtype('"')
 	let view = winsaveview()
 	silent normal! gv""y
 	let sel = [getreg('"'), getregtype('"')]
@@ -93,7 +93,7 @@ function s:Started(job, buf, cmd)
 		\ 'h': a:job,
 		\ 'cmd': type(a:cmd) == type([]) ? join(a:cmd) : a:cmd,
 		\ 'killed': 0,
-		\ })
+	\ })
 	redrawstatus!
 endfunc
 
@@ -294,7 +294,7 @@ function s:JobStartNvim(cmd, outb, ctxb, opts, inp)
 		\ 'on_stderr': function('s:NvimOut'),
 		\ 'buf': a:outb,
 		\ 'callback': get(a:opts, 'callback', ''),
-		\ }
+	\ }
 	if has_key(a:opts, 'cwd')
 		let job_opts.cwd = a:opts.cwd
 	endif
@@ -322,7 +322,7 @@ function s:JobEnv(buf, dir)
 		\ 'ACMEVIMOUTDIR': a:dir != '' ? a:dir : getcwd(),
 		\ 'COLUMNS': 80,
 		\ 'LINES': 24,
-		\ }
+	\ }
 endfunc
 
 function s:SetEnv(env)
@@ -344,7 +344,7 @@ function s:JobStart(cmd, outb, ctxb, opts, inp)
 		\ 'out_io': 'buffer',
 		\ 'out_buf': a:outb,
 		\ 'out_msg': 0,
-		\ }
+	\ }
 	call extend(opts, a:opts)
 	let env = s:SetEnv(s:JobEnv(a:outb, get(a:opts, 'cwd', '')))
 	let job = job_start(s:Argv(a:cmd), opts)
@@ -366,7 +366,7 @@ endfunc
 
 function s:ErrorSplitPos(name)
 	let [w, match, mod, rel] = [0, 0, '', '']
-	dir = fnamemodify(s:Path(a:name), ':h')
+	let dir = fnamemodify(s:Path(a:name), ':h')
 	for i in reverse(range(1, winnr('$')))
 		let b = winbufnr(i)
 		let p = get(s:cwd, b, s:Path(bufname(b)))
@@ -534,7 +534,7 @@ function s:ScratchExec(cmd, dir, inp, title)
 	let opts = {
 		\ 'callback': function('s:ScratchCb', [b]),
 		\ 'in_io': 'pipe',
-		\ }
+	\ }
 	if a:dir != ''
 		let opts.cwd = a:dir
 	endif
@@ -549,7 +549,7 @@ function s:Exec(cmd)
 			\ 'err_io': 'null',
 			\ 'in_io': 'null',
 			\ 'out_io': 'null',
-			\ })
+		\ })
 	endif
 endfunc
 
@@ -588,7 +588,7 @@ function s:Columnate(words, width)
 endfunc
 
 function s:ListDir()
-	dir = expand('%')
+	let dir = expand('%')
 	if !isdirectory(dir) || !&modifiable
 		return
 	endif
@@ -667,7 +667,7 @@ function s:Dir()
 endfunc
 
 function s:CtxDir()
-	dir = s:Dir()
+	let dir = s:Dir()
 	if &buftype != ''
 		let [t, q] = ['ing directory:? ', "[`'\"`]"]
 		let l = searchpair('\vEnter'.t.q, '', '\vLeav'.t.q, 'nW',
@@ -772,8 +772,7 @@ function s:Open(text, click, dir, win)
 endfunc
 
 function s:FileComplete(arg, line, pos)
-	let p = a:arg =~ '^[~/]' ? a:arg : s:Dir().'/
-'.a:arg
+	let p = a:arg =~ '^[~/]' ? a:arg : s:Dir().'/'.a:arg
 	let p = fnamemodify(p, ':p')
 	if a:arg =~ '[^/]$'
 		let p = substitute(p, '/*$', '', '')
@@ -911,14 +910,14 @@ function s:Fit(w, h, ...)
 			return h
 		endif
 	endif
-	h = 0
-	top = line('$', a:w) + 1
+	let h = 0
+	let top = line('$', a:w) + 1
 	while top > 1
-		h += s:FitHeight(a:w, top - 1)
+		let h += s:FitHeight(a:w, top - 1)
 		if h > a:h
 			break
 		endif
-		top -= 1
+		let top -= 1
 	endwhile
 	call timer_start(0, {_ ->
 		\ win_execute(a:w, 'noa call s:Scroll('.top.')')})
@@ -1048,6 +1047,43 @@ function s:RightRelease(click)
 	call s:Open(cmd, a:click, dir, w)
 endfunc
 
+function AcmeActivate(mode)
+	let text = a:mode == 'v' ? trim(s:Sel()[0], "\r\n", 2) : getline('.')
+	let click = a:mode == 'v' ? -1 : col('.')
+	call s:Open(text, click, s:CtxDir(), win_getid())
+endfunc
+
+for m in ['', 'i']
+	for n in ['', '2-', '3-', '4-']
+		for c in ['Mouse', 'Drag', 'Release']
+			exe m.'noremap <'.n.'Middle'.c.'> <Nop>'
+			exe m.'noremap <'.n.'Right'.c.'> <Nop>'
+		endfor
+	endfor
+	exe m.'noremap <silent> <MiddleDrag> <LeftDrag>'
+	exe m.'noremap <silent> <RightDrag> <LeftDrag>'
+endfor
+for n in ['', '2-', '3-', '4-']
+	exe 'nnoremap <silent> <'.n.'MiddleMouse>'
+		\ ':call <SID>MousePress("")<CR>'
+	exe 'vnoremap <silent> <'.n.'MiddleMouse>'
+		\ ':<C-u>call <SID>MousePress("v")<CR>'
+	exe 'nnoremap <silent> <'.n.'MiddleRelease>'
+		\ ':call <SID>MiddleRelease(col("."))<CR>'
+	exe 'nnoremap <silent> <'.n.'RightMouse>'
+		\ ':call <SID>MousePress("")<CR>'
+	exe 'vnoremap <silent> <'.n.'RightMouse>'
+		\ ':<C-u>call <SID>MousePress("v")<CR>'
+	exe 'nnoremap <silent> <'.n.'RightRelease>'
+		\ ':call <SID>RightRelease(col("."))<CR>'
+endfor
+inoremap <silent> <MiddleMouse> <C-o>:call <SID>MousePress('')<CR>
+inoremap <silent> <MiddleRelease> <C-o>:call <SID>MiddleRelease(col('.'))<CR>
+vnoremap <silent> <MiddleRelease> :<C-u>call <SID>MiddleRelease(-1)<CR>
+inoremap <silent> <RightMouse> <C-o>:call <SID>MousePress('')<CR>
+inoremap <silent> <RightRelease> <C-o>:call <SID>RightRelease(col('.'))<CR>
+vnoremap <silent> <RightRelease> :<C-u>call <SID>RightRelease(-1)<CR>
+
 function s:Clear(b)
 	call deletebufline(a:b, 1, "$")
 	if has_key(s:scratch, a:b)
@@ -1084,7 +1120,7 @@ function s:BufInfo()
 endfunc
 
 function s:Change(b, l1, l2, lines)
-	w = win_getid(s:BufWin(a:b))
+	let w = win_getid(s:BufWin(a:b))
 	if w == 0
 		return
 	endif
@@ -1141,7 +1177,7 @@ function s:PtyMap()
 endfunc
 
 function s:Pty(b)
-	w = win_getid(s:BufWin(a:b))
+	let w = win_getid(s:BufWin(a:b))
 	if !has_key(s:scratch, a:b) || w == 0
 		return
 	endif
@@ -1189,7 +1225,7 @@ endfunc
 function s:CtrlRecv(ch, data)
 	let len = strridx(a:data, "\x1e")
 	let len += len == -1 ? 0 : len(s:ctrlrx)
-	s:ctrlrx .= a:data
+	let s:ctrlrx .= a:data
 	if len == -1
 		return
 	endif
@@ -1316,13 +1352,13 @@ if s:ctrlexe != ''
 		let s:ctrl = jobstart([s:ctrlexe], {
 			\ 'on_stdout': function('s:NvimCtrlRecv'),
 			\ 'rpc': 0,
-			\ })
+		\ })
 	else
 		let s:ctrl = job_start([s:ctrlexe], {
 			\ 'callback': 's:CtrlRecv',
 			\ 'err_io': 'null',
 			\ 'mode': 'raw',
-			\ })
+		\ })
 	endif
 	let $EDITOR = s:ctrlexe
 endif
