@@ -74,7 +74,7 @@ function AcmeStatusFlags()
 endfunc
 
 function AcmeStatusJobs()
-	return join(map(s:Jobs(bufnr()), '"{".v:val.cmd."}"'), '')
+	return join(map(s:Jobs(bufnr()), {_, v -> '"{'.v.cmd.'}"'}), '')
 endfunc
 
 function AcmeStatusRuler()
@@ -87,7 +87,7 @@ function s:Started(job, buf, cmd)
 		\ 'h': a:job,
 		\ 'cmd': type(a:cmd) == type([]) ? join(a:cmd) : a:cmd,
 		\ 'killed': 0,
-	\ })
+		\ })
 	redrawstatus!
 endfunc
 
@@ -100,11 +100,11 @@ function s:RemoveJob(i, status)
 	else
 		checktime
 		call s:ReloadDirs()
-		let sig = job_info(job.h).termsig
+		let sig = s:JobInfo(job.h).termsig
 		if a:status == 0
 			echo 'Done:' job.cmd
 		elseif sig != '' && !job.killed
-			let name = bufname(ch_getbufnr(job.h, 'out'))
+			let name = bufname(s:GetJobBufNr(job.h))
 			call s:ErrorOpen(name, [toupper(sig).': '.job.cmd])
 		endif
 	endif
@@ -121,11 +121,13 @@ endfunc
 
 function s:Kill(p)
 	for job in s:Jobs(a:p)
-		let ch = job_getchannel(job.h)
-		if string(ch) != 'channel fail'
-			call ch_close(ch)
+		if !has('nvim')
+			let ch = job_getchannel(job.h)
+			if string(ch) != 'channel fail'
+				call ch_close(ch)
+			endif
 		endif
-		call job_stop(job.h)
+		call s:JobStop(job.h)
 		let job.killed = 1
 	endfor
 endfunc
@@ -156,8 +158,8 @@ function s:Send(w, inp)
 	endif
 	let inp = split(inp, '\n')
 	let job = s:Jobs(b)[0].h
-	call ch_setoptions(job, {'callback': ''})
-	call ch_sendraw(job, join(inp, "\n")."\n")
+	call s:ChanSetCallback(job, '')
+	call s:ChanSend(job, join(inp, "\n")."\n")
 endfunc
 
 function s:Receiver(b)
@@ -184,6 +186,61 @@ function s:Argv(cmd)
 	return type(a:cmd) == type([]) ? a:cmd : [&shell, &shellcmdflag, a:cmd]
 endfunc
 
+function s:JobStop(job)
+	if has('nvim')
+		silent! call jobstop(a:job)
+	else
+		call job_stop(a:job)
+	endif
+endfunc
+
+function s:ChanSend(job, data)
+	if has('nvim')
+		call chansend(a:job, a:data)
+	else
+		call ch_sendraw(a:job, a:data)
+	endif
+endfunc
+
+function s:ChanCloseIn(job)
+	if has('nvim')
+		call chanclose(a:job, 'stdin')
+	else
+		call ch_close_in(a:job)
+	endif
+endfunc
+
+function s:ChanSetCallback(job, cb)
+	if has('nvim')
+		if has_key(s:nvim_jobs, a:job)
+			let s:nvim_jobs[a:job].callback = a:cb
+		endif
+	else
+		call ch_setoptions(a:job, {'callback': a:cb})
+	endif
+endfunc
+
+function s:JobInfo(job)
+	if has('nvim')
+		let s = jobwait([a:job], 0)[0]
+		let sig = ''
+		if s > 128
+			let sig = s == 130 ? 'int' : s == 143 ? 'term' : s == 129 ? 'hup' : 'sig'.(s-128)
+		endif
+		return {'termsig': sig}
+	else
+		return job_info(a:job)
+	endif
+endfunc
+
+function s:GetJobBufNr(job)
+	if has('nvim')
+		return get(get(s:nvim_jobs, a:job, {}), 'buf', -1)
+	else
+		return ch_getbufnr(a:job, 'out')
+	endif
+endfunc
+
 function s:JobEnv(buf, dir)
 	return {
 		\ 'ACMEVIMBUF': bufnr(),
@@ -194,7 +251,7 @@ function s:JobEnv(buf, dir)
 		\ 'ACMEVIMOUTDIR': a:dir != '' ? a:dir : getcwd(),
 		\ 'COLUMNS': 80,
 		\ 'LINES': 24,
-	\ }
+		\ }
 endfunc
 
 function s:SetEnv(env)
@@ -213,7 +270,7 @@ function s:JobStart(cmd, outb, ctxb, opts, inp)
 		\ 'out_io': 'buffer',
 		\ 'out_buf': a:outb,
 		\ 'out_msg': 0,
-	\ }
+		\ }
 	call extend(opts, a:opts)
 	let env = s:SetEnv(s:JobEnv(a:outb, get(a:opts, 'cwd', '')))
 	let job = job_start(s:Argv(a:cmd), opts)
@@ -235,7 +292,7 @@ endfunc
 
 function s:ErrorSplitPos(name)
 	let [w, match, mod, rel] = [0, 0, '', '']
-	let dir = fnamemodify(s:Path(a:name), ':h')
+	dir = fnamemodify(s:Path(a:name), ':h')
 	for i in reverse(range(1, winnr('$')))
 		let b = winbufnr(i)
 		let p = get(s:cwd, b, s:Path(bufname(b)))
@@ -273,7 +330,7 @@ function s:ErrorOpen(name, ...)
 		exe w.'wincmd w'
 		let b = s:ErrorLoad(a:name)
 		for job in s:jobs
-			if ch_getbufnr(job.h, 'out') == b && job.buf != b
+			if s:GetJobBufNr(job.h) == b && job.buf != b
 				let job.buf = b
 			endif
 		endfor
@@ -293,7 +350,7 @@ endfunc
 
 function s:ErrorCb(b, ch, msg)
 	call s:ErrorOpen(bufname(a:b))
-	call ch_setoptions(a:ch, {'callback': ''})
+	call s:ChanSetCallback(a:ch, '')
 endfunc
 
 function s:ErrorExec(cmd, dir, b, inp)
@@ -328,7 +385,7 @@ endfunc
 function s:Read(cmd, dir, inp)
 	let end = getcurpos()[4] > strdisplaywidth(getline('.'))
 	call setreg('"', s:System(a:cmd, a:dir, a:inp), 'c')
-	exe 'normal! ""'.(end ? 'p' : 'P')
+	exe 'normal! "'.(end ? 'p' : 'P')
 endfunc
 
 function s:ParseCmd(cmd)
@@ -392,7 +449,7 @@ function s:ScratchCb(b, ch, msg)
 		let w = win_getid(w)
 		if line('$', w) > 1
 			call win_execute(w, 'noa normal! gg0')
-			call ch_setoptions(a:ch, {'callback': ''})
+			call s:ChanSetCallback(a:ch, '')
 		endif
 	endif
 endfunc
@@ -403,7 +460,7 @@ function s:ScratchExec(cmd, dir, inp, title)
 	let opts = {
 		\ 'callback': function('s:ScratchCb', [b]),
 		\ 'in_io': 'pipe',
-	\ }
+		\ }
 	if a:dir != ''
 		let opts.cwd = a:dir
 	endif
@@ -411,11 +468,15 @@ function s:ScratchExec(cmd, dir, inp, title)
 endfunc
 
 function s:Exec(cmd)
-	silent! call job_start(s:Argv(a:cmd), {
-		\ 'err_io': 'null',
-		\ 'in_io': 'null',
-		\ 'out_io': 'null',
-	\ })
+	if has('nvim')
+		silent! call jobstart(s:Argv(a:cmd), {'detach': 1})
+	else
+		silent! call job_start(s:Argv(a:cmd), {
+			\ 'err_io': 'null',
+			\ 'in_io': 'null',
+			\ 'out_io': 'null',
+			\ })
+	endif
 endfunc
 
 function s:BufWidth(b)
@@ -453,12 +514,12 @@ function s:Columnate(words, width)
 endfunc
 
 function s:ListDir()
-	let dir = expand('%')
+	dir = expand('%')
 	if !isdirectory(dir) || !&modifiable
 		return
 	endif
 	let lst = ['..'] + readdir(dir, 1, {'sort': 'collate'})
-	call map(lst, 'isdirectory(dir."/".v:val) ? v:val."/" : v:val')
+	call map(lst, 'isdirectory(dir."/ ".v:val) ? v:val."/" : v:val')
 	let width = s:BufWidth(bufnr())
 	let lst = s:Columnate(lst, width)
 	call setline(1, lst)
@@ -532,9 +593,9 @@ function s:Dir()
 endfunc
 
 function s:CtxDir()
-	let dir = s:Dir()
+	dir = s:Dir()
 	if &buftype != ''
-		let [t, q] = ['ing directory:? ', "[`'\"]"]
+		let [t, q] = ['ing directory:? ', "[`'\"`]"]
 		let l = searchpair('\vEnter'.t.q, '', '\vLeav'.t.q, 'nW',
 			\ '', 0, 50)
 		let m = matchlist(getline(l), '\vLeav'.t.q.'(.+)'.q)
@@ -585,7 +646,7 @@ function s:RgOpen(pos)
 		return 0
 	endif
 	call win_execute(s:plumbwin,
-		\ 'let s:l = search("\\v^(\\s*(\\d+[-:]|\\-\\-$))@!", "bnW")')
+		\ 'let s:l = search("\v^(\s*(\d+[-:]|\-\-$))@!", "bnW")')
 	let f = getbufoneline(winbufnr(s:plumbwin), s:l)
 	if f != ''
 		return AcmeOpen(f, a:pos)
@@ -620,7 +681,7 @@ let s:plumbing = [
 	\ [],
 	\ ['\f+', {m -> m[0] !~ '/' && AcmeOpen(exepath(m[0]), '')}],
 	\ ['\d+%([:,]\d+)?', {m -> s:Goto(m[0])}],
-\ ]
+	\ ]
 
 function s:Open(text, click, dir, win)
 	let s:plumbclick = a:click
@@ -754,7 +815,7 @@ endfunc
 
 function s:Scroll(topline)
 	let v = winsaveview()
-	let v.topline = a:topline
+	v.topline = a:topline
 	call winrestview(v)
 endfunc
 
@@ -775,14 +836,14 @@ function s:Fit(w, h, ...)
 			return h
 		endif
 	endif
-	let h = 0
-	let top = line('$', a:w) + 1
+	h = 0
+	top = line('$', a:w) + 1
 	while top > 1
-		let h += s:FitHeight(a:w, top - 1)
+		h += s:FitHeight(a:w, top - 1)
 		if h > a:h
 			break
 		endif
-		let top -= 1
+		top -= 1
 	endwhile
 	call timer_start(0, {_ ->
 		\ win_execute(a:w, 'noa call s:Scroll('.top.')')})
@@ -792,22 +853,22 @@ endfunc
 function s:Zoom(w)
 	let col = s:WinCol(a:w)
 	let col = slice(col, 0, index(col, a:w) + 1)
-	let h = reduce(col, {s, w -> s + winheight(w)}, 0)
-	let n = len(col)
+	h = reduce(col, {s, w -> s + winheight(w)}, 0)
+	n = len(col)
 	for w in reverse(col)
 		let s = s:Fit(w, h / n, a:w)
 		if n == 1
 			break
 		endif
 		call win_move_statusline(win_id2win(w) - 1, winheight(w) - s)
-		let h -= s
-		let n -= 1
+		h -= s
+		n -= 1
 	endfor
 endfunc
 
 function s:InSel()
-	let p = getpos('.')
-	let v = s:visual
+	p = getpos('.')
+	v = s:visual
 	return p[1] >= v[0][1] && p[1] <= v[1][1] &&
 		\ (p[2] >= v[0][2] || (v[2] == 'v' && p[1] > v[0][1])) &&
 		\ (p[2] <= v[1][2] || (v[2] == 'v' && p[1] < v[1][1]))
@@ -821,23 +882,23 @@ function s:RestVisual(vis)
 	call setpos("'<", a:vis[0])
 	call setpos("'>", a:vis[1])
 	if a:vis[0][1] != 0
-		let v = winsaveview()
+		v = winsaveview()
 		silent! exe "normal! `<".a:vis[2]."`>\<Esc>"
 		call winrestview(v)
 	endif
 endfunc
 
 function s:MousePress(mode)
-	let s:click = getmousepos()
-	let s:clickmode = a:mode
-	let s:clickstatus = s:click.line == 0 ? win_id2win(s:click.winid) : 0
-	let s:clickwin = win_getid()
+	s:click = getmousepos()
+	s:clickmode = a:mode
+	s:clickstatus = s:click.line == 0 ? win_id2win(s:click.winid) : 0
+	s:clickwin = win_getid()
 	if s:clickstatus != 0 || s:click.winid == 0
 		return
 	endif
 	exe "normal! \<LeftMouse>"
-	let s:visual = s:SaveVisual()
-	let s:clicksel = s:clickmode == 'v' && win_getid() == s:clickwin &&
+	s:visual = s:SaveVisual()
+	s:clicksel = s:clickmode == 'v' && win_getid() == s:clickwin &&
 		\ s:InSel()
 endfunc
 
@@ -845,7 +906,7 @@ function s:MiddleRelease(click)
 	if s:click.winid == 0
 		return
 	elseif s:clickstatus != 0
-		let p = getmousepos()
+		p = getmousepos()
 		if s:click.winrow <= winheight(s:click.winid)
 			" vertical separator
 		elseif p.winid != s:click.winid ||
@@ -860,9 +921,9 @@ function s:MiddleRelease(click)
 	let cmd = a:click <= 0 || s:clicksel ? s:Sel()[0] : expand('<cWORD>')
 	let vis = s:clickmode == 'v' && (a:click <= 0 || !s:clicksel)
 	call s:RestVisual(s:visual)
-	let b = bufnr()
-	let dir = s:Dir()
-	let w = win_getid()
+	b = bufnr()
+	dir = s:Dir()
+	w = win_getid()
 	exe win_id2win(s:clickwin).'wincmd w'
 	if s:Receiver(b)
 		if w != s:clickwin && s:clickmode == 'v' && a:click > 0
@@ -878,7 +939,7 @@ function s:RightRelease(click)
 	if s:click.winid == 0
 		return
 	elseif s:clickstatus != 0
-		let p = getmousepos()
+		p = getmousepos()
 		if s:click.winrow <= winheight(s:click.winid)
 			" vertical separator
 		elseif p.winid != 0 && p.winid != s:click.winid
@@ -895,13 +956,13 @@ function s:RightRelease(click)
 		return
 	endif
 	exe "normal! \<LeftRelease>"
-	let click = s:clicksel ? -1 : a:click
-	let text = click <= 0 ? trim(s:Sel()[0], "\r\n", 2) : getline('.')
+	let cmd = a:click <= 0 || s:clicksel ? s:Sel()[0] : expand('<cWORD>')
+	let vis = s:clickmode == 'v' && (a:click <= 0 || !s:clicksel)
 	call s:RestVisual(s:visual)
-	let w = win_getid()
-	let dir = s:CtxDir()
+	w = win_getid()
+	dir = s:CtxDir()
 	exe win_id2win(s:clickwin).'wincmd w'
-	call s:Open(text, click, dir, w)
+	call s:Open(cmd, a:click, dir, w)
 endfunc
 
 for m in ['', 'i']
@@ -940,7 +1001,7 @@ function s:Clear(b)
 	if has_key(s:scratch, a:b)
 		let s:scratch[a:b].cleared = 1
 		for job in s:Jobs(a:b)
-			call ch_setoptions(job.h, {'callback': ''})
+			call s:ChanSetCallback(job.h, '')
 		endfor
 	endif
 endfunc
@@ -971,16 +1032,16 @@ function s:BufInfo()
 endfunc
 
 function s:Change(b, l1, l2, lines)
-	let w = win_getid(s:BufWin(a:b))
+	w = win_getid(s:BufWin(a:b))
 	if w == 0
 		return
 	endif
 	let pos = getcurpos(w)
 	let last = line('$', w)
-	let l = s:Bound(1, a:l1 < 0 ? a:l1 + last + 2 : a:l1, last + 1)
-	let n = s:Bound(0, (a:l2 < 0 ? a:l2 + last + 2 : a:l2) - l + 1,
+	l = s:Bound(1, a:l1 < 0 ? a:l1 + last + 2 : a:l1, last + 1)
+	n = s:Bound(0, (a:l2 < 0 ? a:l2 + last + 2 : a:l2) - l + 1,
 		\ last - l + 1)
-	let i = min([n, len(a:lines)])
+	i = min([n, len(a:lines)])
 	if i > 0
 		call setbufline(a:b, l, a:lines[:i-1])
 	endif
@@ -1016,7 +1077,7 @@ endfunc
 function s:PtyPw()
 	let pw = inputsecret('PW> ')
 	for job in s:Jobs(bufnr())
-		call ch_sendraw(job.h, pw."\n")
+		call s:ChanSend(job.h, pw."\n")
 	endfor
 endfunc
 
@@ -1028,11 +1089,11 @@ function s:PtyMap()
 endfunc
 
 function s:Pty(b)
-	let w = win_getid(s:BufWin(a:b))
+	w = win_getid(s:BufWin(a:b))
 	if !has_key(s:scratch, a:b) || w == 0
 		return
 	endif
-	let s:scratch[a:b].pty = 1
+	s:scratch[a:b].pty = 1
 	call win_execute(w, 'call s:PtyMap()')
 endfunc
 
@@ -1044,13 +1105,13 @@ endfunc
 
 function s:Diff(p)
 	call map(a:p, {_, p -> s:Path(p)})
-	let w = filter(range(1, winnr('$')), {_, i ->
+	w = filter(range(1, winnr('$')), {_, i ->
 		\ index(a:p, s:Path(bufname(winbufnr(i)))) != -1})
 	if len(w) < 2
 		let w = []
 	endif
 	for i in range(1, winnr('$'))
-		let on = index(w, i) != -1
+		on = index(w, i) != -1
 		call setwinvar(i, '&diff', on)
 		call setwinvar(i, '&scrollbind', on)
 	endfor
@@ -1063,26 +1124,26 @@ function s:Look(p)
 		call feedkeys(":nohlsearch\<CR>", 'n')
 	else
 		let p = map(a:p[1:-2], {i, v -> escape(v, '\/')})
-		let @/ = '\V'.a:p[0].'\%\('.join(p, '\|').'\)'.a:p[-1]
+		let @/ = '\V'.a:p[0].'\%('.join(p, '\|').'\)'.a:p[-1]
 		call feedkeys(":let v:hlsearch=1\<CR>", 'n')
 	endif
 endfunc
 
 function s:BufNr(b)
-	let b = str2nr(a:b)
+	b = str2nr(a:b)
 	return b != 0 ? b : bufnr()
 endfunc
 
 function s:CtrlRecv(ch, data)
-	let len = strridx(a:data, "\x1e")
-	let len += len == -1 ? 0 : len(s:ctrlrx)
-	let s:ctrlrx .= a:data
+	len = strridx(a:data, "\x1e")
+	len += len == -1 ? 0 : len(s:ctrlrx)
+	s:ctrlrx .= a:data
 	if len == -1
 		return
 	endif
-	let msgs = strpart(s:ctrlrx, 0, len)
-	let s:ctrlrx = strpart(s:ctrlrx, len + 1)
-	let msgs = map(split(msgs, "\x1e", 1), 'split(v:val, "\x1f", 1)')
+	msgs = strpart(s:ctrlrx, 0, len)
+	s:ctrlrx = strpart(s:ctrlrx, len + 1)
+	msgs = map(split(msgs, "\x1e", 1), 'split(v:val, "\x1f", 1)')
 	for msg in msgs
 		if len(msg) < 2
 			continue
@@ -1142,11 +1203,11 @@ function s:CtrlRecv(ch, data)
 endfunc
 
 function s:CtrlSend(msg)
-	call ch_sendraw(s:ctrl, join(a:msg, "\x1f") . "\x1e")
+	call s:ChanSend(s:ctrl, join(a:msg, "\x1f") . "\x1e")
 endfunc
 
 function s:BufWinLeave()
-	let b = str2nr(expand('<abuf>'))
+	b = str2nr(expand('<abuf>'))
 	call s:Kill(b)
 	if getbufvar(b, '&modified')
 		call win_execute(bufwinid(b), 'silent! write')
@@ -1181,8 +1242,8 @@ endif
 
 set completefunc=s:InsComplete
 
-let &statusline = '%{AcmeStatusBox()}%<%{%AcmeStatusName()%}' .
-	\ '%{%AcmeStatusFlags()%}%{AcmeStatusJobs()}%=%{%AcmeStatusRuler()%}'
+let &statusline = '%{AcmeStatusBox()}%<%{%AcmeStatusName()%}' \
+	\ .'%{%AcmeStatusFlags()%}%{AcmeStatusJobs()}%=%{%AcmeStatusRuler()%}'
 
 let s:ctrlexe = exepath(expand('<sfile>:p:h:h').'/bin/avim')
 let s:ctrlrx = ''
@@ -1193,12 +1254,23 @@ let s:editcids = {}
 let s:editcmds = {}
 let s:jobs = []
 let s:scratch = {}
+let s:nvim_jobs = {}
 
 if s:ctrlexe != ''
-	let s:ctrl = job_start([s:ctrlexe], {
-		\ 'callback': 's:CtrlRecv',
-		\ 'err_io': 'null',
-		\ 'mode': 'raw',
-	\ })
+	if has('nvim')
+		function s:NvimCtrlRecv(id, data, event)
+			call s:CtrlRecv(a:id, join(a:data, "\n"))
+		endfunc
+		let s:ctrl = jobstart([s:ctrlexe], {
+			\ 'on_stdout': function('s:NvimCtrlRecv'),
+			\ 'rpc': 0,
+		\ })
+	else
+		let s:ctrl = job_start([s:ctrlexe], {
+			\ 'callback': 's:CtrlRecv',
+			\ 'err_io': 'null',
+			\ 'mode': 'raw',
+		\ })
+	endif
 	let $EDITOR = s:ctrlexe
 endif
