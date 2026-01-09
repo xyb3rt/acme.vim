@@ -19,8 +19,8 @@ function s:FileWin(name)
 endfunc
 
 function s:Sel()
-	let text = getreg("'")
-	let type = getregtype("'")
+	let text = getreg('"')
+	let type = getregtype('"')
 	let view = winsaveview()
 	silent normal! gv""y
 	let sel = [getreg('"'), getregtype('"')]
@@ -93,7 +93,7 @@ function s:Started(job, buf, cmd)
 		\ 'h': a:job,
 		\ 'cmd': type(a:cmd) == type([]) ? join(a:cmd) : a:cmd,
 		\ 'killed': 0,
-		\ })
+	\ })
 	redrawstatus!
 endfunc
 
@@ -323,7 +323,7 @@ function s:JobEnv(buf)
 			\ &buftype == '' ? expand('%:t') : '',
 		\ 'COLUMNS': 80,
 		\ 'LINES': 24,
-		\ }
+	\ }
 endfunc
 
 function s:SetEnv(env)
@@ -345,7 +345,7 @@ function s:JobStart(cmd, outb, ctxb, opts, inp)
 		\ 'out_io': 'buffer',
 		\ 'out_buf': a:outb,
 		\ 'out_msg': 0,
-		\ }
+	\ }
 	call extend(opts, a:opts)
 	let cwd = get(a:opts, 'cwd', getcwd())
 	let env = s:SetEnv(s:JobEnv(a:outb))
@@ -536,7 +536,7 @@ function s:ScratchExec(cmd, dir, inp, title)
 	let opts = {
 		\ 'callback': function('s:ScratchCb', [b]),
 		\ 'in_io': 'pipe',
-		\ }
+	\ }
 	if a:dir != ''
 		let opts.cwd = a:dir
 	endif
@@ -551,7 +551,7 @@ function s:Exec(cmd)
 			\ 'err_io': 'null',
 			\ 'in_io': 'null',
 			\ 'out_io': 'null',
-			\ })
+		\ })
 	endif
 endfunc
 
@@ -980,7 +980,12 @@ function s:MousePress(mode)
 	if s:clickstatus != 0 || s:click.winid == 0
 		return
 	endif
-	exe "normal! \<LeftMouse>"
+	if has('nvim')
+		exe win_id2win(s:click.winid).'wincmd w'
+		call cursor(s:click.line, s:click.column)
+	else
+		exe "normal! \<LeftMouse>"
+	endif
 	let s:visual = s:SaveVisual()
 	let s:clicksel = s:clickmode == 'v' && win_getid() == s:clickwin &&
 		\ s:InSel()
@@ -1001,7 +1006,9 @@ function s:MiddleRelease(click)
 		endif
 		return
 	endif
-	exe "normal! \<LeftRelease>"
+	if !has('nvim')
+		exe "normal! \<LeftRelease>"
+	endif
 	let cmd = a:click <= 0 || s:clicksel ? s:Sel()[0] : expand('<cWORD>')
 	let vis = s:clickmode == 'v' && (a:click <= 0 || !s:clicksel)
 	call s:RestVisual(s:visual)
@@ -1021,6 +1028,14 @@ endfunc
 
 function s:RightRelease(click)
 	if s:click.winid == 0
+		let s:click = getmousepos()
+		let s:clickwin = win_getid()
+		let s:clickstatus = s:click.line == 0 ? win_id2win(s:click.winid) : 0
+		let s:clickmode = 'n'
+		let s:clicksel = 0
+	endif
+
+	if s:click.winid == 0
 		return
 	elseif s:clickstatus != 0
 		let p = getmousepos()
@@ -1039,8 +1054,10 @@ function s:RightRelease(click)
 		endif
 		return
 	endif
-	exe "normal! \<LeftRelease>"
-	let cmd = a:click <= 0 || s:clicksel ? s:Sel()[0] : expand('<cWORD>')
+	if !has('nvim')
+		exe "normal! \<LeftRelease>"
+	endif
+	let cmd = a:click <= 0 || s:clicksel ? s:Sel()[0] : getline('.')
 	let vis = s:clickmode == 'v' && (a:click <= 0 || !s:clicksel)
 	call s:RestVisual(s:visual)
 	let w = win_getid()
@@ -1048,6 +1065,43 @@ function s:RightRelease(click)
 	exe win_id2win(s:clickwin).'wincmd w'
 	call s:Open(cmd, a:click, dir, w)
 endfunc
+
+function AcmeActivate(mode)
+	let text = a:mode == 'v' ? trim(s:Sel()[0], "\r\n", 2) : getline('.')
+	let click = a:mode == 'v' ? -1 : col('.')
+	call s:Open(text, click, s:CtxDir(), win_getid())
+endfunc
+
+for m in ['', 'i']
+	for n in ['', '2-', '3-', '4-']
+		for c in ['Mouse', 'Drag', 'Release']
+			exe m.'noremap <'.n.'Middle'.c.'> <Nop>'
+			exe m.'noremap <'.n.'Right'.c.'> <Nop>'
+		endfor
+	endfor
+	exe m.'noremap <silent> <MiddleDrag> <LeftDrag>'
+	exe m.'noremap <silent> <RightDrag> <LeftDrag>'
+endfor
+for n in ['', '2-', '3-', '4-']
+	exe 'nnoremap <silent> <'.n.'MiddleMouse>'
+		\ ':call <SID>MousePress("")<CR>'
+	exe 'vnoremap <silent> <'.n.'MiddleMouse>'
+		\ ':<C-u>call <SID>MousePress("v")<CR>'
+	exe 'nnoremap <silent> <'.n.'MiddleRelease>'
+		\ ':call <SID>MiddleRelease(col("."))<CR>'
+	exe 'nnoremap <silent> <'.n.'RightMouse>'
+		\ ':call <SID>MousePress("")<CR>'
+	exe 'vnoremap <silent> <'.n.'RightMouse>'
+		\ ':<C-u>call <SID>MousePress("v")<CR>'
+	exe 'nnoremap <silent> <'.n.'RightRelease>'
+		\ ':call <SID>RightRelease(col("."))<CR>'
+endfor
+inoremap <silent> <MiddleMouse> <C-o>:call <SID>MousePress('')<CR>
+inoremap <silent> <MiddleRelease> <C-o>:call <SID>MiddleRelease(col('.'))<CR>
+vnoremap <silent> <MiddleRelease> :<C-u>call <SID>MiddleRelease(-1)<CR>
+inoremap <silent> <RightMouse> <C-o>:call <SID>MousePress('')<CR>
+inoremap <silent> <RightRelease> <C-o>:call <SID>RightRelease(col('.'))<CR>
+vnoremap <silent> <RightRelease> :<C-u>call <SID>RightRelease(-1)<CR>
 
 function s:Clear(b)
 	call deletebufline(a:b, 1, "$")
@@ -1194,7 +1248,7 @@ endfunc
 function s:CtrlRecv(ch, data)
 	let len = strridx(a:data, "\x1e")
 	let len += len == -1 ? 0 : len(s:ctrlrx)
-	s:ctrlrx .= a:data
+	let s:ctrlrx .= a:data
 	if len == -1
 		return
 	endif
@@ -1353,13 +1407,13 @@ if s:ctrlexe != ''
 		let s:ctrl = jobstart([s:ctrlexe], {
 			\ 'on_stdout': function('s:NvimCtrlRecv'),
 			\ 'rpc': 0,
-			\ })
+		\ })
 	else
 		let s:ctrl = job_start([s:ctrlexe], {
 			\ 'callback': 's:CtrlRecv',
 			\ 'err_io': 'null',
 			\ 'mode': 'raw',
-			\ })
+		\ })
 	endif
 	let $EDITOR = s:ctrlexe
 endif
