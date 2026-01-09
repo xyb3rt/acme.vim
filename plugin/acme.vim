@@ -1,3 +1,9 @@
+let s:click = {'winid': 0}
+let s:clicksel = 0
+let s:clickwin = 0
+let s:visual = [[0,0,0,0], [0,0,0,0], '']
+let s:clickstatus = 0
+
 function s:Bound(min, n, max)
 	return max([a:min, min([a:n, a:max])])
 endfunc
@@ -13,8 +19,8 @@ function s:FileWin(name)
 endfunc
 
 function s:Sel()
-	let text = getreg('"')
-	let type = getregtype('"')
+	let text = getreg("'")
+	let type = getregtype("'")
 	let view = winsaveview()
 	silent normal! gv""y
 	let sel = [getreg('"'), getregtype('"')]
@@ -198,12 +204,7 @@ function s:JobKill(job, sig)
 	if has('nvim')
 		let sig = a:sig
 		if type(sig) == type("")
-			let map = {
-				\ 'int': 2,
-				\ 'hup': 1,
-				\ 'term': 15,
-				\ 'kill': 9
-			\ }
+			let map = {'int': 2, 'hup': 1, 'term': 15, 'kill': 9}
 			let sig = get(map, sig, 15)
 		endif
 		silent! call luaeval("vim.loop.kill(vim.fn.jobpid(_A), _B)", [a:job, sig])
@@ -365,7 +366,7 @@ endfunc
 
 function s:ErrorSplitPos(name)
 	let [w, match, mod, rel] = [0, 0, '', '']
-	let dir = fnamemodify(s:Path(a:name), ':h')
+	dir = fnamemodify(s:Path(a:name), ':h')
 	for i in reverse(range(1, winnr('$')))
 		let b = winbufnr(i)
 		let p = get(s:cwd, b, s:Path(bufname(b)))
@@ -587,7 +588,7 @@ function s:Columnate(words, width)
 endfunc
 
 function s:ListDir()
-	let dir = expand('%')
+	dir = expand('%')
 	if !isdirectory(dir) || !&modifiable
 		return
 	endif
@@ -666,7 +667,7 @@ function s:Dir()
 endfunc
 
 function s:CtxDir()
-	let dir = s:Dir()
+	dir = s:Dir()
 	if &buftype != ''
 		let [t, q] = ['ing directory:? ', "[`'\"`]"]
 		let l = searchpair('\vEnter'.t.q, '', '\vLeav'.t.q, 'nW',
@@ -771,7 +772,8 @@ function s:Open(text, click, dir, win)
 endfunc
 
 function s:FileComplete(arg, line, pos)
-	let p = a:arg =~ '^[~/]' ? a:arg : s:Dir().'/'.a:arg
+	let p = a:arg =~ '^[~/]' ? a:arg : s:Dir().'/
+'.a:arg
 	let p = fnamemodify(p, ':p')
 	if a:arg =~ '[^/]$'
 		let p = substitute(p, '/*$', '', '')
@@ -909,14 +911,14 @@ function s:Fit(w, h, ...)
 			return h
 		endif
 	endif
-	let h = 0
-	let top = line('$', a:w) + 1
+	h = 0
+	top = line('$', a:w) + 1
 	while top > 1
-		let h += s:FitHeight(a:w, top - 1)
+		h += s:FitHeight(a:w, top - 1)
 		if h > a:h
 			break
 		endif
-		let top -= 1
+		top -= 1
 	endwhile
 	call timer_start(0, {_ ->
 		\ win_execute(a:w, 'noa call s:Scroll('.top.')')})
@@ -934,8 +936,8 @@ function s:Zoom(w)
 			break
 		endif
 		call win_move_statusline(win_id2win(w) - 1, winheight(w) - s)
-		let h -= s
-		let n -= 1
+		h -= s
+		n -= 1
 	endfor
 endfunc
 
@@ -956,7 +958,7 @@ function s:RestVisual(vis)
 	call setpos("'>", a:vis[1])
 	if a:vis[0][1] != 0
 		let v = winsaveview()
-		silent! exe "normal! `<".a:vis[2]."	\<Esc>"
+		silent! exe "normal! `<".a:vis[2]."`>\<Esc>"
 		call winrestview(v)
 	endif
 endfunc
@@ -995,8 +997,8 @@ function s:MiddleRelease(click)
 	let vis = s:clickmode == 'v' && (a:click <= 0 || !s:clicksel)
 	call s:RestVisual(s:visual)
 	let b = bufnr()
-	let dir = s:Dir()
-	let w = win_getid()
+	dir = s:Dir()
+	w = win_getid()
 	exe win_id2win(s:clickwin).'wincmd w'
 	if s:Receiver(b)
 		if w != s:clickwin && s:clickmode == 'v' && a:click > 0
@@ -1032,8 +1034,8 @@ function s:RightRelease(click)
 	let cmd = a:click <= 0 || s:clicksel ? s:Sel()[0] : expand('<cWORD>')
 	let vis = s:clickmode == 'v' && (a:click <= 0 || !s:clicksel)
 	call s:RestVisual(s:visual)
-	let w = win_getid()
-	let dir = s:CtxDir()
+	w = win_getid()
+	dir = s:CtxDir()
 	exe win_id2win(s:clickwin).'wincmd w'
 	call s:Open(cmd, a:click, dir, w)
 endfunc
@@ -1074,16 +1076,16 @@ function s:BufInfo()
 endfunc
 
 function s:Change(b, l1, l2, lines)
-	let w = win_getid(s:BufWin(a:b))
+	w = win_getid(s:BufWin(a:b))
 	if w == 0
 		return
 	endif
 	let pos = getcurpos(w)
 	let last = line('$', w)
-	let l = s:Bound(1, a:l1 < 0 ? a:l1 + last + 2 : a:l1, last + 1)
-	let n = s:Bound(0, (a:l2 < 0 ? a:l2 + last + 2 : a:l2) - l + 1,
+	l = s:Bound(1, a:l1 < 0 ? a:l1 + last + 2 : a:l1, last + 1)
+	n = s:Bound(0, (a:l2 < 0 ? a:l2 + last + 2 : a:l2) - l + 1,
 		\ last - l + 1)
-	let i = min([n, len(a:lines)])
+	i = min([n, len(a:lines)])
 	if i > 0
 		call setbufline(a:b, l, a:lines[:i-1])
 	endif
@@ -1131,7 +1133,7 @@ function s:PtyMap()
 endfunc
 
 function s:Pty(b)
-	let w = win_getid(s:BufWin(a:b))
+	w = win_getid(s:BufWin(a:b))
 	if !has_key(s:scratch, a:b) || w == 0
 		return
 	endif
@@ -1179,7 +1181,7 @@ endfunc
 function s:CtrlRecv(ch, data)
 	let len = strridx(a:data, "\x1e")
 	let len += len == -1 ? 0 : len(s:ctrlrx)
-	let s:ctrlrx .= a:data
+	s:ctrlrx .= a:data
 	if len == -1
 		return
 	endif
