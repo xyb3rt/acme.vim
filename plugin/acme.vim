@@ -1012,6 +1012,14 @@ endfunc
 
 function s:RightRelease(click)
 	if s:click.winid == 0
+		let s:click = getmousepos()
+		let s:clickwin = win_getid()
+		let s:clickstatus = s:click.line == 0 ? win_id2win(s:click.winid) : 0
+		let s:clickmode = 'n'
+		let s:clicksel = 0
+	endif
+
+	if s:click.winid == 0
 		return
 	elseif s:clickstatus != 0
 		let p = getmousepos()
