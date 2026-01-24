@@ -493,8 +493,12 @@ function s:Goto(pos)
 			exe 'normal!' col.'|'
 		endif
 	elseif a:pos =~ '^[/?]'
+		let [i, n] = [1, len(a:pos)]
+		while i < n && a:pos[i] != a:pos[0]
+			let i += 1 + (a:pos[i] == '\')
+		endwhile
 		exe 'normal!' (a:pos[0] == '/' ? 'gg' : 'G$')
-		call search(a:pos[1:], a:pos[0] == '?' ? 'b' : 'c')
+		call search(a:pos[1:i-1], a:pos[0] == '?' ? 'b' : 'c')
 	endif
 endfunc
 
