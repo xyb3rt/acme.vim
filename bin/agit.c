@@ -374,7 +374,7 @@ void cmd_config(void) {
 
 void cmd_diff(void) {
 	set("git", "diff");
-	hint("< --cached -p --stat --submodule=diff HEAD @{u} -- >");
+	hint("< --cached --stat --submodule=diff HEAD @{u} -- >");
 	if (add(NULL)) {
 		setscratch(cwd, "git:diff");
 	}
@@ -464,7 +464,7 @@ void cmd_reset(void) {
 
 void cmd_restore(void) {
 	set("git", "restore");
-	hint("< --source= --staged --worktree -- ./ >");
+	hint("< --merge --ours --theirs --source --staged --worktree -- ./ >");
 	if (add(NULL)) {
 		run(devnull);
 	}
