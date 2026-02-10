@@ -404,7 +404,8 @@ void cmd_log(void) {
 	set("git", "log");
 	opt("--decorate");
 	opt("--left-right");
-	hint("< --not --oneline -S HEAD ...@{u} >");
+	opt("--cherry-mark");
+	hint("< --first-parent --no-merges --oneline -S HEAD ...@{u} >");
 	if (add(list_open_files_and_branches)) {
 		setscratch(cwd, "git:log");
 	}
