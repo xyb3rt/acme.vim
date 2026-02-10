@@ -396,8 +396,7 @@ void cmd_fetch(void) {
 
 void cmd_graph(void) {
 	clear();
-	set("git", "log", "--graph", "--oneline", "--decorate", "--all",
-	    "--date-order");
+	set("git-graph", "--no-color", "--no-pager", "--style", "ascii");
 	setscratch(cwd, "git:graph");
 }
 
