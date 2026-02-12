@@ -1063,13 +1063,16 @@ endfunc
 function s:Look(p)
 	if len(a:p) <= 2
 		silent! normal! n
+		return
 	elseif len(a:p) == 3 && a:p[1] == ''
-		call feedkeys(":nohlsearch\<CR>", 'n')
+		let hl = 0
 	else
+		let hl = 1
 		let p = map(a:p[1:-2], {i, v -> escape(v, '\/')})
 		let @/ = '\V'.a:p[0].'\%\('.join(p, '\|').'\)'.a:p[-1]
-		call feedkeys(":let v:hlsearch=1\<CR>", 'n')
 	endif
+	let esc = mode() == 'i' ? "\<C-o>" : ""
+	call feedkeys(esc.":let v:hlsearch=".hl."\<CR>", 'n')
 endfunc
 
 function s:BufNr(b)
