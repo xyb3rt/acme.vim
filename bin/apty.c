@@ -33,7 +33,7 @@ void send_(struct ptybuf *buf) {
 	vec_push(&cmd, avimbuf);
 	vec_push(&cmd, "-2");
 	vec_push(&cmd, "-1");
-	size_t bol = 0, eol = 0, len;
+	size_t bol = 0, eol = buf->i, len;
 	size_t c = buf->c, i = buf->i;
 	size_t n = vec_len(&buf->d);
 	vec_push(&buf->d, '\0');
