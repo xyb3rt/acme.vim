@@ -40,6 +40,9 @@ void send_(struct ptybuf *buf) {
 	char *p = buf->d;
 	for (; i < n; i++) {
 		switch (p[i]) {
+		case '\a':
+			/* filter out bell */
+			break;
 		case '\b':
 			c -= c > bol;
 			eol -= eol == c + 1;
