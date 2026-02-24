@@ -207,7 +207,7 @@ function s:JobKill(job, sig)
 			let map = {'int': 2, 'hup': 1, 'term': 15, 'kill': 9}
 			let sig = get(map, sig, 15)
 		endif
-		silent! call luaeval("vim.loop.kill(vim.fn.jobpid(_A), _B)", [a:job, sig])
+		silent! call luaeval('vim.loop.kill(vim.fn.jobpid(_A[1]), _A[2])', [a:job, sig])
 	else
 		call job_stop(a:job, a:sig)
 	endif
@@ -260,9 +260,10 @@ function s:GetJobBufNr(job)
 	endif
 endfunc
 
-function s:NvimOut(id, data, event) dict
-	if empty(a:data) | return | endif
-	let b = self.buf
+function s:NvimOut(id, data, event)
+	if empty(a:data) || a:data == [''] | return | endif
+	let job = get(s:nvim_jobs, a:id, {})
+	let b = get(job, 'buf', -1)
 	if bufexists(b)
 		let mod = getbufvar(b, '&modifiable')
 		call setbufvar(b, '&modifiable', 1)
@@ -275,12 +276,12 @@ function s:NvimOut(id, data, event) dict
 		endif
 		call setbufvar(b, '&modifiable', mod)
 	endif
-	if has_key(self, 'callback') && !empty(self.callback)
-		call call(self.callback, [a:id, ''])
+	if has_key(job, 'callback') && !empty(job.callback)
+		call call(job.callback, [a:id, ''])
 	endif
 endfunc
 
-function s:NvimExit(id, status, event) dict
+function s:NvimExit(id, status, event)
 	if has_key(s:nvim_jobs, a:id)
 		call remove(s:nvim_jobs, a:id)
 	endif
@@ -292,9 +293,10 @@ function s:JobStartNvim(cmd, outb, ctxb, opts, inp)
 		\ 'on_exit': function('s:NvimExit'),
 		\ 'on_stdout': function('s:NvimOut'),
 		\ 'on_stderr': function('s:NvimOut'),
-		\ 'buf': a:outb,
-		\ 'callback': get(a:opts, 'callback', ''),
 	\ }
+	if a:inp != ''
+		let job_opts.stdin = 'pipe'
+	endif
 	if has_key(a:opts, 'cwd')
 		let job_opts.cwd = a:opts.cwd
 	endif
@@ -304,7 +306,10 @@ function s:JobStartNvim(cmd, outb, ctxb, opts, inp)
 	if job <= 0
 		return
 	endif
-	let s:nvim_jobs[job] = job_opts
+	let s:nvim_jobs[job] = {
+		\ 'buf': a:outb,
+		\ 'callback': get(a:opts, 'callback', ''),
+	\ }
 	call s:Started(job, s:BufWin(a:outb) != 0 ? a:outb : a:ctxb, a:cmd)
 	if a:inp != ''
 		call chansend(job, a:inp)
@@ -459,7 +464,7 @@ endfunc
 function s:Read(cmd, dir, inp)
 	let end = getcurpos()[4] > strdisplaywidth(getline('.'))
 	call setreg('"', s:System(a:cmd, a:dir, a:inp), 'c')
-	exe 'normal! "'.(end ? 'p' : 'P')
+	exe 'normal! ""'.(end ? 'p' : 'P')
 endfunc
 
 function s:ParseCmd(cmd)
@@ -724,7 +729,7 @@ function s:RgOpen(pos)
 		return 0
 	endif
 	call win_execute(s:plumbwin,
-		\ 'let s:l = search("\v^(\s*(\d+[-:]|\-\-$))@!", "bnW")')
+		\ 'let s:l = search("\\v^(\\s*(\\d+[-:]|\\-\\-$))@!", "bnW")')
 	let f = getbufoneline(winbufnr(s:plumbwin), s:l)
 	if f != ''
 		return AcmeOpen(f, a:pos)
@@ -876,7 +881,7 @@ endfunc
 
 function s:Scroll(topline)
 	let v = winsaveview()
-	v.topline = a:topline
+	let v.topline = a:topline
 	call winrestview(v)
 endfunc
 
@@ -922,8 +927,8 @@ function s:Zoom(w)
 			break
 		endif
 		call win_move_statusline(win_id2win(w) - 1, winheight(w) - s)
-		h -= s
-		n -= 1
+		let h -= s
+		let n -= 1
 	endfor
 endfunc
 
@@ -983,8 +988,8 @@ function s:MiddleRelease(click)
 	let vis = s:clickmode == 'v' && (a:click <= 0 || !s:clicksel)
 	call s:RestVisual(s:visual)
 	let b = bufnr()
-	dir = s:Dir()
-	w = win_getid()
+	let dir = s:Dir()
+	let w = win_getid()
 	exe win_id2win(s:clickwin).'wincmd w'
 	if s:Receiver(b)
 		if w != s:clickwin && s:clickmode == 'v' && a:click > 0
@@ -1028,8 +1033,8 @@ function s:RightRelease(click)
 	let cmd = a:click <= 0 || s:clicksel ? s:Sel()[0] : expand('<cWORD>')
 	let vis = s:clickmode == 'v' && (a:click <= 0 || !s:clicksel)
 	call s:RestVisual(s:visual)
-	w = win_getid()
-	dir = s:CtxDir()
+	let w = win_getid()
+	let dir = s:CtxDir()
 	exe win_id2win(s:clickwin).'wincmd w'
 	call s:Open(cmd, a:click, dir, w)
 endfunc
@@ -1113,10 +1118,10 @@ function s:Change(b, l1, l2, lines)
 	endif
 	let pos = getcurpos(w)
 	let last = line('$', w)
-	l = s:Bound(1, a:l1 < 0 ? a:l1 + last + 2 : a:l1, last + 1)
-	n = s:Bound(0, (a:l2 < 0 ? a:l2 + last + 2 : a:l2) - l + 1,
+	let l = s:Bound(1, a:l1 < 0 ? a:l1 + last + 2 : a:l1, last + 1)
+	let n = s:Bound(0, (a:l2 < 0 ? a:l2 + last + 2 : a:l2) - l + 1,
 		\ last - l + 1)
-	i = min([n, len(a:lines)])
+	let i = min([n, len(a:lines)])
 	if i > 0
 		call setbufline(a:b, l, a:lines[:i-1])
 	endif
