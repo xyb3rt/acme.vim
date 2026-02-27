@@ -723,9 +723,6 @@ function s:MoveWin(w, other, below)
 		noa exe win_id2win(p != a:w ? p : nw).'wincmd w'
 		noa exe win_id2win(w != a:w ? w : nw).'wincmd w'
 		noa exe win_id2win(a:w).'close!'
-		call remove(col, i)
-		call s:Layout(col)
-		call s:Layout(s:WinCol(nw))
 	endif
 endfunc
 
@@ -741,8 +738,6 @@ function s:NewCol(w)
 	noa exe win_id2win(p).'wincmd w'
 	noa exe win_id2win(w).'wincmd w'
 	noa exe win_id2win(a:w).'close!'
-	call remove(col, index(col, a:w))
-	call s:Layout(col)
 endfunc
 
 function s:Scroll(topline)
@@ -1177,18 +1172,32 @@ function s:BufWinLeave()
 	endif
 endfunc
 
-function s:WinClosed(w)
-	if has_key(s:minimized, a:w)
-		call remove(s:minimized, a:w)
+function s:WinClosedPre()
+	" Only works with 'nosplitbelow'
+	let w = expand("<amatch>")
+	let h = winheight(w) + 1
+	let col = s:WinCol(w)
+	let [i, j] = [index(col, w), index(col, win_getid())]
+	if j == -1
+		let fbelow = i + 1 == len(col) ? '' :
+			\ fnamemodify(bufname(winbufnr(col[i + 1])), ':t')
+		if i == 0 || fbelow != 'guide'
+			return
+		endif
+		let j = i - 1
 	endif
-	let col = s:WinCol(a:w)
-	call remove(col, index(col, a:w))
-	call timer_start(0, {_ -> s:Layout(col)})
+	let focus = w == win_getid()
+	call timer_start(0, {_ -> s:WinClosedPost(col[j], i - j, h, focus)})
 endfunc
 
-function s:WinNew(w)
-	let col = s:WinCol(a:w)
-	call timer_start(0, {_ -> s:Layout(col)})
+function s:WinClosedPost(w, n, h, focus)
+	let w = win_id2win(a:w)
+	for i in a:n < 0 ? range(a:n + 1, -1) : reverse(range(a:n))
+		call win_move_statusline(w + i, a:n < 0 ? -a:h : a:h)
+	endfor
+	if a:focus
+		exe w.'wincmd w'
+	endif
 endfunc
 
 augroup acme_vim
@@ -1200,8 +1209,7 @@ au TextChanged,TextChangedI guide setl nomodified
 au VimEnter * call s:ReloadDirs(winnr())
 au VimResized * call s:ReloadDirs(0)
 au WinResized * call s:ReloadDirs(0)
-au WinClosed * call s:WinClosed(str2nr(expand("<amatch>")))
-au WinNew * call s:WinNew(win_getid())
+au WinClosed * call s:WinClosedPre()
 augroup END
 
 if exists("s:ctrlexe")
