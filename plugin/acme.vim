@@ -164,20 +164,12 @@ function s:Receiver(b)
 	return has_key(s:scratch, a:b) && s:Jobs(a:b) != []
 endfunc
 
-function s:SplitSize(n, rel)
+function s:New(cmd)
 	let min = &winminheight > 0 ? 2 * &winminheight + 1 : 2
 	if winheight(0) < min
 		exe min.'wincmd _'
 	endif
-	let h = winheight(0)
-	let stat = 1 + (winnr('$') == 1 && &laststatus == 1)
-	return a:rel == '=' ? a:n : a:rel == '<'
-		\ ? min([abs(a:n), h - stat - max([&winminheight, 1])])
-		\ : max([a:n, h - s:Fit(win_getid(), (h - stat) / 2) - stat])
-endfunc
-
-function s:New(cmd)
-	exe s:SplitSize(10, '>').a:cmd
+	exe a:cmd
 endfunc
 
 function s:Argv(cmd)
@@ -234,7 +226,7 @@ function s:InDir(path, dir)
 endfunc
 
 function s:ErrorSplitPos(name)
-	let [w, match, mod, rel] = [0, 0, '', '']
+	let [w, match, mod] = [0, 0, '']
 	let dir = fnamemodify(s:Path(a:name), ':h')
 	for i in reverse(range(1, winnr('$')))
 		let b = winbufnr(i)
@@ -245,11 +237,11 @@ function s:ErrorSplitPos(name)
 		let n = max([s:InDir(d, dir), s:InDir(dir, d)])
 		if n > match
 			let [w, match] = [i, n]
-			let [mod, rel] = f == 'guide' || f == '+Errors'
-				\ ? ['abo', '>'] : ['bel', '=']
+			let mod = f == 'guide' || f == '+Errors'
+				\ ? 'abo' : 'bel'
 		endif
 	endfor
-	return w != 0 ? [w, mod, rel] : [winnr('$'), 'bel', '=']
+	return w != 0 ? [w, mod] : [winnr('$'), 'bel']
 endfunc
 
 function s:ErrorLoad(name)
@@ -269,7 +261,7 @@ function s:ErrorOpen(name, ...)
 	if w != 0
 		exe w.'wincmd w'
 	else
-		let [w, mod, rel] = s:ErrorSplitPos(a:name)
+		let [w, mod] = s:ErrorSplitPos(a:name)
 		exe w.'wincmd w'
 		let b = s:ErrorLoad(a:name)
 		for job in s:jobs
@@ -277,7 +269,7 @@ function s:ErrorOpen(name, ...)
 				let job.buf = b
 			endif
 		endfor
-		exe mod s:SplitSize(10, rel).'sp | b '.b
+		call s:New(mod.' sb '.b)
 	endif
 	if a:0 == 0
 	elseif line('$') == 1 && getline(1) == ''
@@ -685,23 +677,6 @@ function s:WinCol(w)
 	return col
 endfunc
 
-function s:CloseWin(w)
-	let h = winheight(a:w) + 1
-	let col = s:WinCol(a:w)
-	let [i, j] = [index(col, a:w), index(col, win_getid())]
-	let sb = &splitbelow
-	let &splitbelow = 0
-	exe win_id2win(a:w).'close!'
-	let &splitbelow = sb
-	if j == -1
-		return
-	endif
-	let d = i - j
-	for i in d < 0 ? range(d + 1, -1) : reverse(range(d))
-		call win_move_statusline(winnr() + i, d < 0 ? -h : h)
-	endfor
-endfunc
-
 function s:RestWinVars(w, vars)
 	let vars = getwinvar(a:w, '&')
 	for v in keys(a:vars)
@@ -727,23 +702,28 @@ function s:MoveWin(w, other, below)
 		endfor
 		noa exe win_id2win(p).'wincmd w'
 		noa exe win_id2win(w).'wincmd w'
+		call s:Layout(s:WinCol(a:w))
 	else
+		let minimized = s:Minimized(a:w)
 		let v = winsaveview()
 		let vars = getwinvar(0, '&')
 		noa exe win_id2win(a:other).'wincmd w'
-		let h = s:SplitSize(1, '>')
-		noa exe (a:below ? 'bel' : 'abo') h.'sp'
-		noa exe 'b' winbufnr(a:w)
-		call winrestview(v)
+		noa call s:New((a:below ? 'bel' : 'abo').' sb '.winbufnr(a:w))
 		let nw = win_getid()
+		call s:RestWinVars(nw, vars)
+		call winrestview(v)
+		let s:minimized[nw] = minimized
 		noa exe win_id2win(p != a:w ? p : nw).'wincmd w'
 		noa exe win_id2win(w != a:w ? w : nw).'wincmd w'
-		noa call s:CloseWin(a:w)
-		call s:RestWinVars(nw, vars)
+		noa exe win_id2win(a:w).'close!'
+		call remove(col, i)
+		call s:Layout(col)
+		call s:Layout(s:WinCol(nw))
 	endif
 endfunc
 
 function s:NewCol(w)
+	let col = s:WinCol(a:w)
 	let w = win_getid()
 	let p = win_getid(winnr('#'))
 	noa exe win_id2win(a:w).'wincmd w'
@@ -753,7 +733,9 @@ function s:NewCol(w)
 	endif
 	noa exe win_id2win(p).'wincmd w'
 	noa exe win_id2win(w).'wincmd w'
-	call s:CloseWin(a:w)
+	noa exe win_id2win(a:w).'close!'
+	call remove(col, index(col, a:w))
+	call s:Layout(col)
 endfunc
 
 function s:Scroll(topline)
@@ -762,7 +744,7 @@ function s:Scroll(topline)
 	call winrestview(v)
 endfunc
 
-function s:FitHeight(w, l)
+function s:LineHeight(w, l)
 	" Only works without fold, number & sign columns and just with
 	" line wrapping, e.g. 'nobreakindent', 'nolinebreak' & 'nolist'
 	let lw = !getwinvar(a:w, '&wrap') ? 1 :
@@ -771,42 +753,62 @@ function s:FitHeight(w, l)
 	return (max([lw, 1]) + ww - 1) / ww
 endfunc
 
-function s:Fit(w, h, ...)
-	if fnamemodify(bufname(winbufnr(a:w)), ':t') == 'guide'
-		let h = s:FitHeight(a:w, 1)
-		if a:0 == 0 || a:w != a:1 || h != winheight(a:w)
-			call win_execute(a:w, 'normal! gg')
-			return h
+function s:Fit(col)
+	for w in a:col
+		if s:Minimized(w)
+			continue
 		endif
-	endif
-	let h = 0
-	let top = line('$', a:w) + 1
-	while top > 1
-		let h += s:FitHeight(a:w, top - 1)
-		if h > a:h
-			break
+		let h = 0
+		let wh = winheight(w)
+		let top = line('$', w) + 1
+		while top > 1
+			let h += s:LineHeight(w, top - 1)
+			if h > wh
+				break
+			endif
+			let top -= 1
+		endwhile
+		if top < getwininfo(w)[0].topline
+			call win_execute(w, 'noa call s:Scroll('.top.')')
 		endif
-		let top -= 1
-	endwhile
-	call timer_start(0, {_ ->
-		\ win_execute(a:w, 'noa call s:Scroll('.top.')')})
-	return min([h, a:h])
+	endfor
 endfunc
 
-function s:Zoom(w)
-	let col = s:WinCol(a:w)
-	let col = slice(col, 0, index(col, a:w) + 1)
-	let h = reduce(col, {s, w -> s + winheight(w)}, 0)
-	let n = len(col)
-	for w in reverse(col)
-		let s = s:Fit(w, h / n, a:w)
+function s:Layout(col)
+	let h = reduce(a:col, {s, w -> s + winheight(w)}, 0)
+	let n = len(a:col)
+	for w in reverse(a:col)
 		if n == 1
 			break
+		endif
+		if s:Minimized(w)
+			if fnamemodify(bufname(winbufnr(w)), ':t') == 'guide'
+				call win_execute(w, 'normal! gg')
+			endif
+			let s = 1
+		else
+			let s = h / (n + n * (n > s:tops))
 		endif
 		call win_move_statusline(win_id2win(w) - 1, winheight(w) - s)
 		let h -= s
 		let n -= 1
 	endfor
+	call timer_start(0, {_ -> s:Fit(a:col)})
+endfunc
+
+function s:Minimized(w)
+	let isguide = fnamemodify(bufname(winbufnr(a:w)), ':t') == 'guide'
+	return get(s:minimized, a:w, isguide)
+endfunc
+
+function s:Minimize(w)
+	let col = s:WinCol(a:w)
+	if index(col, a:w) == 0
+		let s:tops = s:tops == 1 ? 2 : 1
+	else
+		let s:minimized[a:w] = !s:Minimized(a:w)
+	endif
+	call s:Layout(col)
 endfunc
 
 function s:InSel()
@@ -856,7 +858,7 @@ function s:MiddleRelease(click)
 			\ p.winrow <= winheight(p.winid)
 			" off the statusline
 		elseif p.wincol < 3
-			call s:CloseWin(p.winid)
+			exe win_id2win(p.winid).'close!'
 		endif
 		return
 	endif
@@ -894,7 +896,7 @@ function s:RightRelease(click)
 		elseif p.wincol < 3
 			call s:NewCol(p.winid)
 		else
-			call s:Zoom(p.winid)
+			call s:Minimize(p.winid)
 		endif
 		return
 	endif
@@ -1171,6 +1173,20 @@ function s:BufWinLeave()
 	endif
 endfunc
 
+function s:WinClosed(w)
+	if has_key(s:minimized, a:w)
+		call remove(s:minimized, a:w)
+	endif
+	let col = s:WinCol(a:w)
+	call remove(col, index(col, a:w))
+	call timer_start(0, {_ -> s:Layout(col)})
+endfunc
+
+function s:WinNew(w)
+	let col = s:WinCol(a:w)
+	call timer_start(0, {_ -> s:Layout(col)})
+endfunc
+
 augroup acme_vim
 au!
 au BufEnter * call s:ListDir()
@@ -1180,6 +1196,8 @@ au TextChanged,TextChangedI guide setl nomodified
 au VimEnter * call s:ReloadDirs(winnr())
 au VimResized * call s:ReloadDirs(0)
 au WinResized * call s:ReloadDirs(0)
+au WinClosed * call s:WinClosed(str2nr(expand("<amatch>")))
+au WinNew * call s:WinNew(win_getid())
 augroup END
 
 if exists("s:ctrlexe")
@@ -1199,7 +1217,9 @@ let s:editbufs = {}
 let s:editcids = {}
 let s:editcmds = {}
 let s:jobs = []
+let s:minimized = {}
 let s:scratch = {}
+let s:tops = 1
 
 if s:ctrlexe != ''
 	let s:ctrl = job_start([s:ctrlexe], {

@@ -49,8 +49,7 @@ Bringing the spirit of Plan 9 acme to vim.
 * Manage windows with the mouse:
 
 	A window can be closed by middle-clicking its layout box at the
-	beginning of its status bar. The space of the closed window is put into
-	the focused one if they are in the same column.
+	beginning of its status bar.
 
 	A window can be moved by dragging its status bar while holding down the
 	right mouse button. The window is moved above or below the one over
@@ -58,12 +57,20 @@ Bringing the spirit of Plan 9 acme to vim.
 	Otherwise the dragged window is re-opened as a new split of the window
 	under the mouse.
 
-	Right-clicking a status bar resizes the windows above it. The available
-	space is distributed equally among them. But each window is limited to
-	the number of lines in its buffer and any saved space is given to the
-	windows above.
+	Right-clicking the status bar of the top window in a column toggles if
+	it equally shares the premium space at the top of the column with the
+	window below. Right-clicking any other window in a column toggles
+	minimization of that window.
 
 	A window can be moved to a new column by right-clicking its layout box.
+
+* Automatically resize windows:
+
+	All non-minimized windows get a roughly equal amount of space but the
+	top or the top two windows get more space than the windows below them.
+
+	Instead of resizing windows manually it is better to change their order
+	in the column or minimize the less important ones.
 
 * Send text to commands:
 
