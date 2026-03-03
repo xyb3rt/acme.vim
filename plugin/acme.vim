@@ -962,7 +962,12 @@ function s:MousePress(mode)
 	if s:clickstatus != 0 || s:click.winid == 0
 		return
 	endif
-	exe "normal! \<LeftMouse>"
+	if has('nvim')
+		exe win_id2win(s:click.winid).'wincmd w'
+		call cursor(s:click.line, s:click.column)
+	else
+		exe "normal! \<LeftMouse>"
+	endif
 	let s:visual = s:SaveVisual()
 	let s:clicksel = s:clickmode == 'v' && win_getid() == s:clickwin &&
 		\ s:InSel()
@@ -983,7 +988,9 @@ function s:MiddleRelease(click)
 		endif
 		return
 	endif
-	exe "normal! \<LeftRelease>"
+	if !has('nvim')
+		exe "normal! \<LeftRelease>"
+	endif
 	let cmd = a:click <= 0 || s:clicksel ? s:Sel()[0] : expand('<cWORD>')
 	let vis = s:clickmode == 'v' && (a:click <= 0 || !s:clicksel)
 	call s:RestVisual(s:visual)
@@ -1029,7 +1036,9 @@ function s:RightRelease(click)
 		endif
 		return
 	endif
-	exe "normal! \<LeftRelease>"
+	if !has('nvim')
+		exe "normal! \<LeftRelease>"
+	endif
 	let cmd = a:click <= 0 || s:clicksel ? s:Sel()[0] : expand('<cWORD>')
 	let vis = s:clickmode == 'v' && (a:click <= 0 || !s:clicksel)
 	call s:RestVisual(s:visual)
