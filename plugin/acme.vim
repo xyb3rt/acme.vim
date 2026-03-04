@@ -1039,7 +1039,7 @@ function s:RightRelease(click)
 	if !has('nvim')
 		exe "normal! \<LeftRelease>"
 	endif
-	let cmd = a:click <= 0 || s:clicksel ? s:Sel()[0] : expand('<cWORD>')
+	let cmd = a:click <= 0 || s:clicksel ? s:Sel()[0] : getline('.')
 	let vis = s:clickmode == 'v' && (a:click <= 0 || !s:clicksel)
 	call s:RestVisual(s:visual)
 	let w = win_getid()
