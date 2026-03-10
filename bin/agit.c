@@ -448,7 +448,8 @@ void cmd_push(void) {
 void cmd_rebase(void) {
 	set("git", "rebase");
 	hint("< --autosquash --interactive --onto --root --update-refs @{u} >",
-	     "< --abort --continue --quit --skip >");
+	     "< --abort --continue --quit --skip --edit-todo "
+	       "--show-current-patch >");
 	if (add(list_branches)) {
 		run(1);
 	}
