@@ -342,7 +342,7 @@ void cmd_add(void) {
 
 void cmd_branch(void) {
 	set("git", "branch");
-	hint("< --copy --delete --move --force --set-upstream-to >");
+	hint("< --copy --delete --force --move --set-upstream-to >");
 	if (add(list_branches)) {
 		run(1);
 	}
