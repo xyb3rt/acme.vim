@@ -661,6 +661,9 @@ void spawn(char *argv[]) {
 		"capabilities", capabilities())));
 	vec_free(&uri);
 	server = strbsnm(argv[0]);
+	if (strcmp(server, "pyright-langserver") == 0) {
+		server = "pyright";
+	}
 }
 
 char *fileext(const char *path) {
@@ -687,6 +690,9 @@ void detectserver(avim_strv msg) {
 		if (strcasecmp(ext, "java") == 0) {
 			server = "jdtls";
 		}
+		if (strcasecmp(ext, "py") == 0) {
+			server = "pyright-langserver";
+		}
 	}
 }
 
@@ -696,7 +702,10 @@ void guessinvocation(void) {
 	if (server == NULL) {
 		error(EXIT_FAILURE, 0, "Which server?");
 	}
-	char *argv[] = {(char *)server, NULL};
+	char *argv[] = {(char *)server, NULL, NULL};
+	if (strcmp(server, "pyright-langserver") == 0) {
+		argv[1] = "--stdio";
+	}
 	spawn(argv);
 }
 
