@@ -656,13 +656,8 @@ void spawn(char *argv[]) {
 		close(fd0[1]);
 		close(fd1[0]);
 		close(fd1[1]);
-		int fd = open("/dev/null", O_RDWR);
-		if (fd != -1) {
-			dup2(fd, 2);
-			close(fd);
-		}
 		execvp(argv[0], argv);
-		error(EXIT_FAILURE, errno, "exec");
+		error(EXIT_FAILURE, errno, "exec: %s", argv[0]);
 	}
 	close(fd0[1]);
 	close(fd1[0]);
@@ -722,7 +717,9 @@ void guessinvocation(void) {
 		error(EXIT_FAILURE, 0, "Which server?");
 	}
 	char *argv[] = {(char *)server, NULL, NULL};
-	if (strcmp(server, "pyright-langserver") == 0) {
+	if (strcmp(server, "clangd") == 0) {
+		argv[1] = "--log=error";
+	} else if (strcmp(server, "pyright-langserver") == 0) {
 		argv[1] = "--stdio";
 	}
 	spawn(argv);
