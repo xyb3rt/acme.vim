@@ -208,6 +208,23 @@ void showcompls(json_t *msg) {
 	}
 }
 
+void showhover(json_t *hover) {
+	if (json_is_string(hover)) {
+		printf("%s\n", json_string_value(hover));
+	} else if (json_is_object(hover)) {
+		printf("%s\n", json_string_value(GET(hover, "value")));
+	}
+}
+
+void showhovers(json_t *msg) {
+	json_t *contents = GET(msg, "result", "contents");
+	if (!json_is_array(contents)) {
+		showhover(contents);
+	} else for (size_t i = 0, n = json_array_size(contents); i < n; i++) {
+		showhover(json_array_get(contents, i));
+	}
+}
+
 void showmatches(json_t *msg) {
 	avim_buf data = NULL;
 	avim_strv lines = NULL;
@@ -607,6 +624,8 @@ json_t *capabilities(void) {
 			"documentSymbol", OBJ(
 				"hierarchicalDocumentSymbolSupport",
 					JSON(true)),
+			"hover", OBJ(
+				"contentFormat", JSON(string, "plaintext")),
 			"implementation", JSON(object),
 			"references", JSON(object),
 			"typeDefinition", JSON(object),
@@ -759,6 +778,10 @@ void cmd_def(void) {
 	txtdoc("textDocument/definition", gotomatch, JSON(object));
 }
 
+void cmd_hover(void) {
+	txtdoc("textDocument/hover", showhovers, JSON(object));
+}
+
 void cmd_impl(void) {
 	txtdoc("textDocument/implementation", gotomatch, JSON(object));
 }
@@ -798,6 +821,7 @@ void initmenu(json_t *cap) {
 	addcmd("compl", cmd_compl, cap, "completionProvider");
 	addcmd("decl", cmd_decl, cap, "declarationProvider");
 	addcmd("def", cmd_def, cap, "definitionProvider");
+	addcmd("hover", cmd_hover, cap, "hoverProvider");
 	addcmd("impl", cmd_impl, cap, "implementationProvider");
 	addcmd("all-", cmd_all_refs, cap, "referencesProvider");
 	addcmd("refs", cmd_refs, cap, "referencesProvider");
