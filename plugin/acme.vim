@@ -174,6 +174,12 @@ endfunc
 
 function s:Argv(cmd)
 	return type(a:cmd) == type([]) ? a:cmd : [&shell, &shellcmdflag, a:cmd]
+endfunc 
+
+function s:ArgvAxec(cmd, cwd)
+	let argv = s:Argv(a:cmd)
+	return filereadable(a:cwd.'/.env.sh') || filereadable(a:cwd.'/x/env.sh')
+		\ ? [s:avimdir.'/bin/axec'] + argv : argv
 endfunc
 
 function s:JobEnv(buf)
@@ -205,8 +211,9 @@ function s:JobStart(cmd, outb, ctxb, opts, inp)
 		\ 'out_msg': 0,
 	\ }
 	call extend(opts, a:opts)
+	let cwd = get(a:opts, 'cwd', getcwd())
 	let env = s:SetEnv(s:JobEnv(a:outb))
-	let job = job_start(s:Argv(a:cmd), opts)
+	let job = job_start(s:ArgvAxec(a:cmd, cwd), opts)
 	call s:SetEnv(env)
 	if job_status(job) == "fail"
 		return
@@ -1207,7 +1214,8 @@ set completefunc=s:InsComplete
 let &statusline = '%{AcmeStatusBox()}%<%{%AcmeStatusName()%}' .
 	\ '%{%AcmeStatusFlags()%}%{AcmeStatusJobs()}%=%{%AcmeStatusRuler()%}'
 
-let s:ctrlexe = exepath(expand('<sfile>:p:h:h').'/bin/avim')
+let s:avimdir = expand('<sfile>:p:h:h')
+let s:ctrlexe = exepath(s:avimdir.'/bin/avim')
 let s:ctrlrx = ''
 let s:cwd = {}
 let s:dirwidth = {}
