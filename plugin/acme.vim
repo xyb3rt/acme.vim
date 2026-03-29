@@ -176,14 +176,12 @@ function s:Argv(cmd)
 	return type(a:cmd) == type([]) ? a:cmd : [&shell, &shellcmdflag, a:cmd]
 endfunc
 
-function s:JobEnv(buf, dir)
+function s:JobEnv(buf)
 	return {
-		\ 'ACMEVIMBUF': bufnr(),
+		\ 'ACMEVIMBUF': a:buf,
 		\ 'ACMEVIMDIR': s:Dir(),
 		\ 'ACMEVIMFILE': isdirectory(expand('%')) ? '.' :
 			\ &buftype == '' ? expand('%:t') : '',
-		\ 'ACMEVIMOUTBUF': a:buf,
-		\ 'ACMEVIMOUTDIR': a:dir != '' ? a:dir : getcwd(),
 		\ 'COLUMNS': 80,
 		\ 'LINES': 24,
 	\ }
@@ -207,7 +205,7 @@ function s:JobStart(cmd, outb, ctxb, opts, inp)
 		\ 'out_msg': 0,
 	\ }
 	call extend(opts, a:opts)
-	let env = s:SetEnv(s:JobEnv(a:outb, get(a:opts, 'cwd', '')))
+	let env = s:SetEnv(s:JobEnv(a:outb))
 	let job = job_start(s:Argv(a:cmd), opts)
 	call s:SetEnv(env)
 	if job_status(job) == "fail"
@@ -303,7 +301,7 @@ endfunc
 
 function s:System(cmd, dir, inp)
 	let cwd = a:dir != '' ? chdir(a:dir) : ''
-	let env = s:SetEnv(s:JobEnv('', a:dir))
+	let env = s:SetEnv(s:JobEnv(''))
 	let out = system(a:cmd, a:inp)
 	call s:SetEnv(env)
 	if cwd != ''
