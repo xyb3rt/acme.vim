@@ -24,7 +24,6 @@ struct {
 	int l1;
 	int l2;
 } prompt;
-int scratch;
 
 void opt(const char *arg) {
 	vec_push(&cmd.v, xstrdup(arg));
@@ -45,14 +44,6 @@ void set_(const char *arg, ...) {
 	}
 	va_end(ap);
 	cmd.fixed = vec_len(&cmd.v);
-}
-
-void setscratch(const char *cwd, const char *title) {
-	char **p = vec_dig(&cmd.v, 0, 3);
-	p[0] = xstrdup("scratch");
-	p[1] = xstrdup(cwd);
-	p[2] = xstrdup(title);
-	scratch = 1;
 }
 
 void checktime(void) {
@@ -76,6 +67,14 @@ int run(int outfd) {
 	int fds[3] = {devnull, outfd, 2};
 	vec_push(&cmd.v, NULL);
 	return call(cmd.v, fds);
+}
+
+void scratch(const char *cwd, const char *title) {
+	char **p = vec_dig(&cmd.v, 0, 3);
+	p[0] = xstrdup("scratch");
+	p[1] = xstrdup(cwd);
+	p[2] = xstrdup(title);
+	request((const char **)cmd.v, vec_len(&cmd.v), NULL);
 }
 
 void changed(avim_strv msg) {
@@ -201,10 +200,6 @@ int main(int argc, char *argv[]) {
 		checktime();
 		status();
 		menu(cmds);
-		if (scratch) {
-			request((const char **)cmd.v, vec_len(&cmd.v), NULL);
-			scratch = 0;
-		}
 		block(-1);
 		input();
 		struct cmd *cmd = match(cmds);
@@ -376,7 +371,7 @@ void cmd_diff(void) {
 	set("git", "diff");
 	hint("< --cached --stat --submodule=diff HEAD @{u} -- >");
 	if (add(NULL)) {
-		setscratch(cwd, "git:diff");
+		scratch(cwd, "git:diff");
 	}
 }
 
@@ -397,7 +392,7 @@ void cmd_fetch(void) {
 void cmd_graph(void) {
 	clear();
 	set("git-graph", "--no-color", "--no-pager", "--style", "ascii");
-	setscratch(cwd, "git:graph");
+	scratch(cwd, "git:graph");
 }
 
 void cmd_log(void) {
@@ -407,7 +402,7 @@ void cmd_log(void) {
 	opt("--cherry-mark");
 	hint("< --first-parent --no-merges --oneline -S HEAD ...@{u} >");
 	if (add(list_open_files_and_branches)) {
-		setscratch(cwd, "git:log");
+		scratch(cwd, "git:log");
 	}
 }
 
