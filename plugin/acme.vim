@@ -808,7 +808,7 @@ function s:Minimize(w)
 	if index(col, a:w) == 0
 		let s:tops = s:tops == 1 ? 2 : 1
 	else
-		let s:minimized[a:w] = !s:Minimized(a:w)
+		let s:minimized[a:w] = winheight(a:w) > 1
 	endif
 	call s:Layout(col)
 endfunc
