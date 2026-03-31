@@ -789,7 +789,7 @@ function s:Layout(col)
 			endif
 			let s = 1
 		else
-			let s = h / (n + n * (n > s:tops))
+			let s = float2nr(h / (n * (n > s:tops ? 1.75 : 1)))
 		endif
 		call win_move_statusline(win_id2win(w) - 1, winheight(w) - s)
 		let h -= s
