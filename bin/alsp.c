@@ -614,8 +614,6 @@ json_t *capabilities(void) {
 		"general", OBJ(
 			"positionEncodings", ARR(
 				JSON(string, "utf-8"))),
-		"offsetEncoding", ARR(
-			JSON(string, "utf-8")),
 		"textDocument", OBJ(
 			"completion", OBJ(
 				"contextSupport", JSON(true)),
