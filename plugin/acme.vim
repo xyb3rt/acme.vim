@@ -760,9 +760,6 @@ endfunc
 
 function s:Fit(col)
 	for w in a:col
-		if s:Minimized(w)
-			continue
-		endif
 		let h = 0
 		let wh = winheight(w)
 		let top = line('$', w) + 1
