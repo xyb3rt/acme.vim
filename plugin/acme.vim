@@ -554,6 +554,8 @@ function s:CtxDir()
 			let d = substitute(dir, '\v/\.git(/.*)?', '', '')
 		endif
 		let dir = d
+	elseif dir =~ '\v/x$' && filereadable(dir.'/../guide')
+		let dir = fnamemodify(dir.'/..', ':p')
 	endif
 	return dir
 endfunc
