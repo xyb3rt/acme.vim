@@ -322,8 +322,7 @@ void list_submodules(void) {
 }
 
 void list_tags(void) {
-	const char *cmd[] = {"git", "tag", "--sort=-authordate",
-	                     "--sort=-committerdate", NULL};
+	const char *cmd[] = {"git", "tag", "--sort=-creatordate", NULL};
 	call((char **)cmd, NULL);
 }
 
