@@ -390,7 +390,7 @@ void cmd_fetch(void) {
 
 void cmd_graph(void) {
 	clear();
-	set("git-graph", "--no-color", "--no-pager", "--style", "ascii");
+	set("git-graph", "--style", "ascii");
 	scratch(cwd, "git:graph");
 }
 
