@@ -389,9 +389,11 @@ void cmd_fetch(void) {
 }
 
 void cmd_graph(void) {
-	clear();
-	set("git-graph", "--style", "ascii");
-	scratch(cwd, "git:graph");
+	set("git-graph", "--style", "ascii", "--");
+	hint(NULL);
+	if (add(list_branches)) {
+		scratch(cwd, "git:graph");
+	}
 }
 
 void cmd_log(void) {
