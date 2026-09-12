@@ -105,8 +105,31 @@ void closeconn(size_t c) {
 void request(char *argv[], size_t argc) {
 	vec_push(&conns, avim_connect());
 	avim_strv req = vec_new();
-	vec_push(&req, cmds[mode].name);
 	int cmd = cmds[mode].opt;
+	/* Handle the traditional $EDITOR +N file convention:
+	 * when in default edit mode and the first argument is +N (a line number
+	 * hint), translate to an "open" command with the position argument so
+	 * that +N is not mistakenly treated as a filename. */
+	char *linepos = NULL;
+	if (cmd == 0 && argc >= 1 && argv[0][0] == '+') {
+		char *p = argv[0] + 1;
+		if (*p != '\0') {
+			/* Accept +N (digits only) as a line number. */
+			char *end = p;
+			while (*end >= '0' && *end <= '9') end++;
+			if (*end == '\0') {
+				linepos = p;
+				argv++;
+				argc--;
+			}
+		}
+	}
+	if (linepos != NULL) {
+		vec_push(&req, "open");
+		cmd = 'o';
+	} else {
+		vec_push(&req, cmds[mode].name);
+	}
 	if (cmd == 'p' || cmd == 's') {
 		vec_push(&req, cwd);
 		if (cmd == 's') {
@@ -121,6 +144,10 @@ void request(char *argv[], size_t argc) {
 			}
 		}
 		vec_push(&req, arg);
+	}
+	/* Append position after the filename for "open" commands. */
+	if (linepos != NULL) {
+		vec_push(&req, linepos);
 	}
 	avim_send(conns[0], (const char **)req, vec_len(&req));
 }

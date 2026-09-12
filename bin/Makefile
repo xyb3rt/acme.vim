@@ -1,6 +1,7 @@
-all: agit alsp apty avim
+BINARIES := agit alsp apty avim
+all: $(BINARIES)
 
-agit alsp apty avim: Makefile avim.h base.h vec.h
+$(BINARIES): Makefile avim.h base.h vec.h
 agit alsp apty: acmd.h
 alsp: io.h
 
@@ -9,3 +10,6 @@ LDLIBS_alsp = -ljansson
 
 .c:
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS) $(LDLIBS_$@)
+
+clean:
+	rm -f $(BINARIES) *~
