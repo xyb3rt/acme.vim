@@ -14,7 +14,6 @@ struct {
 	{'o', "open"},
 	{'p', "plumb"},
 	{'s', "scratch"},
-	{'w', "cwd"},
 };
 struct avim_conn **conns;
 void (*handle)(avim_strv *, size_t);

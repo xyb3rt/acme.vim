@@ -142,19 +142,10 @@ function s:Send(w, inp)
 	if !s:Receiver(b)
 		return
 	endif
-	let inp = a:inp
-	let pty = get(s:scratch[b], 'pty')
-	if pty
-		let [n, l, p] = [0, getbufoneline(b, '$'), s:scratch[b].prompt]
-		while p[n] != '' && p[n] == l[n]
-			let n += 1
-		endwhile
-		let inp = l[n:] . inp
-	endif
-	if pty || !get(s:scratch[b], 'cleared')
+	if !get(s:scratch[b], 'cleared')
 		call win_execute(a:w, 'normal! G')
 	endif
-	let inp = split(inp, '\n')
+	let inp = split(a:inp, '\n')
 	let job = s:Jobs(b)[0].h
 	call ch_setoptions(job, {'callback': ''})
 	call ch_sendraw(job, join(inp, "\n")."\n")
@@ -999,51 +990,7 @@ function s:Change(b, l1, l2, lines)
 	elseif n > len(a:lines)
 		call deletebufline(a:b, l + i, l + n - 1)
 	endif
-	if get(get(s:scratch, a:b, {}), 'pty') && pos[1] == last
-		let pos[1] = line('$', w)
-		let pos[2] = 2147483647
-		let pos[4] = pos[2]
-		call win_execute(w, 'call setpos(".", pos)')
-		let s:scratch[a:b].prompt = getbufoneline(a:b, '$')
-	endif
 	return l
-endfunc
-
-function s:Signal(sig)
-	for job in s:Jobs(bufnr())
-		call job_stop(job.h, a:sig)
-	endfor
-endfunc
-
-function s:PtyEnter()
-	if getpos('.')[1] != line('$')
-		call feedkeys("\<CR>", 'in')
-	else
-		call s:Send(win_getid(), '')
-	endif
-endfunc
-
-function s:PtyPw()
-	let pw = inputsecret('PW> ')
-	for job in s:Jobs(bufnr())
-		call ch_sendraw(job.h, pw."\n")
-	endfor
-endfunc
-
-function s:PtyMap()
-	inoremap <silent> <buffer> <C-c> <C-o>:call <SID>Signal("int")<CR>
-	inoremap <silent> <buffer> <C-d> <C-o>:call <SID>Signal("hup")<CR>
-	inoremap <silent> <buffer> <C-m> <C-o>:call <SID>PtyEnter()<CR>
-	inoremap <silent> <buffer> <C-z> <C-o>:call <SID>PtyPw()<CR>
-endfunc
-
-function s:Pty(b)
-	let w = win_getid(s:BufWin(a:b))
-	if !has_key(s:scratch, a:b) || w == 0
-		return
-	endif
-	let s:scratch[a:b].pty = 1
-	call win_execute(w, 'call s:PtyMap()')
 endfunc
 
 function s:SetCwd(b, path)
@@ -1133,8 +1080,6 @@ function s:CtrlRecv(ch, data)
 			call s:Look(args)
 		elseif cmd == 'help' && len(args) > 0
 			silent! exe 'help' args[0]
-		elseif cmd == 'pty' && len(args) > 0
-			call s:Pty(s:BufNr(args[0]))
 		elseif cmd == 'cwd'
 			if len(args) > 1
 				call s:SetCwd(s:BufNr(args[0]), args[1])
