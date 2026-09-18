@@ -844,7 +844,7 @@ endfunc
 
 function s:MiddleRelease(click)
 	if s:click.winid == 0
-		return
+		" below last win
 	elseif s:clickstatus != 0
 		let p = getmousepos()
 		if s:click.winrow <= winheight(s:click.winid)
@@ -855,29 +855,30 @@ function s:MiddleRelease(click)
 		elseif p.wincol < 3
 			exe win_id2win(p.winid).'close!'
 		endif
-		return
-	endif
-	exe "normal! \<LeftRelease>"
-	let cmd = a:click <= 0 || s:clicksel ? s:Sel()[0] : expand('<cWORD>')
-	let vis = s:clickmode == 'v' && (a:click <= 0 || !s:clicksel)
-	call s:RestVisual(s:visual)
-	let b = bufnr()
-	let dir = s:Dir()
-	let w = win_getid()
-	exe win_id2win(s:clickwin).'wincmd w'
-	if s:Receiver(b)
-		if w != s:clickwin && s:clickmode == 'v' && a:click > 0
-			let cmd = s:Sel()[0]
-		endif
-		call s:Send(w, cmd)
 	else
-		call s:Run(cmd, dir, b, vis)
+		exe "normal! \<LeftRelease>"
+		let cmd = a:click <= 0 || s:clicksel
+			\ ? s:Sel()[0] : expand('<cWORD>')
+		let vis = s:clickmode == 'v' && (a:click <= 0 || !s:clicksel)
+		call s:RestVisual(s:visual)
+		let b = bufnr()
+		let dir = s:Dir()
+		let w = win_getid()
+		exe win_id2win(s:clickwin).'wincmd w'
+		if s:Receiver(b)
+			if w != s:clickwin && s:clickmode == 'v' && a:click > 0
+				let cmd = s:Sel()[0]
+			endif
+			call s:Send(w, cmd)
+		else
+			call s:Run(cmd, dir, b, vis)
+		endif
 	endif
 endfunc
 
 function s:RightRelease(click)
 	if s:click.winid == 0
-		return
+		" below last win
 	elseif s:clickstatus != 0
 		let p = getmousepos()
 		if s:click.winrow <= winheight(s:click.winid)
@@ -893,16 +894,17 @@ function s:RightRelease(click)
 		else
 			call s:Minimize(p.winid)
 		endif
-		return
+	else
+		exe "normal! \<LeftRelease>"
+		let click = s:clicksel ? -1 : a:click
+		let txt = click <= 0
+			\ ? trim(s:Sel()[0], "\r\n", 2) : getline('.')
+		call s:RestVisual(s:visual)
+		let w = win_getid()
+		let dir = s:CtxDir()
+		exe win_id2win(s:clickwin).'wincmd w'
+		call s:Open(txt, click, dir, w)
 	endif
-	exe "normal! \<LeftRelease>"
-	let click = s:clicksel ? -1 : a:click
-	let text = click <= 0 ? trim(s:Sel()[0], "\r\n", 2) : getline('.')
-	call s:RestVisual(s:visual)
-	let w = win_getid()
-	let dir = s:CtxDir()
-	exe win_id2win(s:clickwin).'wincmd w'
-	call s:Open(text, click, dir, w)
 endfunc
 
 for m in ['', 'i']
