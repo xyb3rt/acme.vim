@@ -59,9 +59,15 @@ function AcmeStatusTitle()
 	return fnamemodify(s:cwd[b] . '/+' . t, ':~').(t != '' ? ' ' : '')
 endfunc
 
+function AcmeStatusDir()
+	return s:Name(get(s:cwd, bufnr(), getcwd(0)))
+endfunc
+
 function AcmeStatusName()
 	let b = bufnr()
-	if has_key(s:scratch, b)
+	if term_getstatus(b) != ''
+		return '%{AcmeStatusDir()}%F '
+	elseif has_key(s:scratch, b)
 		return '%{AcmeStatusTitle()}'
 	else
 		let f = expand('%')
@@ -142,17 +148,30 @@ function s:Send(w, inp)
 	if !s:Receiver(b)
 		return
 	endif
-	if !get(s:scratch[b], 'cleared')
-		call win_execute(a:w, 'normal! G')
-	endif
 	let inp = split(a:inp, '\n')
-	let job = s:Jobs(b)[0].h
-	call ch_setoptions(job, {'callback': ''})
-	call ch_sendraw(job, join(inp, "\n")."\n")
+	if has_key(s:scratch, b)
+		if !get(s:scratch[b], 'cleared')
+			call win_execute(a:w, 'normal! G')
+		endif
+		let job = s:Jobs(b)[0].h
+		call ch_setoptions(job, {'callback': ''})
+		call ch_sendraw(job, join(inp, "\n")."\n")
+	else
+		if term_getstatus(b) =~ '\v<normal>'
+			if a:w == win_getid()
+				exe 'norm! i'
+			else
+				exe 'norm! '. win_id2win(a:w)."\<C-w>wi\<C-w>p"
+			endif
+		endif
+		let inp = map(inp, 's:Expand(v:val)')
+		call ch_sendraw(term_getjob(b), "\<C-u>".join(inp, "\r")."\r")
+	endif
 endfunc
 
 function s:Receiver(b)
-	return has_key(s:scratch, a:b) && s:Jobs(a:b) != []
+	return term_getstatus(a:b) =~ 'running' ||
+		\ (has_key(s:scratch, a:b) && s:Jobs(a:b) != [])
 endfunc
 
 function s:New(cmd)
@@ -355,6 +374,31 @@ endfunc
 
 command -nargs=1 -complete=customlist,s:ShComplete -range R
 	\ call s:Run(<q-args>, s:Dir(), bufnr(), 0)
+
+function g:Tapi_lcd(_, path)
+	let s:cwd[bufnr()] = a:path
+endfunc
+
+function s:InsTerms()
+	for w in s:escterms
+		if term_getstatus(winbufnr(w)) =~ '\v<normal>'
+			call win_execute(w, 'norm! i')
+		endif
+	endfor
+	let s:escterms = []
+endfunc
+
+function s:Term(cmd)
+	let opts = {'cwd': s:Dir()}
+	if a:cmd == ''
+		let opts.term_finish = 'close'
+	endif
+	call s:New('')
+	call term_start(a:cmd != '' ? a:cmd : $SHELL, opts)
+	let s:cwd[bufnr()] = opts.cwd
+endfunc
+
+command -nargs=? -complete=customlist,s:ShComplete T call s:Term(<q-args>)
 
 function s:ScratchNew(title, dir)
 	let buf = ''
@@ -828,11 +872,14 @@ function s:RestVisual(vis)
 	endif
 endfunc
 
-function s:MousePress(mode)
+function s:PreClick(mode)
 	let s:click = getmousepos()
 	let s:clickmode = a:mode
 	let s:clickstatus = s:click.line == 0 ? win_id2win(s:click.winid) : 0
 	let s:clickwin = win_getid()
+endfunc
+
+function AcmeClick()
 	if s:clickstatus != 0 || s:click.winid == 0
 		return
 	endif
@@ -840,6 +887,15 @@ function s:MousePress(mode)
 	let s:visual = s:SaveVisual()
 	let s:clicksel = s:clickmode == 'v' && win_getid() == s:clickwin &&
 		\ s:InSel()
+	if term_getstatus(bufnr()) == 'running'
+		call add(s:escterms, win_getid())
+		call feedkeys("\<C-w>N\<LeftMouse>", 'in')
+	endif
+endfunc
+
+function s:MiddleMouse(mode)
+	call s:PreClick(a:mode)
+	call AcmeClick()
 endfunc
 
 function s:MiddleRelease(click)
@@ -874,6 +930,12 @@ function s:MiddleRelease(click)
 			call s:Run(cmd, dir, b, vis)
 		endif
 	endif
+	call s:InsTerms()
+endfunc
+
+function s:RightMouse(mode)
+	call s:PreClick(a:mode)
+	call AcmeClick()
 endfunc
 
 function s:RightRelease(click)
@@ -905,8 +967,49 @@ function s:RightRelease(click)
 		exe win_id2win(s:clickwin).'wincmd w'
 		call s:Open(txt, click, dir, w)
 	endif
+	call s:InsTerms()
 endfunc
 
+function s:TermLeftMouse()
+	call s:PreClick('t')
+	if s:clickstatus == 0 && s:clickwin == s:click.winid &&
+		\ !term_getaltscreen(bufnr())
+		return "\<C-w>N\<LeftMouse>"
+	else
+		return "\<LeftMouse>"
+	endif
+endfunc
+
+function s:TermLeftRelease()
+	exe "normal! \<LeftRelease>"
+	if line('.') == line('$') && charcol('.') + 1 == charcol('$') &&
+		\ term_getstatus(bufnr()) != 'finished'
+		normal! i
+	endif
+endfunc
+
+function s:TermMiddleMouse()
+	call s:PreClick('t')
+	if s:clickstatus == 0 && s:clickwin == s:click.winid &&
+		\ term_getaltscreen(bufnr())
+		return "\<MiddleMouse>"
+	else
+		call add(s:escterms, win_getid())
+		return "\<C-w>N:call AcmeClick()\<CR>"
+	endif
+endfunc
+
+function s:TermRightMouse()
+	call s:PreClick('t')
+	if s:clickstatus == 0 && s:clickwin == s:click.winid &&
+		\ term_getaltscreen(bufnr())
+		return "\<RightMouse>"
+	else
+		call add(s:escterms, win_getid())
+		return "\<C-w>N:call AcmeClick()\<CR>"
+	endif
+endfunc
+ 
 for m in ['', 'i']
 	for n in ['', '2-', '3-', '4-']
 		for c in ['Mouse', 'Drag', 'Release']
@@ -919,24 +1022,29 @@ for m in ['', 'i']
 endfor
 for n in ['', '2-', '3-', '4-']
 	exe 'nnoremap <silent> <'.n.'MiddleMouse>'
-		\ ':call <SID>MousePress("")<CR>'
+		\ ':call <SID>MiddleMouse("")<CR>'
 	exe 'vnoremap <silent> <'.n.'MiddleMouse>'
-		\ ':<C-u>call <SID>MousePress("v")<CR>'
+		\ ':<C-u>call <SID>MiddleMouse("v")<CR>'
 	exe 'nnoremap <silent> <'.n.'MiddleRelease>'
 		\ ':call <SID>MiddleRelease(col("."))<CR>'
+	exe 'tnoremap <expr> <silent> <'.n.'MiddleMouse>'
+		\ '<SID>TermMiddleMouse()'
 	exe 'nnoremap <silent> <'.n.'RightMouse>'
-		\ ':call <SID>MousePress("")<CR>'
+		\ ':call <SID>RightMouse("")<CR>'
 	exe 'vnoremap <silent> <'.n.'RightMouse>'
-		\ ':<C-u>call <SID>MousePress("v")<CR>'
+		\ ':<C-u>call <SID>RightMouse("v")<CR>'
 	exe 'nnoremap <silent> <'.n.'RightRelease>'
 		\ ':call <SID>RightRelease(col("."))<CR>'
+	exe 'tnoremap <expr> <silent> <'.n.'RightMouse>'
+		\ '<SID>TermRightMouse()'
 endfor
-inoremap <silent> <MiddleMouse> <C-o>:call <SID>MousePress('')<CR>
+inoremap <silent> <MiddleMouse> <C-o>:call <SID>MiddleMouse('')<CR>
 inoremap <silent> <MiddleRelease> <C-o>:call <SID>MiddleRelease(col('.'))<CR>
 vnoremap <silent> <MiddleRelease> :<C-u>call <SID>MiddleRelease(-1)<CR>
-inoremap <silent> <RightMouse> <C-o>:call <SID>MousePress('')<CR>
+inoremap <silent> <RightMouse> <C-o>:call <SID>RightMouse('')<CR>
 inoremap <silent> <RightRelease> <C-o>:call <SID>RightRelease(col('.'))<CR>
 vnoremap <silent> <RightRelease> :<C-u>call <SID>RightRelease(-1)<CR>
+tnoremap <expr> <silent> <LeftMouse> <SID>TermLeftMouse()
 
 function s:Clear(b)
 	call deletebufline(a:b, 1, "$")
@@ -1026,8 +1134,13 @@ function s:Look(p)
 		let p = map(a:p[1:-2], {i, v -> escape(v, '\/')})
 		let @/ = '\V'.a:p[0].'\%\('.join(p, '\|').'\)'.a:p[-1]
 	endif
-	let esc = mode() == 'i' ? "\<C-o>" : ""
-	call feedkeys(esc.":let v:hlsearch=".hl."\<CR>", 'n')
+	let keys = ":let v:hlsearch=".hl."\<CR>"
+	if mode() == 'i'
+		let keys = "\<C-o>".keys
+	elseif term_getstatus(bufnr()) == 'running'
+		let keys = "\<C-w>N".keys."i"
+	endif
+	call feedkeys(keys, 'n')
 endfunc
 
 function s:BufNr(b)
@@ -1122,6 +1235,9 @@ function s:BufWinLeave()
 		endfor
 		call timer_start(0, {_ -> execute('silent! bdelete '.b)})
 	endif
+	if term_getstatus(b) != ''
+		call timer_start(0, {_ -> execute('silent! bdelete! '.b)})
+	endif
 endfunc
 
 function s:WinClosed(w)
@@ -1143,6 +1259,8 @@ au!
 au BufEnter * call s:ListDir()
 au BufWinLeave * call s:BufWinLeave()
 au FocusGained * call s:ReloadDirs()
+au TerminalOpen * nnoremap <buffer> <silent> <LeftRelease>
+	\ :call <SID>TermLeftRelease()<CR>
 au TextChanged,TextChangedI guide setl nomodified
 au VimEnter * call s:ReloadDirs(winnr())
 au VimResized * call s:ReloadDirs(0)
@@ -1168,6 +1286,7 @@ let s:dirwidth = {}
 let s:editbufs = {}
 let s:editcids = {}
 let s:editcmds = {}
+let s:escterms = []
 let s:jobs = []
 let s:minimized = {}
 let s:scratch = {}
