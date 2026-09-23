@@ -49,7 +49,7 @@ function s:Jobs(p)
 endfunc
 
 function AcmeStatusBox()
-	return &modified ? "\u2593" : "\u2591"
+	return &modifiable && &modified ? "\u2593" : "\u2591"
 endfunc
 
 function AcmeStatusTitle()
