@@ -160,6 +160,6 @@ let g:loaded_netrwPlugin=1
 Tests
 -----
 
-Run the Vim plumbing tests with `make test`. The tests create their own help
-tags and external handler fixtures. For verbose output, run
-`make test VIMFLAGS=-V`.
+Run both editor suites with `make test`, or choose `make test-vim` and
+`make test-nvim`. The Vim tests create their own help tags and external
+handler fixtures. For verbose output, use `VIMFLAGS=-V` or `NVIMFLAGS=-V`.

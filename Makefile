@@ -11,5 +11,7 @@ test: test-vim test-nvim
 
 test-vim:
 	$(VIM) $(VIMFLAGS) -Nu NONE -i NONE -n -es -S tests/plumbing.vim
+
 test-nvim:
 	$(NVIM) $(NVIMFLAGS) --headless -u NONE -i NONE -c 'luafile tests/neovim.lua'
+	$(NVIM) $(NVIMFLAGS) --headless -u NONE -i NONE -c 'luafile tests/plumbing.lua'
