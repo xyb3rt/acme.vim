@@ -164,8 +164,11 @@ function s:Send(w, inp)
 				exe 'norm! '. win_id2win(a:w)."\<C-w>wi\<C-w>p"
 			endif
 		endif
-		let inp = map(inp, 's:Expand(v:val)')
-		call ch_sendraw(term_getjob(b), "\<C-u>".join(inp, "\r")."\r")
+		let inp = join(map(inp, 's:Expand(v:val)'), "\r")
+		if a:inp[-1:] == "\n"
+			let inp .= "\r"
+		endif
+		call ch_sendraw(term_getjob(b), inp)
 	endif
 endfunc
 
