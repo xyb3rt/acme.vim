@@ -401,7 +401,8 @@ void cmd_log(void) {
 	opt("--decorate");
 	opt("--left-right");
 	opt("--cherry-mark");
-	hint("< --first-parent --no-merges --oneline -S HEAD ...@{u} >");
+	hint("< --author= --first-parent --no-merges --oneline -S HEAD "
+	       "...@{u} >");
 	if (add(list_open_files_and_branches)) {
 		scratch(cwd, "git:log");
 	}
@@ -477,7 +478,7 @@ void cmd_revert(void) {
 
 void cmd_rm(void) {
 	set("git", "rm", NULL);
-	hint("< --dry-run --force -r >", NULL);
+	hint("< --dry-run --force -r >");
 	if (add(list_files)) {
 		run(devnull);
 	}
@@ -485,7 +486,7 @@ void cmd_rm(void) {
 
 void cmd_stash(void) {
 	set("git", "stash");
-	hint("< --include-untracked pop drop >");
+	hint("< --include-untracked pop --index drop >");
 	if (add(list_stashes)) {
 		run(devnull);
 	}
