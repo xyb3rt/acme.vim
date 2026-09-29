@@ -687,7 +687,7 @@ function s:FileComplete(arg, line, pos)
 		\ a:arg.(f[len(p):]).(isdirectory(f) ? '/' : '')})
 endfunc
 
-command -nargs=1 -complete=customlist,s:FileComplete O
+command -nargs=_ -complete=customlist,s:FileComplete O
 	\ call s:Open(expand(<q-args>), 0, s:Dir(), win_getid())
 
 function s:InsComplete(findstart, base)
