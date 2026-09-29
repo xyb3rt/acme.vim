@@ -391,17 +391,20 @@ function s:InsTerms()
 	let s:escterms = []
 endfunc
 
-function s:Term(cmd)
+function s:Term(...)
 	let opts = {'cwd': s:Dir()}
-	if a:cmd == ''
+	if a:0 > 0
+		let cmd = a:000
+	else
+		let cmd = $SHELL
 		let opts.term_finish = 'close'
 	endif
 	call s:New('')
-	call term_start(a:cmd != '' ? a:cmd : $SHELL, opts)
+	call term_start(s:ArgvAxec(cmd, opts.cwd), opts)
 	let s:cwd[bufnr()] = opts.cwd
 endfunc
 
-command -nargs=? -complete=customlist,s:ShComplete T call s:Term(<q-args>)
+command -nargs=* -complete=customlist,s:ShComplete T call s:Term(<f-args>)
 
 function s:ScratchNew(title, dir)
 	let buf = ''
