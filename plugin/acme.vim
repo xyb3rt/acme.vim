@@ -189,21 +189,36 @@ function s:Argv(cmd)
 	return type(a:cmd) == type([]) ? a:cmd : [&shell, &shellcmdflag, a:cmd]
 endfunc 
 
-function s:ArgvAxec(cmd, cwd)
-	let argv = s:Argv(a:cmd)
-	return filereadable(a:cwd.'/.env.sh') || filereadable(a:cwd.'/x/env.sh')
-		\ ? [s:avimdir.'/bin/axec'] + argv : argv
+function s:Env(cwd)
+	let env = {}
+	for f in ['.env.sh', 'x/env.sh']
+		let f = a:cwd.'/'.f
+		if filereadable(f)
+			for l in systemlist(['/bin/sh', '-c', '. '.f.'; env'])
+				let sep = stridx(l, '=')
+				if sep != -1
+					let var = l[:sep-1]
+					let val = l[sep+1:]
+					if var != '_' && val != getenv(var)
+						let env[var] = val
+					endif
+				endif
+			endfor
+			break
+		endif
+	endfor
+	return env
 endfunc
 
-function s:JobEnv(buf)
-	return {
+function s:JobEnv(buf, cwd)
+	return extend(s:Env(a:cwd), {
 		\ 'ACMEVIMBUF': a:buf,
 		\ 'ACMEVIMDIR': s:Dir(),
 		\ 'ACMEVIMFILE': isdirectory(expand('%')) ? '.' :
 			\ &buftype == '' ? expand('%:t') : '',
 		\ 'COLUMNS': 80,
 		\ 'LINES': 24,
-	\ }
+	\ })
 endfunc
 
 function s:SetEnv(env)
@@ -225,8 +240,8 @@ function s:JobStart(cmd, outb, ctxb, opts, inp)
 	\ }
 	call extend(opts, a:opts)
 	let cwd = get(a:opts, 'cwd', getcwd())
-	let env = s:SetEnv(s:JobEnv(a:outb))
-	let job = job_start(s:ArgvAxec(a:cmd, cwd), opts)
+	let env = s:SetEnv(s:JobEnv(a:outb, cwd))
+	let job = job_start(s:Argv(a:cmd), opts)
 	call s:SetEnv(env)
 	if job_status(job) == "fail"
 		return
@@ -321,7 +336,7 @@ endfunc
 
 function s:System(cmd, dir, inp)
 	let owd = chdir(a:dir)
-	let env = s:SetEnv(s:JobEnv(''))
+	let env = s:SetEnv(s:JobEnv('', a:dir))
 	let out = system(a:cmd, a:inp)
 	call s:SetEnv(env)
 	call chdir(owd)
@@ -390,7 +405,8 @@ function s:InsTerms()
 endfunc
 
 function s:Term(...)
-	let opts = {'cwd': s:Dir()}
+	let cwd = s:Dir()
+	let opts = {'cwd': cwd, 'env': s:Env(cwd)}
 	if a:0 > 0
 		let cmd = a:000
 	else
@@ -398,8 +414,8 @@ function s:Term(...)
 		let opts.term_finish = 'close'
 	endif
 	call s:New('')
-	call term_start(s:ArgvAxec(cmd, opts.cwd), opts)
-	let s:cwd[bufnr()] = opts.cwd
+	call term_start(cmd, opts)
+	let s:cwd[bufnr()] = cwd
 endfunc
 
 command -nargs=* -complete=customlist,s:ShComplete T call s:Term(<f-args>)
