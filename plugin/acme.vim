@@ -320,13 +320,11 @@ function s:ErrorExec(cmd, dir, b, inp)
 endfunc
 
 function s:System(cmd, dir, inp)
-	let cwd = a:dir != '' ? chdir(a:dir) : ''
+	let owd = chdir(a:dir)
 	let env = s:SetEnv(s:JobEnv(''))
 	let out = system(a:cmd, a:inp)
 	call s:SetEnv(env)
-	if cwd != ''
-		call chdir(cwd)
-	endif
+	call chdir(owd)
 	return out
 endfunc
 
