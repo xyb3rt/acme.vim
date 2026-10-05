@@ -60,7 +60,7 @@ function AcmeStatusTitle()
 endfunc
 
 function AcmeStatusDir()
-	return s:Name(get(s:cwd, bufnr(), getcwd(0)))
+	return fnamemodify(get(s:cwd, bufnr(), getcwd(0)), ':p:~')
 endfunc
 
 function AcmeStatusName()
@@ -394,9 +394,10 @@ function s:Term(...)
 	if a:0 > 0
 		let cmd = a:000
 	else
-		let cmd = $SHELL
+		let cmd = [$SHELL]
 		let opts.term_finish = 'close'
 	endif
+	let opts.term_name = '!'.cmd[0]
 	call s:New('')
 	call term_start(s:ArgvAxec(cmd, opts.cwd), opts)
 	let s:cwd[bufnr()] = opts.cwd
