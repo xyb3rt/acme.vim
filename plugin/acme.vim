@@ -572,7 +572,8 @@ function s:Dir()
 	return isdirectory(dir) ? dir : getcwd()
 endfunc
 
-function s:CtxDir()
+function s:CtxDirs()
+	let ctx = []
 	let dir = s:Dir()
 	if &buftype != ''
 		let [t, q] = ['ing directory:? ', "[`'\"]"]
@@ -593,34 +594,34 @@ function s:CtxDir()
 		if !isdirectory(d)
 			let d = substitute(dir, '\v/\.git(/.*)?', '', '')
 		endif
-		let dir = d
+		call add(ctx, d)
 	elseif dir =~ '\v/x$' && filereadable(dir.'/../guide')
-		let dir = fnamemodify(dir.'/..', ':p')
+		call add(ctx, fnamemodify(dir.'/..', ':p'))
 	endif
-	return dir
+	return [dir] + ctx
 endfunc
 
 function AcmeOpen(name, pos)
-	if a:name == ''
-		return 0
-	endif
-	let f = a:name =~ '^[~/]' ? a:name : s:plumbdir.'/'.a:name
-	let f = fnamemodify(f, ':p')
-	if isdirectory(f)
-		call s:FileOpen(f, '')
-	elseif !filereadable(f)
-		if s:plumbclick > 0 || a:pos != '' || a:name !~ '/' ||
-			\ !isdirectory(fnamemodify(f, ':h'))
-			return 0
+	for f in a:name == '' ? [] : a:name =~ '^[~/]' ? [a:name] :
+		\ map(copy(s:plumbdirs), 'v:val."/".a:name')
+		let f = fnamemodify(f, ':p')
+		if isdirectory(f)
+			call s:FileOpen(f, '')
+		elseif !filereadable(f)
+			if s:plumbclick > 0 || a:pos != '' || a:name !~ '/' ||
+				\ !isdirectory(fnamemodify(f, ':h'))
+				continue
+			endif
+			call s:FileOpen(f, '')
+		elseif join(readfile(f, '', 4096), '') !~ '\n'
+			" No null bytes found, not considered a binary file.
+			call s:FileOpen(f, a:pos)
+		else
+			call s:Exec('xdg-open '.shellescape(f))
 		endif
-		call s:FileOpen(f, '')
-	elseif join(readfile(f, '', 4096), '') !~ '\n'
-		" No null bytes found, not considered a binary file.
-		call s:FileOpen(f, a:pos)
-	else
-		call s:Exec('xdg-open '.shellescape(f))
-	endif
-	return 1
+		return 1
+	endfor
+	return 0
 endfunc
 
 function s:RgOpen(pos)
@@ -640,14 +641,14 @@ function AcmeExec(title, cmd, ...)
 	for arg in a:000
 		let cmd .= ' '.shellescape(arg)
 	endfor
-	let owd = chdir(s:plumbdir)
+	let owd = chdir(s:plumbdirs[0])
 	let outp = systemlist(cmd)
 	if owd != ''
 		call chdir(owd)
 	endif
 	if v:shell_error == 0
 		if a:title != ''
-			call s:ScratchNew(a:title, s:plumbdir)
+			call s:ScratchNew(a:title, s:plumbdirs[0])
 			call setline('$', outp)
 			call s:FiletypeDetect(win_getid())
 		endif
@@ -665,9 +666,9 @@ let s:plumbing = [
 	\ ['\d+%([:,]\d+)?', {m -> s:Goto(m[0])}],
 \ ]
 
-function s:Open(text, click, dir, win)
+function s:Open(text, click, dirs, win)
 	let s:plumbclick = a:click
-	let s:plumbdir = a:dir
+	let s:plumbdirs = a:dirs
 	let s:plumbwin = a:win
 	let rc = index(s:plumbing, [])
 	for [pat, Handler] in s:plumbing[0:rc-1] +
@@ -690,7 +691,7 @@ function s:FileComplete(arg, line, pos)
 endfunc
 
 command -nargs=_ -complete=customlist,s:FileComplete O
-	\ call s:Open(expand(<q-args>), 0, s:Dir(), win_getid())
+	\ call s:Open(expand(<q-args>), 0, [s:Dir()], win_getid())
 
 function s:InsComplete(findstart, base)
 	let line = getline('.')
@@ -968,9 +969,9 @@ function s:RightRelease(click)
 			\ ? trim(s:Sel()[0], "\r\n", 2) : getline('.')
 		call s:RestVisual(s:visual)
 		let w = win_getid()
-		let dir = s:CtxDir()
+		let dirs = s:CtxDirs()
 		exe win_id2win(s:clickwin).'wincmd w'
-		call s:Open(txt, click, dir, w)
+		call s:Open(txt, click, dirs, w)
 	endif
 	call s:InsTerms()
 endfunc
@@ -1211,7 +1212,7 @@ function s:CtrlRecv(ch, data)
 			call s:Diff(args)
 			let resp = []
 		elseif cmd == 'plumb' && len(args) > 1
-			call s:Open(args[1], 0, args[0], 0)
+			call s:Open(args[1], 0, [args[0]], 0)
 		endif
 		if resp != []
 			call s:CtrlSend([cid] + resp)
