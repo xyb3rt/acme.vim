@@ -585,6 +585,7 @@ function s:CtxDirs()
 			let dir = isdirectory(d) ? d : dir
 		endif
 	endif
+	let guide = fnamemodify(findfile('guide', '.;'), ':p')
 	if dir =~ '\v/\.git(/|$)'
 		let owd = chdir(dir)
 		let d = trim(system('git rev-parse --show-toplevel'), "\r\n")
@@ -595,8 +596,8 @@ function s:CtxDirs()
 			let d = substitute(dir, '\v/\.git(/.*)?', '', '')
 		endif
 		call add(ctx, d)
-	elseif dir =~ '\v/x$' && filereadable(dir.'/../guide')
-		call add(ctx, fnamemodify(dir.'/..', ':p'))
+	elseif guide != '' && guide != fnamemodify('~/guide', ':p')
+		call add(ctx, fnamemodify(guide, ':h'))
 	endif
 	return [dir] + ctx
 endfunc
