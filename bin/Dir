@@ -1,16 +1,18 @@
 #!/bin/sh -e
-case "$1" in
-/*) ACMEVIMDIR="$1" ;;
-?*) ACMEVIMDIR="$ACMEVIMDIR/$1" ;;
+cmd="${0##*/}"
+arg="$1"
+[ $# -gt 0 ] && shift
+case "$arg" in
+/*) ACMEVIMDIR="$arg" ;;
+?*) ACMEVIMDIR="$ACMEVIMDIR/$arg" ;;
 esac
 [ -d "$ACMEVIMDIR" ] || ACMEVIMDIR="$(dirname "$ACMEVIMDIR")"
 cd -- "$ACMEVIMDIR"
-if [ "${0##*/}" = "Dir" ]; then
-	[ -z "$1" -a "$ACMEVIMFILE" = . ] && exec fned
-	[ -n "$1" -o "$ACMEVIMFILE" = guide ] && ACMEVIMFILE=''
+if [ "$cmd" = "Dir" ]; then
+	[ -z "$arg" -a "$ACMEVIMFILE" = . ] && exec fned
+	[ -n "$arg" -o "$ACMEVIMFILE" = guide ] && ACMEVIMFILE=''
 	[ -n "$ACMEVIMFILE" ] && avim -l '\<' "${ACMEVIMFILE%.*}" '\>'
 	exec avim -o .
 else
-	[ $# -gt 0 ] && shift
-	exec avim -s "$(echo "a${0##*/}" | tr '[[:upper:]]' '[[:lower:]]')" "$@"
+	exec avim -s "$(echo "a$cmd" | tr '[[:upper:]]' '[[:lower:]]')" "$@"
 fi
