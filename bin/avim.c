@@ -14,6 +14,7 @@ struct {
 	{'o', "open"},
 	{'p', "plumb"},
 	{'s', "scratch"},
+	{'t', "term"},
 };
 struct avim_conn **conns;
 void (*handle)(avim_strv *, size_t);
@@ -106,7 +107,7 @@ void request(char *argv[], size_t argc) {
 	avim_strv req = vec_new();
 	vec_push(&req, cmds[mode].name);
 	int cmd = cmds[mode].opt;
-	if (cmd == 'p' || cmd == 's') {
+	if (cmd == 'p' || cmd == 's' || cmd == 't') {
 		vec_push(&req, cwd);
 		if (cmd == 's') {
 			vec_push(&req, "");

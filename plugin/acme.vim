@@ -389,8 +389,8 @@ function s:InsTerms()
 	let s:escterms = []
 endfunc
 
-function s:Term(...)
-	let opts = {'cwd': s:Dir()}
+function s:Term(cwd, ...)
+	let opts = {'cwd': a:cwd}
 	if a:0 > 0
 		let cmd = a:000
 	else
@@ -399,11 +399,12 @@ function s:Term(...)
 	endif
 	let opts.term_name = '!'.cmd[0]
 	call s:New('')
-	call term_start(s:ArgvAxec(cmd, opts.cwd), opts)
-	let s:cwd[bufnr()] = opts.cwd
+	call term_start(s:ArgvAxec(cmd, a:cwd), opts)
+	let s:cwd[bufnr()] = a:cwd
 endfunc
 
-command -nargs=* -complete=customlist,s:ShComplete T call s:Term(<f-args>)
+command -nargs=* -complete=customlist,s:ShComplete T
+	\ call s:Term(s:Dir(), <f-args>)
 
 function s:ScratchNew(title, dir)
 	let buf = ''
@@ -1187,6 +1188,8 @@ function s:CtrlRecv(ch, data)
 			call s:ReloadDirs()
 		elseif cmd == 'scratch' && len(args) > 2
 			call s:ScratchExec(args[2:], args[0], '', args[1])
+		elseif cmd == 'term' && len(args) > 0
+			call call('s:Term', args)
 		elseif cmd == 'bufinfo'
 			let resp += s:BufInfo()
 		elseif cmd == 'save'

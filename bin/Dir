@@ -8,11 +8,14 @@ case "$arg" in
 esac
 [ -d "$ACMEVIMDIR" ] || ACMEVIMDIR="$(dirname "$ACMEVIMDIR")"
 cd -- "$ACMEVIMDIR"
-if [ "$cmd" = "Dir" ]; then
+case "$cmd" in
+Dir)
 	[ -z "$arg" -a "$ACMEVIMFILE" = . ] && exec fned
 	[ -n "$arg" -o "$ACMEVIMFILE" = guide ] && ACMEVIMFILE=''
 	[ -n "$ACMEVIMFILE" ] && avim -l '\<' "${ACMEVIMFILE%.*}" '\>'
-	exec avim -o .
-else
-	exec avim -s "$(echo "a$cmd" | tr '[[:upper:]]' '[[:lower:]]')" "$@"
-fi
+	exec avim -o . ;;
+Pty)
+	exec avim -t "$@" ;;
+*)
+	exec avim -s "$(echo "a$cmd" | tr '[[:upper:]]' '[[:lower:]]')" "$@" ;;
+esac
