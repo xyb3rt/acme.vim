@@ -4,6 +4,7 @@
 #include "base.h"
 #include "vec.h"
 #include <dirent.h>
+#include <fcntl.h>
 
 typedef char *str;
 typedef char **strvec;
@@ -46,6 +47,30 @@ static str xreadfile(const char *path) {
 	str data = readfile(path);
 	if (data == NULL) {
 		error(EXIT_FAILURE, errno, "%s", path);
+	}
+	return data;
+}
+
+static str xreadproc(char *const argv[]) {
+	int pfd[2];
+	if (pipe(pfd) == -1) {
+		error(EXIT_FAILURE, errno, "pipe");
+	}
+	FILE *f = fdopen(pfd[0], "r");
+	if (f == NULL) {
+		error(EXIT_FAILURE, errno, "fdopen");
+	}
+	int fds[3] = {0, pfd[1], 2};
+	int flags = fcntl(pfd[0], F_GETFD);
+	if (flags != -1) {
+		fcntl(pfd[0], F_SETFD, flags | FD_CLOEXEC);
+	}
+	pid_t pid = xforkexec(argv, fds);
+	close(pfd[1]);
+	str data = xreadall(f);
+	fclose(f);
+	if (xwaitpid(pid, argv[0]) != 0) {
+		exit(EXIT_FAILURE);
 	}
 	return data;
 }

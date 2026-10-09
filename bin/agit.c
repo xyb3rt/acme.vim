@@ -163,18 +163,17 @@ int add(list_func *ls) {
 }
 
 void gitdir(void) {
-	while (access(".git", F_OK) == -1) {
-		if (strcmp(cwd, "/") == 0) {
-			error(EXIT_FAILURE, 0, "No git dir");
+	const char *cmd[] = {"git", "rev-parse", "--show-toplevel", NULL};
+	str dir = xreadproc((char **)cmd);
+	char *nl = strchr(dir, '\n');
+	if (nl != NULL) {
+		*nl = '\0';
+		if (isdir(dir)) {
+			const char *cmd[] = {"cwd", avimbuf, dir};
+			request(cmd, ARRLEN(cmd), NULL);
 		}
-		if (chdir("..") == -1) {
-			error(EXIT_FAILURE, errno, "chdir");
-		}
-		free(cwd);
-		cwd = xgetcwd();
 	}
-	const char *cmd[] = {"cwd", avimbuf, cwd};
-	request(cmd, ARRLEN(cmd), NULL);
+	vec_free(&dir);
 }
 
 void status(void) {

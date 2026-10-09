@@ -108,8 +108,7 @@ static int isdir(const char *path) {
 	return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
 }
 
-static int call(char *const argv[], int fds[3]) {
-	int status = 0;
+static pid_t xforkexec(char *const argv[], int fds[3]) {
 	pid_t pid = fork();
 	if (pid == -1) {
 		error(EXIT_FAILURE, errno, "exec: %s", argv[0]);
@@ -123,12 +122,22 @@ static int call(char *const argv[], int fds[3]) {
 		execvp(argv[0], argv);
 		error(EXIT_FAILURE, errno, "exec: %s", argv[0]);
 	}
+	return pid;
+}
+
+static int xwaitpid(int pid, const char *argv0) {
+	int status = 0;
 	while (waitpid(pid, &status, 0) == -1) {
 		if (errno != EINTR) {
-			error(EXIT_FAILURE, errno, "wait: %s", argv[0]);
+			error(EXIT_FAILURE, errno, "wait: %s", argv0);
 		}
 	}
 	return status;
+}
+
+static int call(char *const argv[], int fds[3]) {
+	pid_t pid = xforkexec(argv, fds);
+	return xwaitpid(pid, argv[0]);
 }
 
 #endif /* BASE_H */
