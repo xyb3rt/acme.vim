@@ -80,18 +80,18 @@ static char *xasprintf(const char *fmt, ...) {
 }
 
 static char *xgetcwd(void) {
-        char *buf = NULL;
-        size_t size = 1024;
-        for (;;) {
-                buf = xmalloc(size);
-                if (getcwd(buf, size) != NULL) {
-                        break;
-                } else if (errno != ERANGE) {
-                        error(EXIT_FAILURE, errno, "getcwd");
-                }
-                size *= 2;
-        }
-        return buf;
+	char *buf = NULL;
+	size_t size = 1024;
+	for (;;) {
+		buf = xmalloc(size);
+		if (getcwd(buf, size) != NULL) {
+			break;
+		} else if (errno != ERANGE) {
+			error(EXIT_FAILURE, errno, "getcwd");
+		}
+		size *= 2;
+	}
+	return buf;
 }
 
 static char *indir(const char *path, const char *dir) {
@@ -109,26 +109,26 @@ static int isdir(const char *path) {
 }
 
 static int call(char *const argv[], int fds[3]) {
-        int status = 0;
-        pid_t pid = fork();
-        if (pid == -1) {
-                error(EXIT_FAILURE, errno, "exec: %s", argv[0]);
-        }
-        if (pid == 0) {
-                if (fds != NULL) {
-                        dup2(fds[0], 0);
-                        dup2(fds[1], 1);
-                        dup2(fds[2], 2);
-                }
-                execvp(argv[0], argv);
-                error(EXIT_FAILURE, errno, "exec: %s", argv[0]);
-        }
-        while (waitpid(pid, &status, 0) == -1) {
-                if (errno != EINTR) {
-                        error(EXIT_FAILURE, errno, "wait: %s", argv[0]);
-                }
-        }
-        return status;
+	int status = 0;
+	pid_t pid = fork();
+	if (pid == -1) {
+		error(EXIT_FAILURE, errno, "exec: %s", argv[0]);
+	}
+	if (pid == 0) {
+		if (fds != NULL) {
+			dup2(fds[0], 0);
+			dup2(fds[1], 1);
+			dup2(fds[2], 2);
+		}
+		execvp(argv[0], argv);
+		error(EXIT_FAILURE, errno, "exec: %s", argv[0]);
+	}
+	while (waitpid(pid, &status, 0) == -1) {
+		if (errno != EINTR) {
+			error(EXIT_FAILURE, errno, "wait: %s", argv[0]);
+		}
+	}
+	return status;
 }
 
 #endif /* BASE_H */
