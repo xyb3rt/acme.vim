@@ -1,7 +1,3 @@
 #!/bin/sh
-if [ -r .env.sh ]; then
-	. ./.env.sh
-elif [ -r x/env.sh ]; then
-	. x/env.sh
-fi
+[ -r .env.sh ] && . ./.env.sh
 exec "$@"
