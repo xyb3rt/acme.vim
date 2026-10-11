@@ -160,8 +160,10 @@ finally
 endtry
 
 if !empty(v:errors)
-	call writefile(v:errors, '/dev/stderr')
+	for s:error in v:errors
+		echomsg s:error
+	endfor
 	cquit 1
 endif
-call writefile(['PASS: ' . s:checks . ' Vim plumbing checks'], '/dev/stdout')
+echomsg 'PASS: ' . s:checks . ' Vim plumbing checks'
 qa!
