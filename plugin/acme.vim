@@ -1,3 +1,9 @@
+let s:click = {'winid': 0}
+let s:clicksel = 0
+let s:clickwin = 0
+let s:visual = [[0,0,0,0], [0,0,0,0], '']
+let s:clickstatus = 0
+
 function s:Bound(min, n, max)
 	return max([a:min, min([a:n, a:max])])
 endfunc
