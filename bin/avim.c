@@ -6,6 +6,7 @@ struct {
 	char *name;
 } cmds[] = {
 	{0, "edit"},
+	{'C', "close"},
 	{'c', "clear"},
 	{'d', "diff"},
 	{'h', "help"},

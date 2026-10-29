@@ -804,7 +804,7 @@ function s:LineHeight(w, l)
 endfunc
 
 function s:Fit(col)
-	for w in a:col
+	for w in filter(a:col, 'win_id2win(v:val) != 0')
 		let h = 0
 		let wh = winheight(w)
 		let top = line('$', w) + 1
@@ -1182,6 +1182,13 @@ function s:CtrlRecv(ch, data)
 		elseif cmd == 'clear'
 			for b in args
 				call s:Clear(s:BufNr(b))
+			endfor
+		elseif cmd == 'close'
+			for id in len(args) > 0 ? args : [win_getid()]
+				let w = win_id2win(str2nr(id))
+				if w != 0
+					exe w.'close'
+				endif
 			endfor
 		elseif cmd == 'checktime'
 			checktime
