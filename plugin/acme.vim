@@ -605,6 +605,10 @@ function s:CtxDirs()
 	return [dir] + ctx
 endfunc
 
+function s:IsBinary(file)
+	return join(readfile(a:file, '', 4096), '') =~ '\n'
+endfunc
+
 function AcmeOpen(name, pos)
 	for f in a:name == '' ? [] : a:name =~ '^[~/]' ? [a:name] :
 		\ map(copy(s:plumbdirs), 'v:val."/".a:name')
@@ -617,8 +621,7 @@ function AcmeOpen(name, pos)
 				continue
 			endif
 			call s:FileOpen(f, '')
-		elseif join(readfile(f, '', 4096), '') !~ '\n'
-			" No null bytes found, not considered a binary file.
+		elseif !s:IsBinary(f)
 			call s:FileOpen(f, a:pos)
 		else
 			call s:Exec('xdg-open '.shellescape(f))
@@ -638,6 +641,25 @@ function s:RgOpen(pos)
 	if f != ''
 		return AcmeOpen(f, a:pos)
 	endif
+endfunc
+
+function s:ExeOpen(cmd)
+	if a:cmd !~ '/'
+		let path = exepath(s:Dir().'/x/'.a:cmd)
+		if path == ''
+			let path = exepath(a:cmd)
+		endif
+		if path != ''
+			if !s:IsBinary(path)
+				call s:FileOpen(path, '')
+				return 1
+			elseif filereadable(path.'.c')
+				call s:FileOpen(path.'.c', '')
+				return 1
+			endif
+		endif
+	endif
+	return 0
 endfunc
 
 function AcmeExec(title, cmd, ...)
@@ -666,7 +688,7 @@ let s:plumbing = [
 	\ ['\f+', {m -> AcmeOpen(m[0], '')}],
 	\ ['^\s*(\d+)[-:]', {m -> s:RgOpen(m[1])}],
 	\ [],
-	\ ['\f+', {m -> m[0] !~ '/' && AcmeOpen(exepath(m[0]), '')}],
+	\ ['\f+', {m -> s:ExeOpen(m[0])}],
 	\ ['\d+%([:,]\d+)?', {m -> s:Goto(m[0])}],
 \ ]
 
