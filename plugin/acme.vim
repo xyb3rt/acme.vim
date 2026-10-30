@@ -191,7 +191,7 @@ endfunc
 
 function s:ArgvAxec(cmd, cwd)
 	let argv = s:Argv(a:cmd)
-	return filereadable(a:cwd.'/.env.sh')
+	return filereadable(a:cwd.'/.env.sh') || filereadable(a:cwd.'/x/env.sh')
 		\ ? [s:avimdir.'/bin/axec'] + argv : argv
 endfunc
 
