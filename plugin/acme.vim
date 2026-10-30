@@ -598,7 +598,9 @@ function s:CtxDirs()
 		endif
 		call add(ctx, d)
 	elseif guide != '' && guide != fnamemodify('~/guide', ':p')
-		call add(ctx, fnamemodify(guide, ':h'))
+		let guidedir = fnamemodify(guide, ':h')
+		let guidedir = substitute(guidedir, '/x$', '', '')
+		call add(ctx, guidedir)
 	endif
 	return [dir] + ctx
 endfunc
