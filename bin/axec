@@ -1,7 +1,7 @@
 #!/bin/sh
-if [ -r .env.sh ]; then
+if [ -r .acme/env.sh ]; then
+	. .acme/env.sh
+elif [ -r .env.sh ]; then
 	. ./.env.sh
-elif [ -r x/env.sh ]; then
-	. x/env.sh
 fi
 exec "$@"

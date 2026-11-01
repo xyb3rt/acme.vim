@@ -3,6 +3,5 @@ set --
 for e in .local/bin .vim *; do
 	[ -d "$e" ] && set -- "$@" "$e"
 done
-exec rg --files \
-	--follow --no-messages --max-depth 6 \
-	-g '!.*' -g '!x' -g guide -- "$@" | sort
+exec rg --files --max-depth 6 -g '!.*' -g .acme -g guide -- "$@" \
+	| sed 's;/\.acme/guide$;/guide;' | sort

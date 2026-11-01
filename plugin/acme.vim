@@ -191,7 +191,8 @@ endfunc
 
 function s:ArgvAxec(cmd, cwd)
 	let argv = s:Argv(a:cmd)
-	return filereadable(a:cwd.'/.env.sh') || filereadable(a:cwd.'/x/env.sh')
+	return filereadable(a:cwd.'/.acme/env.sh') ||
+		\ filereadable(a:cwd.'/.env.sh')
 		\ ? [s:avimdir.'/bin/axec'] + argv : argv
 endfunc
 
@@ -204,8 +205,8 @@ function s:JobEnv(buf, cwd)
 		\ 'COLUMNS': 80,
 		\ 'LINES': 24,
 	\ }
-	if isdirectory(a:cwd.'/x')
-		let env['PATH'] = a:cwd.'/x:'.$PATH
+	if isdirectory(a:cwd.'/.acme')
+		let env['PATH'] = a:cwd.'/.acme:'.$PATH
 	endif
 	return env
 endfunc
@@ -603,7 +604,7 @@ function s:CtxDirs()
 		call add(ctx, d)
 	elseif guide != '' && guide != fnamemodify('~/guide', ':p')
 		let guidedir = fnamemodify(guide, ':h')
-		let guidedir = substitute(guidedir, '/x$', '', '')
+		let guidedir = substitute(guidedir, '/\.acme$', '', '')
 		call add(ctx, guidedir)
 	endif
 	return [dir] + ctx
@@ -649,7 +650,7 @@ endfunc
 
 function s:ExeOpen(cmd)
 	if a:cmd !~ '/'
-		let path = exepath(s:Dir().'/x/'.a:cmd)
+		let path = exepath(s:Dir().'/.acme/'.a:cmd)
 		if path == ''
 			let path = exepath(a:cmd)
 		endif
