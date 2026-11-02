@@ -1,4 +1,7 @@
 #!/bin/sh
+if [ -d .acme ]; then
+	export PATH="$PWD/.acme:$PATH"
+fi
 if [ -r .acme/env.sh ]; then
 	. .acme/env.sh
 elif [ -r .env.sh ]; then
