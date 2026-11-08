@@ -96,6 +96,10 @@ Bringing the spirit of Plan 9 acme to vim.
 Installation
 ------------
 
+The plugin supports Vim and Neovim 0.11 or newer. In Neovim, terminal mouse
+handling follows the regular acme path because Neovim does not expose
+whether a terminal is using the alternate screen.
+
 You can install *acme.vim* with your favorite package manager or with vim's
 builtin package support:
 
@@ -138,3 +142,12 @@ builtin netrw plugin by adding the following line to your `~/.vimrc`:
 ```
 let g:loaded_netrwPlugin=1
 ```
+
+
+Tests
+-----
+
+Run `make test` to check the job environment in both Vim and Neovim and run
+Neovim's mouse, job, terminal, and directory tests. Use `make test-vim` or
+`make test-nvim` to test one editor. `VIM`, `NVIM`, `VIMFLAGS`, and
+`NVIMFLAGS` can override the executables and their options.
