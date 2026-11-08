@@ -14,6 +14,14 @@ Bringing the spirit of Plan 9 acme to vim.
 	goes to the specified position in the file. This is useful for error
 	messages and other grep-like output.
 
+	In `help` and `checkhealth` buffers, right-clicking a `|tag|` link opens
+	its help topic. HTTP and HTTPS URLs, including bare URLs, open with
+	`xdg-open`. Man-page references such as `printf(3)` open with `man` in
+	a scratch window.
+	External handlers are skipped when their executable is unavailable.
+	Trailing sentence punctuation is trimmed from bare URLs under the cursor.
+	Select the exact URL or enclose it in `<...>` to preserve that punctuation.
+
 	Items can also be opened with the `O` command.
 
 * Execute external commands with the middle mouse button:
@@ -115,16 +123,25 @@ make -C ~/.vim/pack/xyb3rt/start/acme.vim/bin avim
 Configuration
 -------------
 
-*acme.vim* supports rudimentary plumbing via the global `g:acme_plumbing`
-variable. Here is an example to get right-clickable URLs, man pages and git
-refs/ranges, that you can add to your `~/.vimrc`:
+The plugin provides `<Plug>(AcmeActivate)` in normal and visual modes. It
+opens the item under the cursor or the selected text. No key is assigned by
+default. For example:
 
+```vim
+nmap gx <Plug>(AcmeActivate)
+xmap gx <Plug>(AcmeActivate)
 ```
+
+Custom plumbing rules can be added through `g:acme_plumbing`. Each entry is
+a very-magic Vim regular expression and a handler. The handler receives the
+`matchlist()` result and returns nonzero when it handled the match. Custom
+rules run before the default URL and man-page handlers, so they can override
+those defaults.
+
+For example, to handle git refs and ranges with `git-plumb`:
+
+```vim
 let g:acme_plumbing = [
-	\ ['<https?\:\/\/(\f|[-.~!*;:@&=+$,/?#%])+', {m ->
-		\ AcmeExec('', 'setsid xdg-open', m[0])}],
-	\ ['(\f{-1,})\s*\((\d\a*)\)', {m ->
-		\ AcmeExec(m[1].'('.m[2].')', 'man', m[2], m[1])}],
 	\ ['(\f|[@{}~^.])+', {m ->
 		\ AcmeExec('git:'.m[0], 'git-plumb', m[0])}]]
 ```
@@ -138,3 +155,11 @@ builtin netrw plugin by adding the following line to your `~/.vimrc`:
 ```
 let g:loaded_netrwPlugin=1
 ```
+
+
+Tests
+-----
+
+Run the Vim plumbing tests with `make test`. The tests create their own help
+tags and external handler fixtures. For verbose output, run
+`make test VIMFLAGS=-V`.

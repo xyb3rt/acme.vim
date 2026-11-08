@@ -687,12 +687,53 @@ function AcmeExec(title, cmd, ...)
 	endif
 endfunc
 
+function s:HelpOpen(tag)
+	if s:plumbwin == 0 || win_id2win(s:plumbwin) == 0
+		return 0
+	endif
+	let ft = getbufvar(winbufnr(s:plumbwin), '&filetype')
+	if index(['help', 'checkhealth'], ft) == -1
+		return 0
+	endif
+	let tags = [a:tag]
+	if ft == 'checkhealth' && a:tag =~ '.`$'
+		" Some health reports put a closing backtick inside the |tag| link.
+		call add(tags, a:tag[:-2])
+	endif
+	let w = win_getid()
+	call win_gotoid(s:plumbwin)
+	for tag in tags
+		try
+			exe 'help' tag
+			return 1
+		catch /^Vim/
+		endtry
+	endfor
+	call win_gotoid(w)
+	return 0
+endfunc
+
+function s:UrlOpen(url, inferred)
+	let url = a:inferred && s:plumbclick > 0
+		\ ? substitute(a:url, '[,.;:!?]\+$', '', '') : a:url
+	return executable('xdg-open') && AcmeExec('', 'xdg-open', url)
+endfunc
+
+function s:ManOpen(name, section)
+	return executable('man') && AcmeExec(a:name.'('.a:section.')',
+		\ 'man', a:section, a:name)
+endfunc
+
 let s:plumbing = [
+	\ ['\|([^|[:space:]]+)\|', {m -> s:HelpOpen(m[1])}],
 	\ ['(\f+)[:\[(]+(\d+%([:,]\d+)?|[/?].+)', {m -> AcmeOpen(m[1], m[2])}],
 	\ ['[Ff]ile "([^"]+)", line (\d+)', {m -> AcmeOpen(m[1], m[2])}],
 	\ ['\f+', {m -> AcmeOpen(m[0], '')}],
 	\ ['^\s*(\d+)[-:]', {m -> s:RgOpen(m[1])}],
 	\ [],
+	\ ['[<](https?\:\/\/[^[:space:]<>]+)[>]', {m -> s:UrlOpen(m[1], 0)}],
+	\ ['<https?\:\/\/[^[:space:]<>]+', {m -> s:UrlOpen(m[0], 1)}],
+	\ ['(\f{-1,})\s*\((\d\a*)\)', {m -> s:ManOpen(m[1], m[2])}],
 	\ ['\f+', {m -> s:ExeOpen(m[0])}],
 	\ ['\d+%([:,]\d+)?', {m -> s:Goto(m[0])}],
 \ ]
@@ -722,7 +763,8 @@ function s:FileComplete(arg, line, pos)
 endfunc
 
 command -nargs=_ -complete=customlist,s:FileComplete O
-	\ call s:Open(expand(<q-args>), 0, [s:Dir()], win_getid())
+	\ call s:Open(<q-args> =~# '^\v[<]?https?\:\/\/'
+	\ ? <q-args> : expand(<q-args>), 0, [s:Dir()], win_getid())
 
 function s:InsComplete(findstart, base)
 	let line = getline('.')
@@ -1006,6 +1048,15 @@ function s:RightRelease(click)
 	endif
 	call s:InsTerms()
 endfunc
+
+function AcmeActivate(mode)
+	let text = a:mode == 'v' ? trim(s:Sel()[0], "\r\n", 2) : getline('.')
+	let click = a:mode == 'v' ? -1 : col('.')
+	call s:Open(text, click, s:CtxDirs(), win_getid())
+endfunc
+
+nnoremap <silent> <Plug>(AcmeActivate) :call AcmeActivate('')<CR>
+xnoremap <silent> <Plug>(AcmeActivate) :<C-u>call AcmeActivate('v')<CR>
 
 function s:TermLeftMouse()
 	call s:PreClick('t')
