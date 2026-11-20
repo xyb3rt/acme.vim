@@ -649,21 +649,17 @@ function s:RgOpen(pos)
 endfunc
 
 function s:ExeOpen(cmd)
-	if a:cmd !~ '/'
-		let path = exepath(s:Dir().'/.acme/'.a:cmd)
+	for dir in a:cmd =~ '/' ? [] : [s:plumbdirs[0].'/.acme', '']
+		let path = exepath(dir.(dir != '' ? '/' : '').a:cmd)
 		if path == ''
-			let path = exepath(a:cmd)
+		elseif !s:IsBinary(path)
+			call s:FileOpen(path, '')
+			return 1
+		elseif filereadable(path.'.c')
+			call s:FileOpen(path.'.c', '')
+			return 1
 		endif
-		if path != ''
-			if !s:IsBinary(path)
-				call s:FileOpen(path, '')
-				return 1
-			elseif filereadable(path.'.c')
-				call s:FileOpen(path.'.c', '')
-				return 1
-			endif
-		endif
-	endif
+	endfor
 	return 0
 endfunc
 
