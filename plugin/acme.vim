@@ -345,7 +345,7 @@ function s:JobStartNvim(cmd, outb, ctxb, opts, inp)
 endfunc
 
 function s:JobEnv(buf, cwd)
-	let env = {
+	return {
 		\ 'ACMEVIMBUF': a:buf,
 		\ 'ACMEVIMDIR': s:Dir(),
 		\ 'ACMEVIMFILE': isdirectory(expand('%')) ? '.' :
@@ -353,10 +353,6 @@ function s:JobEnv(buf, cwd)
 		\ 'COLUMNS': 80,
 		\ 'LINES': 24,
 	\ }
-	if isdirectory(a:cwd.'/.acme')
-		let env['PATH'] = a:cwd.'/.acme:'.$PATH
-	endif
-	return env
 endfunc
 
 function s:SetEnv(env)
@@ -477,7 +473,11 @@ endfunc
 
 function s:System(cmd, dir, inp)
 	let owd = chdir(a:dir)
-	let env = s:SetEnv(s:JobEnv('', a:dir))
+	let env = s:JobEnv('', a:dir)
+	if isdirectory(a:dir.'/.acme')
+		let env['PATH'] = a:dir.'/.acme:'.$PATH
+	endif
+	let env = s:SetEnv(env)
 	let out = system(a:cmd, a:inp)
 	call s:SetEnv(env)
 	call chdir(owd)
@@ -807,21 +807,17 @@ function s:RgOpen(pos)
 endfunc
 
 function s:ExeOpen(cmd)
-	if a:cmd !~ '/'
-		let path = exepath(s:Dir().'/.acme/'.a:cmd)
+	for dir in a:cmd =~ '/' ? [] : [s:plumbdirs[0].'/.acme', '']
+		let path = exepath(dir.(dir != '' ? '/' : '').a:cmd)
 		if path == ''
-			let path = exepath(a:cmd)
+		elseif !s:IsBinary(path)
+			call s:FileOpen(path, '')
+			return 1
+		elseif filereadable(path.'.c')
+			call s:FileOpen(path.'.c', '')
+			return 1
 		endif
-		if path != ''
-			if !s:IsBinary(path)
-				call s:FileOpen(path, '')
-				return 1
-			elseif filereadable(path.'.c')
-				call s:FileOpen(path.'.c', '')
-				return 1
-			endif
-		endif
-	endif
+	endfor
 	return 0
 endfunc
 
