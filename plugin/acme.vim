@@ -196,7 +196,7 @@ function s:ArgvAxec(cmd, cwd)
 		\ ? [s:avimdir.'/bin/axec'] + argv : argv
 endfunc
 
-function s:JobEnv(buf, cwd)
+function s:JobEnv(buf)
 	return {
 		\ 'ACMEVIMBUF': a:buf,
 		\ 'ACMEVIMDIR': s:Dir(),
@@ -226,7 +226,7 @@ function s:JobStart(cmd, outb, ctxb, opts, inp)
 	\ }
 	call extend(opts, a:opts)
 	let cwd = get(a:opts, 'cwd', getcwd())
-	let env = s:SetEnv(s:JobEnv(a:outb, cwd))
+	let env = s:SetEnv(s:JobEnv(a:outb))
 	let job = job_start(s:ArgvAxec(a:cmd, cwd), opts)
 	call s:SetEnv(env)
 	if job_status(job) == "fail"
@@ -322,7 +322,7 @@ endfunc
 
 function s:System(cmd, dir, inp)
 	let owd = chdir(a:dir)
-	let env = s:JobEnv('', a:dir)
+	let env = s:JobEnv('')
 	if isdirectory(a:dir.'/.acme')
 		let env['PATH'] = a:dir.'/.acme:'.$PATH
 	endif
