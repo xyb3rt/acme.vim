@@ -321,12 +321,8 @@ endfunc
 
 function s:System(cmd, dir, inp)
 	let owd = chdir(a:dir)
-	let env = s:JobEnv('')
-	if isdirectory(a:dir.'/.acme')
-		let env['PATH'] = a:dir.'/.acme:'.$PATH
-	endif
-	let env = s:SetEnv(env)
-	let out = system(a:cmd, a:inp)
+	let env = s:SetEnv(s:JobEnv(''))
+	let out = system(s:ArgvAxec(a:cmd, '.'), a:inp)
 	call s:SetEnv(env)
 	call chdir(owd)
 	return out
@@ -593,10 +589,11 @@ function s:CtxDirs()
 	let guide = fnamemodify(findfile('guide', '.;'), ':p')
 	if dir =~ '\v/\.git(/|$)'
 		let owd = chdir(dir)
-		let d = trim(system('git rev-parse --show-toplevel'), "\r\n")
+		let out = system(['git', 'rev-parse', '--show-toplevel'])
 		if owd != ''
 			call chdir(owd)
 		endif
+		let d = trim(out, "\r\n")
 		if !isdirectory(d)
 			let d = substitute(dir, '\v/\.git(/.*)?', '', '')
 		endif
